@@ -11,7 +11,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "typescript": "^5.6.3"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

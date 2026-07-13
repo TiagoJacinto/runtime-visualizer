@@ -2,6 +2,7 @@ import express, { type Application, type Request, type Response, type NextFuncti
 import { createHealthRouter } from './routes/health.ts'
 import { createRuntimeRouter } from './routes/runtime.ts'
 import { createEchoRouter } from './routes/echo.ts'
+import { createCfgRouter } from './routes/cfg.ts'
 import { errorHandler, notFoundHandler } from './middleware.ts'
 
 export type AppOptions = {
@@ -28,6 +29,7 @@ export function createApp(options: AppOptions = {}): Application {
   app.use('/api/health', createHealthRouter({ now }))
   app.use('/api/runtime', createRuntimeRouter({ now }))
   app.use('/api/echo', createEchoRouter())
+  app.use('/api/cfg', createCfgRouter())
 
   if (options.registerTestRoutes) {
     options.registerTestRoutes(app)
