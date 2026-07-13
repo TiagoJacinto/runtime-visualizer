@@ -1,0 +1,14 @@
+features:
+  - id: express-server
+    title: Express server
+    description: A small Express server in ./server exposing runtime introspection endpoints (health, runtime info, echo).
+    runnable: true
+    steps:
+      - description: Install server dependencies
+        command: cd server && bun install
+      - description: Typecheck the server
+        command: cd server && bun run typecheck
+      - description: Run the server test suite
+        command: cd server && bun test
+      - description: Start the server and verify the health endpoint
+        command: cd server && (bun run start &) && sleep 2 && curl -sS http://localhost:3000/api/health && kill %1
