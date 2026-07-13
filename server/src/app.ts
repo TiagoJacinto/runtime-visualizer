@@ -15,7 +15,7 @@ export function createApp(options: AppOptions = {}): Application {
   const now = options.now ?? (() => new Date())
 
   app.disable('x-powered-by')
-  app.use(express.json({ limit: '2mb' }))
+  app.use(express.json({ limit: '64kb' }))
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     const startedAt = now()
