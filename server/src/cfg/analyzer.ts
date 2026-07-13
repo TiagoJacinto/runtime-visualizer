@@ -131,6 +131,7 @@ function buildFunctionCfg(
     functionExit: exit.id,
     loops: [],
   }
+  const loops: LoopContext[] = []
 
   // Connect the entry node into the body's first block. Arrow functions
   // can have an expression body rather than a block body — in that case
@@ -139,7 +140,7 @@ function buildFunctionCfg(
   const body = fn.body
   if (body !== undefined) {
     if (ts.isBlock(body)) {
-      const seq = buildStatementList(sourceFile, builder, body.statements, [], ctx)
+      const seq = buildStatementList(sourceFile, builder, body.statements, loops, ctx)
       if (seq.entry !== undefined) {
         builder.addEdge(entry.id, seq.entry, 'entry')
       } else {
@@ -262,11 +263,13 @@ type LoopContext = {
   readonly label: string | undefined
   readonly head: string
   readonly exit: string
+  /** When true, `break` jumps to `exit` instead of the outer scope (e.g. switch). */
+  readonly breakOnly?: boolean
 }
 
 type StatementContext = {
   readonly functionExit: string
-  readonly loops: ReadonlyArray<LoopContext>
+  readonly loops: LoopContext[]
 }
 
 /**
@@ -281,7 +284,7 @@ function buildStatementList(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   statements: ReadonlyArray<ts.Statement>,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string | undefined; exit: string | undefined } {
   if (statements.length === 0) {
@@ -323,7 +326,7 @@ function buildStatement(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   statement: ts.Statement,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string; exit: string | undefined } {
   // ----- Terminators ------------------------------------------------------
@@ -381,7 +384,7 @@ function buildBlock(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   block: ts.Block,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string; exit: string | undefined } {
   // We splice the block's contents into the enclosing sequence rather
@@ -444,7 +447,7 @@ function buildBreakContinue(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   stmt: ts.BreakOrContinueStatement,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
 ): { entry: string; exit: string | undefined } {
   const isContinue = stmt.kind === ts.SyntaxKind.ContinueStatement
   const labelText = stmt.label?.text
@@ -480,8 +483,12 @@ function resolveBreak(
     const found = [...loops].reverse().find((l) => l.label === label)
     return found?.exit
   }
-  const last = loops[loops.length - 1]
-  return last?.exit
+  // Walk outward until we find the nearest loop/switch context.
+  for (let i = loops.length - 1; i >= 0; i--) {
+    const loop = loops[i]
+    if (loop !== undefined) return loop.exit
+  }
+  return undefined
 }
 
 function resolveContinue(
@@ -492,15 +499,19 @@ function resolveContinue(
     const found = [...loops].reverse().find((l) => l.label === label)
     return found?.head
   }
-  const last = loops[loops.length - 1]
-  return last?.head
+  // Walk outward until we find the nearest loop (skip switch contexts).
+  for (let i = loops.length - 1; i >= 0; i--) {
+    const loop = loops[i]
+    if (loop !== undefined && loop.head !== loop.exit) return loop.head
+  }
+  return undefined
 }
 
 function buildIf(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   stmt: ts.IfStatement,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string; exit: string | undefined } {
   const branch = builder.addNode({
@@ -543,7 +554,7 @@ function buildWhile(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   stmt: ts.WhileStatement,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string; exit: string | undefined } {
   const head = builder.addNode({
@@ -558,11 +569,16 @@ function buildWhile(
     kind: 'merge',
     label: '(loop exit)',
   })
-  const body = buildStatement(sourceFile, builder, stmt.statement, loops, ctx)
-  builder.addEdge(head.id, body.entry, 'true')
-  builder.addEdge(head.id, exit.id, 'false')
-  if (body.exit !== undefined) {
-    builder.addEdge(body.exit, head.id, 'next')
+  loops.push({ label: undefined, head: head.id, exit: exit.id })
+  try {
+    const body = buildStatement(sourceFile, builder, stmt.statement, loops, ctx)
+    builder.addEdge(head.id, body.entry, 'true')
+    builder.addEdge(head.id, exit.id, 'false')
+    if (body.exit !== undefined) {
+      builder.addEdge(body.exit, head.id, 'next')
+    }
+  } finally {
+    loops.pop()
   }
   return {
     entry: head.id,
@@ -574,10 +590,9 @@ function buildDoWhile(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   stmt: ts.DoStatement,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string; exit: string | undefined } {
-  const body = buildStatement(sourceFile, builder, stmt.statement, loops, ctx)
   const head = builder.addNode({
     id: builder.nextId('branch'),
     kind: 'branch',
@@ -590,18 +605,24 @@ function buildDoWhile(
     kind: 'merge',
     label: '(loop exit)',
   })
-  builder.addEdge(body.entry, head.id, 'next')
-  builder.addEdge(head.id, body.entry, 'true')
-  builder.addEdge(head.id, exit.id, 'false')
-  // do-while body executes at least once: enter via body, not via head.
-  return { entry: body.entry, exit: exit.id }
+  loops.push({ label: undefined, head: head.id, exit: exit.id })
+  try {
+    const body = buildStatement(sourceFile, builder, stmt.statement, loops, ctx)
+    builder.addEdge(body.entry, head.id, 'next')
+    builder.addEdge(head.id, body.entry, 'true')
+    builder.addEdge(head.id, exit.id, 'false')
+    // do-while body executes at least once: enter via body, not via head.
+    return { entry: body.entry, exit: exit.id }
+  } finally {
+    loops.pop()
+  }
 }
 
 function buildFor(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   stmt: ts.ForStatement,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string; exit: string | undefined } {
   const head = builder.addNode({
@@ -617,44 +638,49 @@ function buildFor(
     kind: 'merge',
     label: '(loop exit)',
   })
-  const body = buildStatement(sourceFile, builder, stmt.statement, loops, ctx)
-  builder.addEdge(head.id, body.entry, 'true')
-  builder.addEdge(head.id, exit.id, 'false')
+  loops.push({ label: undefined, head: head.id, exit: exit.id })
+  try {
+    const body = buildStatement(sourceFile, builder, stmt.statement, loops, ctx)
+    builder.addEdge(head.id, body.entry, 'true')
+    builder.addEdge(head.id, exit.id, 'false')
 
-  // Build the init/update tail.
-  const tail: { entry: string; exit: string }[] = []
-  if (stmt.initializer !== undefined) {
-    tail.push(buildForInit(sourceFile, builder, stmt.initializer))
-  }
-  if (stmt.incrementor !== undefined) {
-    tail.push(buildForInit(sourceFile, builder, stmt.incrementor))
-  }
+    // Build the init/update tail.
+    const tail: { entry: string; exit: string }[] = []
+    if (stmt.initializer !== undefined) {
+      tail.push(buildForInit(sourceFile, builder, stmt.initializer))
+    }
+    if (stmt.incrementor !== undefined) {
+      tail.push(buildForInit(sourceFile, builder, stmt.incrementor))
+    }
 
-  if (tail.length > 0) {
-    // Wire tail entries together.
-    for (let i = 1; i < tail.length; i++) {
-      const prev = tail[i - 1]
-      const cur = tail[i]
-      if (prev !== undefined && cur !== undefined) {
-        builder.addEdge(prev.exit, cur.entry, 'next')
+    if (tail.length > 0) {
+      // Wire tail entries together.
+      for (let i = 1; i < tail.length; i++) {
+        const prev = tail[i - 1]
+        const cur = tail[i]
+        if (prev !== undefined && cur !== undefined) {
+          builder.addEdge(prev.exit, cur.entry, 'next')
+        }
+      }
+      const first = tail[0]
+      const last = tail[tail.length - 1]
+      if (first !== undefined && last !== undefined) {
+        builder.addEdge(last.exit, head.id, 'next')
+        if (body.exit !== undefined) {
+          builder.addEdge(body.exit, first.entry, 'next')
+        }
+        return { entry: first.entry, exit: exit.id }
       }
     }
-    const first = tail[0]
-    const last = tail[tail.length - 1]
-    if (first !== undefined && last !== undefined) {
-      builder.addEdge(last.exit, head.id, 'next')
-      if (body.exit !== undefined) {
-        builder.addEdge(body.exit, first.entry, 'next')
-      }
-      return { entry: first.entry, exit: exit.id }
-    }
-  }
 
-  // No init/update: just hook body exit back to the head.
-  if (body.exit !== undefined) {
-    builder.addEdge(body.exit, head.id, 'next')
+    // No init/update: just hook body exit back to the head.
+    if (body.exit !== undefined) {
+      builder.addEdge(body.exit, head.id, 'next')
+    }
+    return { entry: head.id, exit: exit.id }
+  } finally {
+    loops.pop()
   }
-  return { entry: head.id, exit: exit.id }
 }
 
 function buildForInit(
@@ -696,7 +722,7 @@ function buildForInOf(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   stmt: ts.ForInStatement | ts.ForOfStatement,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string; exit: string | undefined } {
   const head = builder.addNode({
@@ -714,20 +740,25 @@ function buildForInOf(
     kind: 'merge',
     label: '(loop exit)',
   })
-  const body = buildStatement(sourceFile, builder, stmt.statement, loops, ctx)
-  builder.addEdge(head.id, body.entry, 'true')
-  builder.addEdge(head.id, exit.id, 'false')
-  if (body.exit !== undefined) {
-    builder.addEdge(body.exit, head.id, 'next')
+  loops.push({ label: undefined, head: head.id, exit: exit.id })
+  try {
+    const body = buildStatement(sourceFile, builder, stmt.statement, loops, ctx)
+    builder.addEdge(head.id, body.entry, 'true')
+    builder.addEdge(head.id, exit.id, 'false')
+    if (body.exit !== undefined) {
+      builder.addEdge(body.exit, head.id, 'next')
+    }
+    return { entry: head.id, exit: exit.id }
+  } finally {
+    loops.pop()
   }
-  return { entry: head.id, exit: exit.id }
 }
 
 function buildSwitch(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   stmt: ts.SwitchStatement,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string; exit: string | undefined } {
   const dispatch = builder.addNode({
@@ -801,7 +832,7 @@ function buildTry(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   stmt: ts.TryStatement,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string; exit: string | undefined } {
   const tryEntry = builder.addNode({
@@ -867,7 +898,7 @@ function buildLabeled(
   sourceFile: ts.SourceFile,
   builder: CfgBuilder,
   stmt: ts.LabeledStatement,
-  loops: ReadonlyArray<LoopContext>,
+  loops: LoopContext[],
   ctx: StatementContext,
 ): { entry: string; exit: string | undefined } {
   const inner = buildStatement(sourceFile, builder, stmt.statement, loops, ctx)

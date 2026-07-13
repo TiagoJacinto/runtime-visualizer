@@ -22,3 +22,17 @@ features:
         command: ./node_modules/.bin/tsc -p target
       - description: Recover functions.ts from the inline source in target/dist/functions.js.map and verify it matches byte-for-byte
         command: bun run target/recover.ts
+
+  - id: control-flow-graph-from-typescript
+    title: Control-flow graph from TypeScript
+    description: A server endpoint at POST /api/cfg that takes a TypeScript source string and returns a control-flow graph (entry/exit nodes, branches, loops, switch dispatch, try/catch, return/throw/break/continue) for every function-like declaration in the file.
+    runnable: true
+    steps:
+      - description: Install server dependencies
+        command: cd server && bun install
+      - description: Start the server in the background
+        command: cd server && (bun run start &) && sleep 2
+      - description: POST a TypeScript snippet and inspect the returned CFG
+        command: curl -sS -H 'content-type: application/json' -d '{"source":"function add(a:number,b:number){if(a<0)return -1;return a+b}","filePath":"demo.ts"}' http://localhost:3000/api/cfg
+      - description: Stop the background server
+        command: pkill -f 'bun run src/index.ts' || true
