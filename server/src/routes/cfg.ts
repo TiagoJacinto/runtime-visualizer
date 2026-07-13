@@ -7,7 +7,7 @@ type CfgRequestBody = {
   readonly filePath?: unknown
 }
 
-const MAX_SOURCE_BYTES = 1_000_000
+const MAX_SOURCE_BYTES = 60_000
 
 export function createCfgRouter(): Router {
   const router = Router()

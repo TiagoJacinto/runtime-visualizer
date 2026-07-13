@@ -1,47 +1,7 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
 import type { Application } from 'express'
 import { createApp } from '../src/app.ts'
-
-type TestResponse = {
-  readonly status: number
-  readonly body: unknown
-}
-
-async function call(
-  app: Application,
-  method: string,
-  url: string,
-  body?: unknown,
-): Promise<TestResponse> {
-  const server = app.listen(0)
-  try {
-    const address = server.address()
-    if (address === null || typeof address === 'string') {
-      throw new Error('expected a port number from app.listen(0)')
-    }
-    const port = address.port
-    const init: RequestInit = {
-      method,
-      headers: body !== undefined ? { 'content-type': 'application/json' } : {},
-    }
-    if (body !== undefined) {
-      init.body = JSON.stringify(body)
-    }
-    const response = await fetch(`http://127.0.0.1:${port}${url}`, init)
-    const text = await response.text()
-    let parsed: unknown = null
-    if (text.length > 0) {
-      try {
-        parsed = JSON.parse(text)
-      } catch {
-        parsed = text
-      }
-    }
-    return { status: response.status, body: parsed }
-  } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()))
-  }
-}
+import { call } from './helpers.ts'
 
 describe('GET /api/health', () => {
   let app: Application

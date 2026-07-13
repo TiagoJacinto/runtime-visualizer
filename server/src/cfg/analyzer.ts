@@ -129,7 +129,6 @@ function buildFunctionCfg(
 
   const ctx: StatementContext = {
     functionExit: exit.id,
-    loops: [],
   }
   const loops: LoopContext[] = []
 
@@ -263,13 +262,10 @@ type LoopContext = {
   readonly label: string | undefined
   readonly head: string
   readonly exit: string
-  /** When true, `break` jumps to `exit` instead of the outer scope (e.g. switch). */
-  readonly breakOnly?: boolean
 }
 
 type StatementContext = {
   readonly functionExit: string
-  readonly loops: LoopContext[]
 }
 
 /**
@@ -644,39 +640,29 @@ function buildFor(
     builder.addEdge(head.id, body.entry, 'true')
     builder.addEdge(head.id, exit.id, 'false')
 
-    // Build the init/update tail.
-    const tail: { entry: string; exit: string }[] = []
-    if (stmt.initializer !== undefined) {
-      tail.push(buildForInit(sourceFile, builder, stmt.initializer))
-    }
-    if (stmt.incrementor !== undefined) {
-      tail.push(buildForInit(sourceFile, builder, stmt.incrementor))
-    }
+    // `for (init; cond; incr) body` desugars to `init; while (cond) { body; incr }`.
+    // Build init and incr as independent segments.
+    const initSeq =
+      stmt.initializer !== undefined ? buildForInit(sourceFile, builder, stmt.initializer) : null
+    const incrSeq =
+      stmt.incrementor !== undefined ? buildForInit(sourceFile, builder, stmt.incrementor) : null
 
-    if (tail.length > 0) {
-      // Wire tail entries together.
-      for (let i = 1; i < tail.length; i++) {
-        const prev = tail[i - 1]
-        const cur = tail[i]
-        if (prev !== undefined && cur !== undefined) {
-          builder.addEdge(prev.exit, cur.entry, 'next')
-        }
-      }
-      const first = tail[0]
-      const last = tail[tail.length - 1]
-      if (first !== undefined && last !== undefined) {
-        builder.addEdge(last.exit, head.id, 'next')
-        if (body.exit !== undefined) {
-          builder.addEdge(body.exit, first.entry, 'next')
-        }
-        return { entry: first.entry, exit: exit.id }
-      }
-    }
-
-    // No init/update: just hook body exit back to the head.
     if (body.exit !== undefined) {
-      builder.addEdge(body.exit, head.id, 'next')
+      // body → incr (if any) → head, else body → head.
+      if (incrSeq !== null) {
+        builder.addEdge(body.exit, incrSeq.entry, 'next')
+        builder.addEdge(incrSeq.exit, head.id, 'next')
+      } else {
+        builder.addEdge(body.exit, head.id, 'next')
+      }
     }
+
+    if (initSeq !== null) {
+      // init → head.
+      builder.addEdge(initSeq.exit, head.id, 'next')
+      return { entry: initSeq.entry, exit: exit.id }
+    }
+
     return { entry: head.id, exit: exit.id }
   } finally {
     loops.pop()

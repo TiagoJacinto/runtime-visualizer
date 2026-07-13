@@ -132,6 +132,13 @@ describe('analyseTypeScript', () => {
     const defaultEdge = dispatchEdges.find((e) => e.kind === 'default')
     expect(caseEdges).toHaveLength(3)
     expect(defaultEdge).toBeDefined()
+
+    // Verify case 2 falls through to case 3: case 2 has no statement of
+    // its own, so its exit falls through to the next clause's entry.
+    const case2 = cases.find((n) => n.kind === 'case' && n.label === 'case 2:')!
+    const case3 = cases.find((n) => n.kind === 'case' && n.label === 'case 3:')!
+    const fallthrough = fn.edges.find((e) => e.from === case2.id && e.to === case3.id)
+    expect(fallthrough).toBeDefined()
   })
 
   it('models try/catch with an unwind edge from try to catch', () => {
@@ -245,6 +252,51 @@ describe('analyseTypeScript', () => {
     expect(fn.nodes.some((n) => n.label.startsWith('do-while'))).toBe(true)
   })
 
+  it('routes for-loop body exit to the incrementor, not the initializer', () => {
+    // Regression test for the bug where body.exit was wired to the
+    // initializer instead of the incrementor, causing the init to
+    // re-execute every iteration.
+    const { functions } = analyseTypeScript(`
+      function count(n: number): number {
+        let s = 0
+        for (let i = 0; i < n; i++) {
+          s += i
+        }
+        return s
+      }
+    `)
+    const fn = functions[0]!
+    const head = fn.nodes.find((n) => n.kind === 'branch' && n.label.startsWith('for ('))!
+    // Find the incrementor statement (text `i++`).
+    const incr = fn.nodes.find(
+      (n) => n.kind === 'statement' && n.text !== undefined && n.text.trim() === 'i++',
+    )!
+    // Find the initializer (`i = 0`, since the `let` keyword is stripped
+    // from the snippet text).
+    const init = fn.nodes.find(
+      (n) => n.kind === 'statement' && n.text !== undefined && n.text.trim() === 'i = 0',
+    )!
+    // The body exit must reach the incrementor, and the incrementor must
+    // then reach the head.
+    const bodyToIncr = fn.edges.find(
+      (e) => e.to === incr.id && fn.nodes.some((n) => n.id === e.from && n.kind !== 'branch'),
+    )
+    expect(bodyToIncr).toBeDefined()
+    const incrToHead = fn.edges.find(
+      (e) => e.from === incr.id && e.to === head.id && e.kind === 'next',
+    )
+    expect(incrToHead).toBeDefined()
+    // The body must not flow back into the initializer. The body here is
+    // `s += i` (a non-branch statement node whose text is `s += i`); any
+    // edge from it into `init` would re-run the initializer each
+    // iteration.
+    const body = fn.nodes.find(
+      (n) => n.kind === 'statement' && n.text !== undefined && n.text.trim() === 's += i',
+    )!
+    const initFromBody = fn.edges.find((e) => e.to === init.id && e.from === body.id)
+    expect(initFromBody).toBeUndefined()
+  })
+
   it('records break as a terminator that jumps to the loop exit', () => {
     const { functions } = analyseTypeScript(`
       function until(xs: number[]): number {
@@ -258,7 +310,13 @@ describe('analyseTypeScript', () => {
     const breakNode = fn.nodes.find((n) => n.kind === 'break')
     expect(breakNode).toBeDefined()
     // The break node must have an outgoing edge to the loop exit merge.
-    const loopExit = fn.nodes.find((n) => n.kind === 'merge' && n.label === '(loop exit)')!
-    expect(outgoingEdges(fn, breakNode!.id).map((e) => e.to)).toContain(loopExit.id)
+    // Pull the exit id from the break node's own edge rather than
+    // scanning by label, so the assertion is robust to nested loops.
+    const breakEdges = outgoingEdges(fn, breakNode!.id)
+    expect(breakEdges).toHaveLength(1)
+    const exit = breakEdges[0]!.to
+    const exitNode = fn.nodes.find((n) => n.id === exit)
+    expect(exitNode?.kind).toBe('merge')
+    expect(exitNode?.label).toBe('(loop exit)')
   })
 })
