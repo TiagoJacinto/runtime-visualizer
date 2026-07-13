@@ -3,11 +3,18 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "server"
+  ],
   "scripts": {
     "dev": "vite",
+    "dev:server": "bun --filter runtime-visualizer-server dev",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server:start": "bun --filter runtime-visualizer-server start",
+    "server:test": "bun --filter runtime-visualizer-server test",
+    "server:typecheck": "bun --filter runtime-visualizer-server typecheck"
   },
   "dependencies": {
     "react": "^19.2.7",
