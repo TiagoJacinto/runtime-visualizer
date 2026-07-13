@@ -12,3 +12,13 @@ features:
         command: cd server && bun test
       - description: Start the server and verify the health endpoint
         command: cd server && (bun run start &) && sleep 2 && curl -sS http://localhost:3000/api/health && kill %1
+
+  - id: target-source-map-roundtrip
+    title: TS source map round-trip in ./target
+    description: Compile a TypeScript file in ./target so the emitted source map contains the inline original source, then recover the original from the map and verify it is byte-identical to the source file.
+    runnable: true
+    steps:
+      - description: Compile ./target/functions.ts with inline source maps
+        command: ./node_modules/.bin/tsc -p target
+      - description: Recover functions.ts from the inline source in target/dist/functions.js.map and verify it matches byte-for-byte
+        command: bun run target/recover.ts

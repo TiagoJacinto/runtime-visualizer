@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# target/ build output
+target/dist
+
 # Server
 server/node_modules
 server/dist
