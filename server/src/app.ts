@@ -8,6 +8,8 @@ import { errorHandler, notFoundHandler } from './middleware.ts'
 export type AppOptions = {
   readonly now?: () => Date
   readonly registerTestRoutes?: (app: Application) => void
+  /** Project root used by `POST /api/cfg/project` (defaults to `<cwd>/target`). */
+  readonly cfgProjectRoot?: string
 }
 
 export function createApp(options: AppOptions = {}): Application {
@@ -29,7 +31,12 @@ export function createApp(options: AppOptions = {}): Application {
   app.use('/api/health', createHealthRouter({ now }))
   app.use('/api/runtime', createRuntimeRouter({ now }))
   app.use('/api/echo', createEchoRouter())
-  app.use('/api/cfg', createCfgRouter())
+  app.use(
+    '/api/cfg',
+    createCfgRouter(
+      options.cfgProjectRoot !== undefined ? { projectRoot: options.cfgProjectRoot } : {},
+    ),
+  )
 
   if (options.registerTestRoutes) {
     options.registerTestRoutes(app)
