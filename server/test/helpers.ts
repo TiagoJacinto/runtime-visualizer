@@ -1,7 +1,7 @@
 /**
  * Shared test helpers for the server test suite.
  */
-import type { Application } from 'express'
+import type { FastifyInstance } from 'fastify'
 
 export type TestResponse = {
   readonly status: number
@@ -9,20 +9,20 @@ export type TestResponse = {
 }
 
 /**
- * Spins up the given Express app on an ephemeral port, sends a request,
+ * Spins up the given Fastify app on an ephemeral port, sends a request,
  * then tears the server down. Returns the status + parsed JSON body.
  */
 export async function call(
-  app: Application,
+  app: FastifyInstance,
   method: string,
   url: string,
   body?: unknown,
 ): Promise<TestResponse> {
-  const server = app.listen(0)
+  await app.listen({ port: 0, host: '127.0.0.1' })
   try {
-    const address = server.address()
+    const address = app.server.address()
     if (address === null || typeof address === 'string') {
-      throw new Error('expected a port number from app.listen(0)')
+      throw new Error('expected a port number from app.listen({ port: 0 })')
     }
     const port = address.port
     const init: RequestInit = {
@@ -44,6 +44,6 @@ export async function call(
     }
     return { status: response.status, body: parsed }
   } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()))
+    await app.close()
   }
 }

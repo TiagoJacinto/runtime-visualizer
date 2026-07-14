@@ -15,7 +15,7 @@ Note: This will impact Vite dev & build performances.
 
 ## Server
 
-A small Express server lives in `./server` (declared as a workspace).
+A small Fastify server lives in `./server` (declared as a workspace).
 
 ```bash
 bun install                          # root install (wires the server workspace)

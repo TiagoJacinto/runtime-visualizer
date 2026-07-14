@@ -1,20 +1,17 @@
-import { Router, type Request, type Response } from 'express'
+import type { FastifyPluginAsync } from 'fastify'
 
-export type HealthRouterOptions = {
+export type HealthRoutesOptions = {
   readonly now?: () => Date
 }
 
-export function createHealthRouter(options: HealthRouterOptions = {}): Router {
-  const router = Router()
+const healthRoutes: FastifyPluginAsync<HealthRoutesOptions> = async (app, options) => {
   const now = options.now ?? (() => new Date())
 
-  router.get('/', (_req: Request, res: Response) => {
-    res.json({
-      status: 'ok',
-      uptimeMs: Math.round(process.uptime() * 1000),
-      timestamp: now().toISOString(),
-    })
-  })
-
-  return router
+  app.get('/', async () => ({
+    status: 'ok',
+    uptimeMs: Math.round(process.uptime() * 1000),
+    timestamp: now().toISOString(),
+  }))
 }
+
+export default healthRoutes

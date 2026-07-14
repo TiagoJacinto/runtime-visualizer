@@ -1,7 +1,7 @@
-import { Router, type Request, type Response, type NextFunction } from 'express'
+import type { FastifyPluginAsync } from 'fastify'
 import { analyseTypeScript } from '../cfg/analyzer.ts'
 import { buildProjectCfg, ProjectCfgError } from '../cfg/project.ts'
-import { HttpError } from '../middleware.ts'
+import { HttpError } from '../errors.ts'
 
 type CfgRequestBody = {
   readonly source?: unknown
@@ -15,24 +15,25 @@ type CfgProjectBody = {
 
 const MAX_SOURCE_BYTES = 60_000
 
-export type CfgRouterOptions = {
+export type CfgRoutesOptions = {
   /** Project root for the `/api/cfg/project` endpoint. */
   readonly projectRoot?: string
 }
 
-export function createCfgRouter(options: CfgRouterOptions = {}): Router {
-  const router = Router()
+/** Coerce a parsed JSON body (which may be `undefined` or a non-object) to a typed record. */
+function coerceBody<T extends object>(req: { body: unknown }): T {
+  return (typeof req.body === 'object' && req.body !== null ? req.body : {}) as T
+}
 
-  router.get('/', (_req: Request, res: Response) => {
-    res.json({
-      ok: true,
-      info: 'POST { source: string, filePath?: string } to build a control-flow graph, or POST /api/cfg/project { entry: string } to build the import-subgraph.',
-    })
-  })
+const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (app, options) => {
+  app.get('/', async () => ({
+    ok: true,
+    info:
+      'POST { source: string, filePath?: string } to build a control-flow graph, or POST /api/cfg/project { entry: string } to build the import-subgraph.',
+  }))
 
-  router.post('/', (req: Request, res: Response) => {
-    const body: CfgRequestBody =
-      typeof req.body === 'object' && req.body !== null ? (req.body as CfgRequestBody) : {}
+  app.post('/', async (req) => {
+    const body = coerceBody<CfgRequestBody>(req)
 
     if (typeof body.source !== 'string') {
       throw new HttpError(400, '`source` must be a string containing TypeScript source code.')
@@ -54,34 +55,31 @@ export function createCfgRouter(options: CfgRouterOptions = {}): Router {
       ...(typeof body.filePath === 'string' ? { filePath: body.filePath } : {}),
     })
 
-    res.json({ ok: true, cfg })
+    return { ok: true, cfg }
   })
 
-  router.post('/project', (req: Request, res: Response, next: NextFunction) => {
-    void (async () => {
-      const body: CfgProjectBody =
-        typeof req.body === 'object' && req.body !== null ? (req.body as CfgProjectBody) : {}
+  app.post('/project', async (req) => {
+    const body = coerceBody<CfgProjectBody>(req)
 
-      if (typeof body.entry !== 'string' || body.entry.length === 0) {
-        throw new HttpError(400, '`entry` must be a non-empty path relative to the project root.')
+    if (typeof body.entry !== 'string' || body.entry.length === 0) {
+      throw new HttpError(400, '`entry` must be a non-empty path relative to the project root.')
+    }
+    if (body.root !== undefined && typeof body.root !== 'string') {
+      throw new HttpError(400, '`root` must be a string when provided.')
+    }
+
+    const project = await buildProjectCfg(body.entry, {
+      ...(options.projectRoot !== undefined ? { root: options.projectRoot } : {}),
+      ...(typeof body.root === 'string' ? { root: body.root } : {}),
+    }).catch((err: unknown): never => {
+      if (err instanceof ProjectCfgError) {
+        throw new HttpError(err.status, err.message)
       }
-      if (body.root !== undefined && typeof body.root !== 'string') {
-        throw new HttpError(400, '`root` must be a string when provided.')
-      }
+      throw err
+    })
 
-      const project = await buildProjectCfg(body.entry, {
-        ...(options.projectRoot !== undefined ? { root: options.projectRoot } : {}),
-        ...(typeof body.root === 'string' ? { root: body.root } : {}),
-      }).catch((err: unknown): never => {
-        if (err instanceof ProjectCfgError) {
-          throw new HttpError(err.status, err.message)
-        }
-        throw err
-      })
-
-      res.json({ ok: true, project })
-    })().catch(next)
+    return { ok: true, project }
   })
-
-  return router
 }
+
+export default cfgRoutes
