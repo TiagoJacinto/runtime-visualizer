@@ -36,3 +36,21 @@ features:
         command: curl -sS -H 'content-type: application/json' -d '{"source":"function add(a:number,b:number){if(a<0)return -1;return a+b}","filePath":"demo.ts"}' http://localhost:3000/api/cfg
       - description: Stop the background server
         command: pkill -f 'bun run src/index.ts' || true
+
+  - id: mermaid-cfg-websocket
+    title: Mermaid flowchart WebSocket for the CFG
+    description: A WebSocket endpoint at ws://<host>/api/mermaid that, given an entry file, walks the local-import subgraph, renders every function CFG as a Mermaid `flowchart`, and pushes a fresh snapshot whenever any watched file in the subgraph changes.
+    runnable: true
+    steps:
+      - description: Install server dependencies
+        command: cd server && bun install
+      - description: Typecheck the server
+        command: cd server && bun run typecheck
+      - description: Run the server test suite
+        command: cd server && bun test
+      - description: Start the server pointed at the fixture project root
+        command: cd server && (CFG_PROJECT_ROOT=../target/fixtures bun run start &) && sleep 2
+      - description: Subscribe over the websocket and capture the first snapshot
+        command: cd server && bun -e "import('ws').then(({WebSocket}) => {const ws = new WebSocket('ws://localhost:3000/api/mermaid'); ws.on('open', () => ws.send(JSON.stringify({type:'subscribe', entry:'entry.ts'}))); ws.on('message', (raw) => { const m = JSON.parse(raw.toString()); console.log(m.type, m.entry, m.files); console.log(m.mermaid.split('\\n').slice(0,8).join('\\n')); ws.close(); process.exit(0); }); setTimeout(() => process.exit(1), 3000); })"
+      - description: Stop the background server
+        command: pkill -f 'bun run src/index.ts' || true
