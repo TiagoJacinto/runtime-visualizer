@@ -1,5 +1,7 @@
-import type { Request, Response, NextFunction } from 'express'
-
+/**
+ * Custom HTTP error thrown by route handlers; the Fastify error
+ * handler (set up in `app.ts`) maps these to a JSON response.
+ */
 export class HttpError extends Error {
   readonly status: number
 
@@ -8,23 +10,4 @@ export class HttpError extends Error {
     this.status = status
     this.name = 'HttpError'
   }
-}
-
-export function notFoundHandler(_req: Request, res: Response): void {
-  res.status(404).json({ error: 'Not Found' })
-}
-
-export function errorHandler(
-  err: unknown,
-  _req: Request,
-  res: Response,
-  _next: NextFunction,
-): void {
-  if (err instanceof HttpError) {
-    res.status(err.status).json({ error: err.message })
-    return
-  }
-  const message = err instanceof Error ? err.message : 'Internal Server Error'
-  console.error('[server] unhandled error:', err)
-  res.status(500).json({ error: message })
 }

@@ -1,12 +1,12 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
-import type { Application } from 'express'
+import type { FastifyInstance } from 'fastify'
 import { createApp } from '../src/app.ts'
 import type { ControlFlowGraph } from '../src/cfg/types.ts'
 import { call } from './helpers.ts'
 
 describe('GET /api/cfg', () => {
   it('returns usage info', async () => {
-    const app = createApp()
+    const app = await createApp()
     const res = await call(app, 'GET', '/api/cfg')
     expect(res.status).toBe(200)
     const body = res.body as { ok: boolean; info: string }
@@ -17,9 +17,9 @@ describe('GET /api/cfg', () => {
 })
 
 describe('POST /api/cfg', () => {
-  let app: Application
-  beforeEach(() => {
-    app = createApp()
+  let app: FastifyInstance
+  beforeEach(async () => {
+    app = await createApp()
   })
 
   it('builds a CFG for a simple function', async () => {

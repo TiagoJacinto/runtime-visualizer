@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
-import type { Application } from 'express'
+import type { FastifyInstance } from 'fastify'
 import * as path from 'node:path'
 import { createApp } from '../src/app.ts'
 import { call } from './helpers.ts'
@@ -9,9 +9,9 @@ const FIXTURES = path.resolve(import.meta.dir, '..', '..', 'target', 'fixtures')
 const REAL_TARGET = path.resolve(import.meta.dir, '..', '..', 'target')
 
 describe('POST /api/cfg/project', () => {
-  let app: Application
-  beforeEach(() => {
-    app = createApp({ cfgProjectRoot: FIXTURES })
+  let app: FastifyInstance
+  beforeEach(async () => {
+    app = await createApp({ cfgProjectRoot: FIXTURES })
   })
 
   it('returns the import-subgraph CFG for a relative entry', async () => {
@@ -64,7 +64,7 @@ describe('POST /api/cfg/project', () => {
   it('works against the real ./target directory when injected as project root', async () => {
     const fs = await import('node:fs')
     if (!fs.existsSync(path.join(REAL_TARGET, 'arithmetic.ts'))) return
-    const realApp = createApp({ cfgProjectRoot: REAL_TARGET })
+    const realApp = await createApp({ cfgProjectRoot: REAL_TARGET })
     const res = await call(realApp, 'POST', '/api/cfg/project', { entry: 'arithmetic.ts' })
     expect(res.status).toBe(200)
     const body = res.body as { project: ProjectCfg }

@@ -1,13 +1,13 @@
 import { describe, expect, it, beforeEach } from 'bun:test'
-import type { Application } from 'express'
+import type { FastifyInstance } from 'fastify'
 import { createApp } from '../src/app.ts'
 import { call } from './helpers.ts'
 
 describe('GET /api/health', () => {
-  let app: Application
+  let app: FastifyInstance
 
-  beforeEach(() => {
-    app = createApp({ now: () => new Date('2024-01-01T00:00:00.000Z') })
+  beforeEach(async () => {
+    app = await createApp({ now: () => new Date('2024-01-01T00:00:00.000Z') })
   })
 
   it('returns ok status with timestamp and uptime', async () => {
@@ -23,7 +23,7 @@ describe('GET /api/health', () => {
 
 describe('GET /api/runtime', () => {
   it('exposes node version, platform, arch, pid', async () => {
-    const app = createApp()
+    const app = await createApp()
     const res = await call(app, 'GET', '/api/runtime')
     expect(res.status).toBe(200)
     const body = res.body as {
@@ -42,7 +42,7 @@ describe('GET /api/runtime', () => {
 
 describe('GET /api/runtime/memory', () => {
   it('returns memory usage numbers and an ISO timestamp', async () => {
-    const app = createApp()
+    const app = await createApp()
     const res = await call(app, 'GET', '/api/runtime/memory')
     expect(res.status).toBe(200)
     const body = res.body as {
@@ -63,7 +63,7 @@ describe('GET /api/runtime/memory', () => {
 
 describe('GET /api/runtime/uptime', () => {
   it('returns a non-negative uptime in ms', async () => {
-    const app = createApp()
+    const app = await createApp()
     const res = await call(app, 'GET', '/api/runtime/uptime')
     expect(res.status).toBe(200)
     const body = res.body as { uptimeMs: number }
@@ -73,7 +73,7 @@ describe('GET /api/runtime/uptime', () => {
 
 describe('error handling', () => {
   it('returns 500 with the message for a non-HttpError', async () => {
-    const app = createApp({
+    const app = await createApp({
       registerTestRoutes: (a) => {
         a.get('/__test/boom', () => {
           throw new Error('boom')
@@ -86,7 +86,7 @@ describe('error handling', () => {
   })
 
   it('returns a generic message when the thrown value is not an Error', async () => {
-    const app = createApp({
+    const app = await createApp({
       registerTestRoutes: (a) => {
         a.get('/__test/string-throw', () => {
           throw 'not an error'
@@ -101,7 +101,7 @@ describe('error handling', () => {
 
 describe('GET /api/echo', () => {
   it('returns ok', async () => {
-    const app = createApp()
+    const app = await createApp()
     const res = await call(app, 'GET', '/api/echo')
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ ok: true })
@@ -110,7 +110,7 @@ describe('GET /api/echo', () => {
 
 describe('POST /api/echo', () => {
   it('echoes the message and metadata back', async () => {
-    const app = createApp()
+    const app = await createApp()
     const res = await call(app, 'POST', '/api/echo', {
       message: 'hello',
       metadata: { traceId: 'abc' },
@@ -127,7 +127,7 @@ describe('POST /api/echo', () => {
   })
 
   it('handles a missing body gracefully', async () => {
-    const app = createApp()
+    const app = await createApp()
     const res = await call(app, 'POST', '/api/echo')
     expect(res.status).toBe(200)
     const body = res.body as { received: { message: null; metadata: null } }
@@ -138,7 +138,7 @@ describe('POST /api/echo', () => {
 
 describe('unknown routes', () => {
   it('responds with 404 and an error payload', async () => {
-    const app = createApp()
+    const app = await createApp()
     const res = await call(app, 'GET', '/api/does-not-exist')
     expect(res.status).toBe(404)
     expect(res.body).toEqual({ error: 'Not Found' })

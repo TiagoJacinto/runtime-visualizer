@@ -79,8 +79,8 @@ const REBUILD_DEBOUNCE_MS = 80
 
 /**
  * Attaches the Mermaid WebSocket endpoint to an existing HTTP server
- * (the one Express returned from `app.listen()`). The handle is
- * what the caller passes to `server.close()`-time cleanup.
+ * (e.g. `fastify.server` returned by `fastify.listen()`). The handle
+ * is what the caller passes to shutdown-time cleanup.
  */
 export function attachMermaidWebSocket(
   server: http.Server,

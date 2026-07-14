@@ -1,6 +1,6 @@
-import { Router, type Request, type Response } from 'express'
+import type { FastifyPluginAsync } from 'fastify'
 
-export type RuntimeRouterOptions = {
+export type RuntimeRoutesOptions = {
   readonly now?: () => Date
 }
 
@@ -22,18 +22,17 @@ type RuntimePayload = {
   readonly timestamp: string
 }
 
-export function createRuntimeRouter(options: RuntimeRouterOptions = {}): Router {
-  const router = Router()
+const runtimeRoutes: FastifyPluginAsync<RuntimeRoutesOptions> = async (app, options) => {
   const now = options.now ?? (() => new Date())
 
-  router.get('/', (_req: Request, res: Response) => {
+  app.get('/', async (): Promise<RuntimePayload> => {
     const memoryUsage = process.memoryUsage()
     const bunVersion =
       typeof globalThis.Bun !== 'undefined' && typeof globalThis.Bun.version === 'string'
         ? globalThis.Bun.version
         : null
 
-    const payload: RuntimePayload = {
+    return {
       node: {
         version: process.version,
         platform: process.platform,
@@ -50,27 +49,23 @@ export function createRuntimeRouter(options: RuntimeRouterOptions = {}): Router 
       },
       timestamp: now().toISOString(),
     }
-
-    res.json(payload)
   })
 
-  router.get('/memory', (_req: Request, res: Response) => {
+  app.get('/memory', async () => {
     const memoryUsage = process.memoryUsage()
-    res.json({
+    return {
       rssBytes: memoryUsage.rss,
       heapUsedBytes: memoryUsage.heapUsed,
       heapTotalBytes: memoryUsage.heapTotal,
       externalBytes: memoryUsage.external,
       timestamp: now().toISOString(),
-    })
+    }
   })
 
-  router.get('/uptime', (_req: Request, res: Response) => {
-    res.json({
-      uptimeMs: Math.round(process.uptime() * 1000),
-      timestamp: now().toISOString(),
-    })
-  })
-
-  return router
+  app.get('/uptime', async () => ({
+    uptimeMs: Math.round(process.uptime() * 1000),
+    timestamp: now().toISOString(),
+  }))
 }
+
+export default runtimeRoutes

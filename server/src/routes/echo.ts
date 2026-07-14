@@ -1,32 +1,21 @@
-import { Router, type Request, type Response } from 'express'
+import type { FastifyPluginAsync } from 'fastify'
 
-type EchoBody = {
-  readonly message?: unknown
-  readonly metadata?: Record<string, unknown>
-}
+const echoRoutes: FastifyPluginAsync = async (app) => {
+  app.get('/', async () => ({ ok: true }))
 
-export function createEchoRouter(): Router {
-  const router = Router()
-
-  router.get('/', (_req: Request, res: Response) => {
-    res.json({ ok: true })
-  })
-
-  router.post('/', (req: Request, res: Response) => {
-    const body: EchoBody =
-      typeof req.body === 'object' && req.body !== null
-        ? (req.body as EchoBody)
-        : {}
-
-    res.json({
+  app.post('/', async (req) => {
+    const body = (typeof req.body === 'object' && req.body !== null
+      ? req.body
+      : {}) as { message?: unknown; metadata?: Record<string, unknown> }
+    return {
       ok: true,
       received: {
         message: body.message ?? null,
         metadata: body.metadata ?? null,
-        contentType: req.get('content-type') ?? null,
+        contentType: req.headers['content-type'] ?? null,
       },
-    })
+    }
   })
-
-  return router
 }
+
+export default echoRoutes

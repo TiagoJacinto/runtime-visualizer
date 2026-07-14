@@ -1,7 +1,7 @@
 features:
-  - id: express-server
-    title: Express server
-    description: A small Express server in ./server exposing runtime introspection endpoints (health, runtime info, echo).
+  - id: fastify-server
+    title: Fastify server
+    description: A small Fastify server in ./server exposing runtime introspection endpoints (health, runtime info, echo).
     runnable: true
     steps:
       - description: Install server dependencies
