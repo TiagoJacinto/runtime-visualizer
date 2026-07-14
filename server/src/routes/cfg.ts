@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { analyseTypeScript } from '../cfg/analyzer.ts'
 import { buildProjectCfg, ProjectCfgError } from '../cfg/project.ts'
-import { HttpError } from '../middleware.ts'
+import { HttpError } from '../errors.ts'
 
 type CfgRequestBody = {
   readonly source?: unknown
@@ -20,6 +20,11 @@ export type CfgRoutesOptions = {
   readonly projectRoot?: string
 }
 
+/** Coerce a parsed JSON body (which may be `undefined` or a non-object) to a typed record. */
+function coerceBody<T extends object>(req: { body: unknown }): T {
+  return (typeof req.body === 'object' && req.body !== null ? req.body : {}) as T
+}
+
 const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (app, options) => {
   app.get('/', async () => ({
     ok: true,
@@ -28,9 +33,7 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (app, options) => 
   }))
 
   app.post('/', async (req) => {
-    const body = (typeof req.body === 'object' && req.body !== null
-      ? req.body
-      : {}) as CfgRequestBody
+    const body = coerceBody<CfgRequestBody>(req)
 
     if (typeof body.source !== 'string') {
       throw new HttpError(400, '`source` must be a string containing TypeScript source code.')
@@ -56,9 +59,7 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (app, options) => 
   })
 
   app.post('/project', async (req) => {
-    const body = (typeof req.body === 'object' && req.body !== null
-      ? req.body
-      : {}) as CfgProjectBody
+    const body = coerceBody<CfgProjectBody>(req)
 
     if (typeof body.entry !== 'string' || body.entry.length === 0) {
       throw new HttpError(400, '`entry` must be a non-empty path relative to the project root.')

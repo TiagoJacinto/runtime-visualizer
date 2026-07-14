@@ -34,9 +34,8 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   process.exit(0)
 }
 
-process.on('SIGINT', (s) => {
-  void shutdown(s)
-})
-process.on('SIGTERM', (s) => {
-  void shutdown(s)
-})
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(signal, (s) => {
+    void shutdown(s)
+  })
+}

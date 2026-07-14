@@ -1,5 +1,5 @@
 import Fastify, { type FastifyInstance } from 'fastify'
-import { HttpError } from './middleware.ts'
+import { HttpError } from './errors.ts'
 import healthRoutes from './routes/health.ts'
 import runtimeRoutes from './routes/runtime.ts'
 import echoRoutes from './routes/echo.ts'
@@ -43,8 +43,8 @@ export async function createApp(options: AppOptions = {}): Promise<FastifyInstan
     // Fastify wraps any thrown non-Error value with a generic
     // "Non-Error thrown" message; hide the wrapper and return a
     // generic message instead, matching the old behaviour.
-    const wrapped = err instanceof Error && err.message.startsWith('Non-Error thrown')
-    const message = wrapped
+    const isFastifyNonErrorWrap = err instanceof Error && err.message.startsWith('Non-Error thrown')
+    const message = isFastifyNonErrorWrap
       ? 'Internal Server Error'
       : err instanceof Error
         ? err.message
@@ -57,12 +57,12 @@ export async function createApp(options: AppOptions = {}): Promise<FastifyInstan
     console.log(`[server] ${req.method} ${req.url} (${Math.round(reply.elapsedTime)}ms)`)
   })
 
-  await app.register(healthRoutes, { prefix: '/api/health', ...(options.now ? { now: options.now } : {}) })
-  await app.register(runtimeRoutes, { prefix: '/api/runtime', ...(options.now ? { now: options.now } : {}) })
+  await app.register(healthRoutes, { prefix: '/api/health', now: options.now })
+  await app.register(runtimeRoutes, { prefix: '/api/runtime', now: options.now })
   await app.register(echoRoutes, { prefix: '/api/echo' })
   await app.register(cfgRoutes, {
     prefix: '/api/cfg',
-    ...(options.cfgProjectRoot !== undefined ? { projectRoot: options.cfgProjectRoot } : {}),
+    projectRoot: options.cfgProjectRoot,
   })
 
   if (options.registerTestRoutes) {
