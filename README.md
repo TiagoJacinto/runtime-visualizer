@@ -34,6 +34,8 @@ Endpoints:
 - `POST /api/echo` — echoes the JSON body back, useful for round-trip checks.
 - `POST /api/cfg` — build a CFG for a TypeScript source snippet.
 - `POST /api/cfg/project` — walk the local-import subgraph from an entry file.
+- `GET  /api/files` — list every file under the folder configured in `settings.json`
+  (`filesFolder`), returned as forward-slash paths relative to that folder.
 - `WS   /api/mermaid` — subscribe to an entry file and receive a Mermaid `flowchart`
   snapshot of its CFG; pushes a fresh snapshot whenever any file in the watched
   subgraph changes. See [Mermaid WebSocket](#mermaid-websocket-api) below.
@@ -63,6 +65,21 @@ The project root defaults to `<cwd>/target`; override it with the `CFG_PROJECT_R
 environment variable when starting the server, or per-`createApp` via `cfgProjectRoot`
 in unit tests. Only relative `./` and `../` specifiers are followed — bare specifiers
 and missing files are reported in `graph`/`imports` but never trigger rebuilds.
+
+### `settings.json`
+
+A small JSON file at the project root configures server-wide options. Currently:
+
+```json
+{ "filesFolder": "./target" }
+```
+
+`filesFolder` is resolved relative to the directory holding `settings.json` (the
+server walks up from its own location to find it). Defaults to `./target` when the
+file is missing or has no `filesFolder` key. The endpoint `GET /api/files` returns
+a JSON array of every regular file under that folder, recursive, in deterministic
+order (subdirectory contents first, then sibling files, alphabetic within each
+group). Symbolic links are skipped. Missing configured folder → `[]`.
 
 ## Expanding the Oxlint configuration
 
