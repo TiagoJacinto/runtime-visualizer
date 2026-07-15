@@ -21,7 +21,7 @@
  *     source.
  *
  * The CFG provides the human-readable `label` and `text` we attach
- * to each event — see how {@link nodeToInstrument} maps CFG nodes
+ * to each event — see how {@link nodeToPayload} maps CFG nodes
  * to event payloads. Statements that don't have a CFG node (rare,
  * but possible for synthetic AST constructs) get a generic
  * `statement` event with the raw source as the label.
@@ -204,7 +204,9 @@ function transformFunctionDeclaration(
       : ''
   const name = stmt.name !== undefined ? stmt.name.getText(sourceFile) : ''
   const typeParams =
-    stmt.typeParameters !== undefined ? stmt.typeParameters.getText(sourceFile) : ''
+    stmt.typeParameters !== undefined
+      ? `<${stmt.typeParameters.map((p) => p.getText(sourceFile)).join(', ')}>`
+      : ''
   const params = stmt.parameters.map((p) => p.getText(sourceFile)).join(', ')
   const returnType = stmt.type !== undefined ? `: ${stmt.type.getText(sourceFile)}` : ''
   if (stmt.body === undefined) {

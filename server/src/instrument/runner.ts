@@ -8,8 +8,9 @@
  *   2. {@link spawnInstrumented} — spawns the compiled artifact and
  *      yields its stdout line-by-line as an async iterable.
  *
- * Errors are surfaced as typed {@link CompileError} / {@link SpawnError}
- * subclasses so the route handler can return the right HTTP status.
+ * Errors are surfaced as typed {@link CompileError} subclass so the
+ * route handler can return the right HTTP status. Spawn failures
+ * propagate as raw errors from `node:child_process`.
  *
  * ponytail: we only capture stdout (the instrumented code is
  * supposed to emit its events there). stderr is captured but only

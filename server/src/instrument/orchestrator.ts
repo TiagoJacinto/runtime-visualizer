@@ -27,6 +27,7 @@ import {
   readCachedJs,
   resolveCompileCommand,
   writeCachedArtifacts,
+  type CachedArtifacts,
 } from './cache.ts'
 import { runCompile, spawnInstrumented, type InstrumentedRun } from './runner.ts'
 
