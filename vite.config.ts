@@ -8,4 +8,17 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  server: {
+    // Proxy /api/* (HTTP) and /api/mermaid (WebSocket upgrade) to
+    // the Fastify backend so the React UI can develop against a
+    // single origin. Default port is the Fastify server's default
+    // (3000); set VITE_API_PORT to override.
+    proxy: {
+      '/api': {
+        target: `http://127.0.0.1:${process.env.VITE_API_PORT ?? '3000'}`,
+        changeOrigin: false,
+        ws: true,
+      },
+    },
+  },
 })

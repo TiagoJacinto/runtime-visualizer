@@ -133,13 +133,15 @@ function transformIf(
   indent: string,
 ): string {
   const condText = stmt.expression.getText(sourceFile)
-  const condPayload = { cond: condText }
   const thenStmt = stmt.thenStatement
   const thenIsControlFlow = isRecursable(thenStmt)
+  const ifNodeId = lookupControlFlowNodeId(stmt, sourceFile, cfg, fnCtx)
   // For non-control-flow then-statements, wrap them in a block so
   // the surrounding `else` chain still binds to the outer `if`,
   // not to the inserted send call.
   const thenText = thenStmt.getText(sourceFile)
+  const condPayload: Record<string, unknown> = { cond: condText }
+  if (ifNodeId !== undefined) condPayload.id = ifNodeId
   const thenTransformed = thenIsControlFlow
     ? transformStatement(thenStmt, sourceFile, cfg, fnCtx)
     : `${indent}  { ${emit('if', condPayload)} ${thenText} }`
@@ -151,9 +153,14 @@ function transformIf(
   const elseStmt = stmt.elseStatement
   const elseText = elseStmt.getText(sourceFile)
   const elseIsControlFlow = isRecursable(elseStmt)
+  // The `else` branch is the negative edge of the same `if` node in
+  // the CFG, so it shares the id — the visualizer uses this to
+  // track "we're in the if-branch's false side".
+  const elsePayload: Record<string, unknown> = { cond: '(else)' }
+  if (ifNodeId !== undefined) elsePayload.id = ifNodeId
   const elseTransformed = elseIsControlFlow
     ? transformStatement(elseStmt, sourceFile, cfg, fnCtx)
-    : `${indent}  { ${emit('if', { cond: '(else)' })} ${elseText} }`
+    : `${indent}  { ${emit('if', elsePayload)} ${elseText} }`
   return `${indent}if (${condText}) ${thenTransformed} else ${elseTransformed}`
 }
 
@@ -186,9 +193,12 @@ function transformFor(
   const body = stmt.statement
   const bodyText = body.getText(sourceFile)
   const isControlFlow = isRecursable(body)
+  const loopNodeId = lookupControlFlowNodeId(stmt, sourceFile, cfg, fnCtx)
+  const condPayload: Record<string, unknown> = { cond: condText }
+  if (loopNodeId !== undefined) condPayload.id = loopNodeId
   const bodyTransformed = isControlFlow
     ? transformStatement(body, sourceFile, cfg, fnCtx)
-    : `${indent}  { ${emit(kind, { cond: condText })} ${bodyText} }`
+    : `${indent}  { ${emit(kind, condPayload)} ${bodyText} }`
   return `${indent}${head} ${bodyTransformed}`
 }
 
@@ -228,9 +238,12 @@ function transformWhile(
   const body = stmt.statement
   const bodyText = body.getText(sourceFile)
   const isControlFlow = isRecursable(body)
+  const loopNodeId = lookupControlFlowNodeId(stmt, sourceFile, cfg, fnCtx)
+  const condPayload: Record<string, unknown> = { cond: condText }
+  if (loopNodeId !== undefined) condPayload.id = loopNodeId
   const bodyTransformed = isControlFlow
     ? transformStatement(body, sourceFile, cfg, fnCtx)
-    : `${indent}  { ${emit('while', { cond: condText })} ${bodyText} }`
+    : `${indent}  { ${emit('while', condPayload)} ${bodyText} }`
   const head = ts.isWhileStatement(stmt)
     ? `while (${condText})`
     : `do`
@@ -274,12 +287,38 @@ function instrumentPayloadFor(
 }
 
 function nodeToPayload(node: CfgNode, fn: FunctionCfg): Payload {
-  if (node.kind === 'return') return { kind: 'return', data: { label: node.label } }
-  if (node.kind === 'throw') return { kind: 'throw', data: { label: node.label } }
+  if (node.kind === 'return') return { kind: 'return', data: { id: node.id, fn: fn.name, label: node.label } }
+  if (node.kind === 'throw') return { kind: 'throw', data: { id: node.id, fn: fn.name, label: node.label } }
   if (node.kind === 'break' || node.kind === 'continue') {
-    return { kind: node.kind, data: { label: node.label } }
+    return { kind: node.kind, data: { id: node.id, fn: fn.name, label: node.label } }
   }
-  return { kind: 'statement', data: { fn: fn.name, label: node.label } }
+  return { kind: 'statement', data: { id: node.id, fn: fn.name, label: node.label } }
+}
+
+/**
+ * Looks up the CFG node id for a control-flow statement (if/for/
+ * while/do) by matching the condition expression's start line. The
+ * CFG builder sets the branch node's `location` to the expression
+ * start, so its line matches the `if`/`for`/`while` keyword on the
+ * source line.
+ */
+function lookupControlFlowNodeId(
+  stmt: ts.Statement,
+  sourceFile: ts.SourceFile,
+  cfg: ControlFlowGraph,
+  parentFn: FunctionCfg | null,
+): string | undefined {
+  const fn = parentFn ?? containingFunction(cfg, stmt, sourceFile)
+  if (fn === null) return undefined
+  const targetLine =
+    sourceFile.getLineAndCharacterOfPosition(stmt.getStart(sourceFile)).line + 1
+  const node = fn.nodes.find(
+    (n) =>
+      n.location !== undefined &&
+      n.location.start.line === targetLine &&
+      (n.kind === 'branch' || n.kind === 'switch'),
+  )
+  return node?.id
 }
 
 function containingFunction(

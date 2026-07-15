@@ -17,7 +17,6 @@
 
 import type {
   CfgEdge,
-  ControlFlowGraph,
   FunctionCfg,
 } from './types.ts'
 import type { ProjectFile } from './project.ts'
@@ -53,9 +52,24 @@ export function renderMermaidMany(
   inputs: ReadonlyArray<MermaidInput>,
   options: RenderOptions = {},
 ): string {
+  return renderMermaidManyWithNodes(inputs, options).mermaid
+}
+
+/**
+ * Renders the Mermaid source and a parallel node list. The node
+ * list maps each CFG node id to the resolved Mermaid identifier
+ * used in the source so the visualizer can post-render highlight
+ * a specific node in the SVG (Mermaid prefixes group ids with
+ * `flowchart-<id>-N`, so the client just needs the `<id>` part).
+ */
+export function renderMermaidManyWithNodes(
+  inputs: ReadonlyArray<MermaidInput>,
+  options: RenderOptions = {},
+): { mermaid: string; nodes: ReadonlyArray<MermaidNodeRef> } {
   const direction = options.direction ?? DEFAULT_DIRECTION
   const id = makeIdResolver()
   const lines: string[] = []
+  const nodes: MermaidNodeRef[] = []
   lines.push(`flowchart ${direction}`)
 
   for (let i = 0; i < inputs.length; i += 1) {
@@ -64,6 +78,7 @@ export function renderMermaidMany(
     const filePrefix = `f${i}`
     lines.push(`  subgraph ${id(`file_${i}_${input.path}`)}["${escapeLabel(input.path)}"]`)
     lines.push(`    direction ${direction}`)
+    collectNodes(nodes, input.cfg.functions, filePrefix, i, input.path, id)
     emitFunctions(lines, input.cfg.functions, filePrefix, direction, id)
     lines.push(`  end`)
   }
@@ -75,7 +90,7 @@ export function renderMermaidMany(
     emitFunctionEdges(lines, input.cfg.functions, filePrefix, id)
   }
 
-  return lines.join('\n') + '\n'
+  return { mermaid: lines.join('\n') + '\n', nodes }
 }
 
 /**
@@ -90,9 +105,63 @@ export function renderProjectFiles(
   return renderMermaidMany(files, options)
 }
 
+/**
+ * Like {@link renderProjectFiles} but also returns the per-node
+ * metadata the visualizer uses to highlight currently-running
+ * statements in the rendered SVG.
+ */
+export function renderProjectFilesWithNodes(
+  files: ReadonlyArray<ProjectFile>,
+  options: RenderOptions = {},
+): { mermaid: string; nodes: ReadonlyArray<MermaidNodeRef> } {
+  return renderMermaidManyWithNodes(files, options)
+}
+
 // ---------------------------------------------------------------------------
 // Emitters
 // ---------------------------------------------------------------------------
+
+/** Per-node metadata emitted alongside the Mermaid source. */
+export type MermaidNodeRef = {
+  /** CFG node id (e.g. `"stmt_3"`); the same id the instrument sends. */
+  readonly nodeId: string
+  /** Mermaid node identifier after sanitisation; matches the SVG group id suffix. */
+  readonly mermaidId: string
+  /** Function the node belongs to. */
+  readonly fn: string
+  /** File index inside the project subgraph. */
+  readonly fileIdx: number
+  /** Source-relative path of the file containing this node. */
+  readonly file: string
+  /** Human-readable label rendered inside the node. */
+  readonly label: string
+  /** CFG node kind (`statement`, `branch`, `return`, …). */
+  readonly kind: string
+}
+
+function collectNodes(
+  out: MermaidNodeRef[],
+  functions: ReadonlyArray<FunctionCfg>,
+  filePrefix: string,
+  fileIdx: number,
+  file: string,
+  id: (raw: string) => string,
+): void {
+  const fnPrefix = `${filePrefix}_fn`
+  for (const fn of functions) {
+    for (const node of fn.nodes) {
+      out.push({
+        nodeId: node.id,
+        mermaidId: id(`${fnPrefix}_${node.id}`),
+        fn: fn.name,
+        fileIdx,
+        file,
+        label: node.label,
+        kind: node.kind,
+      })
+    }
+  }
+}
 
 function emitFunctions(
   lines: string[],

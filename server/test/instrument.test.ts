@@ -69,8 +69,8 @@ describe('instrument()', () => {
     // wrapped then-block (between the `if (cond)` and the `else`),
     // not between the `if` and `else if`.
     expect(out).toMatch(/if\s*\(i % 15 === 0\)[^{]*\{\s*__visualizer_send\("if"/)
-    expect(out).toMatch(/__visualizer_send\("if",\s*\{"cond":"i % 3 === 0"\}/)
-    expect(out).toMatch(/__visualizer_send\("if",\s*\{"cond":"i % 5 === 0"\}/)
+    expect(out).toMatch(/__visualizer_send\("if",\s*\{"cond":"i % 3 === 0","id":"branch_\d+"\}/)
+    expect(out).toMatch(/__visualizer_send\("if",\s*\{"cond":"i % 5 === 0","id":"branch_\d+"\}/)
   })
 
   it('produces the same output for the same input (deterministic)', () => {
