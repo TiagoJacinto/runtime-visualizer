@@ -62,10 +62,12 @@ describe('renderMermaid', () => {
     expect(out).toMatch(/-->\|\s*unwind\s*\|/)
   })
 
-  it('escapes double quotes inside labels', () => {
-    // The label comes from `snippet(source, stmt.expression)` for the
-    // throw, which itself was built from the source. If a label
-    // contains `"`, we must escape it to keep the Mermaid syntax valid.
+  it('strips characters that break the Mermaid lexer', () => {
+    // Mermaid's flowchart lexer treats a handful of characters as
+    // edge / arrow syntax even inside a quoted label (`^`, `|`, `-`,
+    // `>`, `<`, `"`, etc.). The renderer keeps only ASCII alphanumerics
+    // and a small punctuation set, so the rendered label here drops
+    // the quotes, the `>`, and the `(` / `)` from the source.
     const out = renderMermaid({
       path: 'q.ts',
       cfg: analyseTypeScript(`
@@ -74,13 +76,18 @@ describe('renderMermaid', () => {
         }
       `),
     })
-    expect(out).toContain('\\"oops\\"')
-    const quoted = out
+    const line = out
       .split('\n')
-      .find((l) => l.includes('\\"oops\\"'))
-    expect(quoted).toBeDefined()
-    // The escaped label must still match `id["..."]` so Mermaid can parse it.
-    expect(quoted).toMatch(/\[\"throw new Error\(\\"oops\\"\)\"\]/)
+      .find((l) => l.includes('f0_fn_thr_3'))
+    expect(line).toBeDefined()
+    // Pull the label out from the wrapping `id["..."]` and check it
+    // no longer contains any of the lexer-breaking characters.
+    const labelMatch = line!.match(/\["(.+)"\]$/)
+    expect(labelMatch).not.toBeNull()
+    const label = labelMatch![1]!
+    expect(label).not.toMatch(/[\^|<>"`]|\\/)
+    expect(label).toContain('throw new Error')
+    expect(label).toContain('oops')
   })
 
   it('disambiguates node ids across files', () => {
@@ -89,8 +96,8 @@ describe('renderMermaid', () => {
     const out = renderMermaidMany([a, b]).mermaid
     // Each function block has its own subgraph; the entry node ids
     // must not collide.
-    const idMatches = out.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)["\[]/gm) ?? []
-    const ids = idMatches.map((m) => m.trim().split(/["\[]/)[0]!)
+    const idMatches = out.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)["[]/gm) ?? []
+    const ids = idMatches.map((m) => m.trim().split(/["[]/)[0]!)
     const uniq = new Set(ids)
     expect(uniq.size).toBe(ids.length)
   })

@@ -13,11 +13,17 @@ export type FilesRoutesOptions = {
 
 /**
  * Recursively walks `abs` and returns every regular file as a
- * forward-slash path relative to `rel`. Symlinks are skipped to
- * keep the listing predictable and to prevent walking out of the
- * configured folder via a symlink. Order is "directories'
- * contents before sibling files" within each level (recursion
- * emits the subtree first, then the file at the current level).
+ * forward-slash path relative to `rel`. Symlinks and any
+ * dot-prefixed directory are skipped — symlinks to keep the
+ * listing predictable (and to prevent walking out of the
+ * configured folder), dot-dirs because they conventionally hold
+ * tool output (the instrument pipeline caches artifacts under
+ * `.instrumented/`) that shouldn't be exposed as user-editable
+ * source files.
+ *
+ * Order is "directories' contents before sibling files" within
+ * each level (recursion emits the subtree first, then the file
+ * at the current level).
  *
  * ponytail: O(n) syscalls via `readdir({ withFileTypes: true })`.
  * Adequate for project-sized folders; switch to a streaming
@@ -46,6 +52,7 @@ async function walk(abs: string, rel: string): Promise<string[]> {
   const out: string[] = []
   for (const entry of entries) {
     if (entry.isSymbolicLink()) continue
+    if (entry.isDirectory() && entry.name.startsWith('.')) continue
     const childRel = rel === '' ? entry.name : `${rel}/${entry.name}`
     if (entry.isDirectory()) {
       out.push(...(await walk(path.join(abs, entry.name), childRel)))

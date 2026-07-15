@@ -13,6 +13,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import mermaid from 'mermaid'
+import DOMPurify from 'dompurify'
 import type { MermaidNodeRef } from '../lib/types.ts'
 
 let mermaidInited = false
@@ -68,7 +69,14 @@ export function MermaidView({ source, nodes, highlightedIds }: MermaidViewProps)
         if (cancelled || containerRef.current === null) return
         const { svg } = await mermaid.render(id, source)
         if (cancelled || containerRef.current === null) return
-        containerRef.current.innerHTML = svg
+        // Mermaid produces a string of HTML/SVG; DOMPurify walks it
+        // and drops anything that isn't a safe SVG element / attribute.
+        // The output is the user-visible diagram, so this matters even
+        // though the input (`source`) comes from our own server.
+        // pi-lens-ignore: ts-xss-dom-sink -- sanitised via DOMPurify above
+        containerRef.current.innerHTML = DOMPurify.sanitize(svg, {
+          USE_PROFILES: { svg: true, svgFilters: true },
+        })
         applyHighlights(containerRef.current, mermaidHighlightIds)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
@@ -99,10 +107,12 @@ function applyHighlights(container: HTMLElement, mermaidIds: ReadonlySet<string>
   const previouslyHighlighted = container.querySelectorAll('g.node.highlighted')
   previouslyHighlighted.forEach((el) => el.classList.remove('highlighted'))
   if (mermaidIds.size === 0) return
-  // Mermaid prefixes group ids with `flowchart-<sanitised>-<seq>`,
-  // so the prefix itself is enough to match.
+  // Mermaid tags each node group as `<graphId>-flowchart-<mermaidId>-<seq>`
+  // where `<graphId>` is the id we pass to `mermaid.render()` (so it
+  // changes per render). Match on the `flowchart-<mermaidId>-` chunk
+  // anywhere in the id, which is stable across renders.
   const pattern = new RegExp(
-    `^(${Array.from(mermaidIds, escapeRegexForPrefix).join('|')})`,
+    `(^|-)flowchart-(${Array.from(mermaidIds, escapeRegexForMermaidId).join('|')})-`,
   )
   const allGroups = container.querySelectorAll('g.node')
   allGroups.forEach((el) => {
@@ -113,6 +123,6 @@ function applyHighlights(container: HTMLElement, mermaidIds: ReadonlySet<string>
   })
 }
 
-function escapeRegexForPrefix(id: string): string {
-  return `flowchart-${id}-`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function escapeRegexForMermaidId(id: string): string {
+  return id.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')
 }

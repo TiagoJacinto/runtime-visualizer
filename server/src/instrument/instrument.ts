@@ -33,13 +33,9 @@
  * more code.
  */
 
-import * as ts from 'typescript'
-import { analyseTypeScript } from '../cfg/analyzer.ts'
-import type {
-  ControlFlowGraph,
-  FunctionCfg,
-  CfgNode,
-} from '../cfg/types.ts'
+import * as ts from "typescript";
+import { analyseTypeScript } from "../cfg/analyzer.ts";
+import type { ControlFlowGraph, FunctionCfg, CfgNode } from "../cfg/types.ts";
 
 /**
  * The prelude that is prepended to every instrumented source file.
@@ -55,23 +51,23 @@ const Date_now_or_GlobalThis: () => number =
 function __visualizer_send(event: string, data: unknown): void {
   process.stdout.write(JSON.stringify({ event, data, ts: Date_now_or_GlobalThis() }) + "\\n");
 }
-`
+`;
 
 /**
  * Builds an instrumented copy of `source`. The returned string ends
  * in a single trailing newline; `source` may or may not.
  */
 export function instrument(source: string, filePath: string): string {
-  const cfg = analyseTypeScript(source, { filePath })
-  const sourceFile = ts.createSourceFile(
-    filePath,
-    source,
-    ts.ScriptTarget.ESNext,
-    /* setParentNodes */ true,
-    ts.ScriptKind.TS,
-  )
-  const out = transformStatements(sourceFile.statements, sourceFile, cfg, null)
-  return PRELUDE + ensureTrailingNewline(out)
+	const cfg = analyseTypeScript(source, { filePath });
+	const sourceFile = ts.createSourceFile(
+		filePath,
+		source,
+		ts.ScriptTarget.ESNext,
+		/* setParentNodes */ true,
+		ts.ScriptKind.TS,
+	);
+	const out = transformStatements(sourceFile.statements, sourceFile, cfg, null);
+	return PRELUDE + ensureTrailingNewline(out);
 }
 
 // ---------------------------------------------------------------------------
@@ -79,216 +75,238 @@ export function instrument(source: string, filePath: string): string {
 // ---------------------------------------------------------------------------
 
 function transformStatements(
-  stmts: ReadonlyArray<ts.Statement>,
-  sourceFile: ts.SourceFile,
-  cfg: ControlFlowGraph,
-  parentFn: FunctionCfg | null,
+	stmts: ReadonlyArray<ts.Statement>,
+	sourceFile: ts.SourceFile,
+	cfg: ControlFlowGraph,
+	parentFn: FunctionCfg | null,
 ): string {
-  const out: string[] = []
-  for (const stmt of stmts) {
-    out.push(transformStatement(stmt, sourceFile, cfg, parentFn))
-  }
-  return out.join('\n')
+	const out: string[] = [];
+	for (const stmt of stmts) {
+		out.push(transformStatement(stmt, sourceFile, cfg, parentFn));
+	}
+	return out.join("\n");
 }
 
 function transformStatement(
-  stmt: ts.Statement,
-  sourceFile: ts.SourceFile,
-  cfg: ControlFlowGraph,
-  parentFn: FunctionCfg | null,
+	stmt: ts.Statement,
+	sourceFile: ts.SourceFile,
+	cfg: ControlFlowGraph,
+	parentFn: FunctionCfg | null,
 ): string {
-  const indent = leadingIndent(sourceFile, stmt.getStart(sourceFile))
-  const fnCtx = parentFn ?? containingFunction(cfg, stmt, sourceFile)
+	const indent = leadingIndent(sourceFile, stmt.getStart(sourceFile));
+	const fnCtx = parentFn ?? containingFunction(cfg, stmt, sourceFile);
 
-  if (ts.isFunctionDeclaration(stmt)) {
-    return transformFunctionDeclaration(stmt, sourceFile, cfg, indent)
-  }
-  if (ts.isIfStatement(stmt)) {
-    return transformIf(stmt, sourceFile, cfg, fnCtx, indent)
-  }
-  if (ts.isForStatement(stmt) || ts.isForInStatement(stmt) || ts.isForOfStatement(stmt)) {
-    return transformFor(stmt, sourceFile, cfg, fnCtx, indent)
-  }
-  if (ts.isWhileStatement(stmt) || ts.isDoStatement(stmt)) {
-    return transformWhile(stmt, sourceFile, cfg, fnCtx, indent)
-  }
-  if (ts.isBlock(stmt)) {
-    // Re-emit block contents (recursively transformed), with the
-    // original braces preserved.
-    const inner = transformStatements(stmt.statements, sourceFile, cfg, fnCtx)
-    return `${indent}{${inner.length > 0 ? `\n${inner}\n${indent}` : ''}}`
-  }
-  // Generic statement: emit a send call before the original text.
-  // The send line gets the same indentation as the original line.
-  const original = stmt.getText(sourceFile)
-  const payload = instrumentPayloadFor(stmt, sourceFile, cfg, fnCtx)
-  return `${indent}${emit(payload.kind, payload.data)}\n${original}`
+	if (ts.isFunctionDeclaration(stmt)) {
+		return transformFunctionDeclaration(stmt, sourceFile, cfg, indent);
+	}
+	if (ts.isIfStatement(stmt)) {
+		return transformIf(stmt, sourceFile, cfg, fnCtx, indent);
+	}
+	if (
+		ts.isForStatement(stmt) ||
+		ts.isForInStatement(stmt) ||
+		ts.isForOfStatement(stmt)
+	) {
+		return transformFor(stmt, sourceFile, cfg, fnCtx, indent);
+	}
+	if (ts.isWhileStatement(stmt) || ts.isDoStatement(stmt)) {
+		return transformWhile(stmt, sourceFile, cfg, fnCtx, indent);
+	}
+	if (ts.isBlock(stmt)) {
+		// Re-emit block contents (recursively transformed), with the
+		// original braces preserved.
+		const inner = transformStatements(stmt.statements, sourceFile, cfg, fnCtx);
+		return `${indent}{${inner.length > 0 ? `\n${inner}\n${indent}` : ""}}`;
+	}
+	// Generic statement: emit a send call before the original text.
+	// The send line gets the same indentation as the original line.
+	const original = stmt.getText(sourceFile);
+	const payload = instrumentPayloadFor(stmt, sourceFile, cfg, fnCtx);
+	return `${indent}${emit(payload.kind, payload.data)}\n${original}`;
 }
 
 function transformIf(
-  stmt: ts.IfStatement,
-  sourceFile: ts.SourceFile,
-  cfg: ControlFlowGraph,
-  fnCtx: FunctionCfg | null,
-  indent: string,
+	stmt: ts.IfStatement,
+	sourceFile: ts.SourceFile,
+	cfg: ControlFlowGraph,
+	fnCtx: FunctionCfg | null,
+	indent: string,
 ): string {
-  const condText = stmt.expression.getText(sourceFile)
-  const thenStmt = stmt.thenStatement
-  const thenIsControlFlow = isRecursable(thenStmt)
-  const ifNodeId = lookupControlFlowNodeId(stmt, sourceFile, cfg, fnCtx)
-  // For non-control-flow then-statements, wrap them in a block so
-  // the surrounding `else` chain still binds to the outer `if`,
-  // not to the inserted send call.
-  const thenText = thenStmt.getText(sourceFile)
-  const thenTransformed = thenIsControlFlow
-    ? transformStatement(thenStmt, sourceFile, cfg, fnCtx)
-    : `${indent}  { ${emit('if', condPayload(condText, ifNodeId))} ${thenText} }`
+	const condText = stmt.expression.getText(sourceFile);
+	const thenStmt = stmt.thenStatement;
+	const thenIsControlFlow = isRecursable(thenStmt);
+	const ifNodeId = lookupControlFlowNodeId(stmt, sourceFile, cfg, fnCtx);
+	// For non-control-flow then-statements, wrap them in a block so
+	// the surrounding `else` chain still binds to the outer `if`,
+	// not to the inserted send call.
+	const thenText = thenStmt.getText(sourceFile);
+	const thenTransformed = thenIsControlFlow
+		? transformStatement(thenStmt, sourceFile, cfg, fnCtx)
+		: `${indent}  { ${emit("if", condPayload(condText, ifNodeId))} ${thenText} }`;
 
-  if (stmt.elseStatement === undefined) {
-    return `${indent}if (${condText}) ${thenTransformed}`
-  }
+	if (stmt.elseStatement === undefined) {
+		return `${indent}if (${condText}) ${thenTransformed}`;
+	}
 
-  const elseStmt = stmt.elseStatement
-  const elseText = elseStmt.getText(sourceFile)
-  const elseIsControlFlow = isRecursable(elseStmt)
-  // The `else` branch is the negative edge of the same `if` node in
-  // the CFG, so it shares the id — the visualizer uses this to
-  // track "we're in the if-branch's false side".
-  const elseTransformed = elseIsControlFlow
-    ? transformStatement(elseStmt, sourceFile, cfg, fnCtx)
-    : `${indent}  { ${emit('if', condPayload('(else)', ifNodeId))} ${elseText} }`
-  return `${indent}if (${condText}) ${thenTransformed} else ${elseTransformed}`
+	const elseStmt = stmt.elseStatement;
+	const elseText = elseStmt.getText(sourceFile);
+	const elseIsControlFlow = isRecursable(elseStmt);
+	// The `else` branch is the negative edge of the same `if` node in
+	// the CFG, so it shares the id — the visualizer uses this to
+	// track "we're in the if-branch's false side".
+	const elseTransformed = elseIsControlFlow
+		? transformStatement(elseStmt, sourceFile, cfg, fnCtx)
+		: `${indent}  { ${emit("if", condPayload("(else)", ifNodeId))} ${elseText} }`;
+	return `${indent}if (${condText}) ${thenTransformed} else ${elseTransformed}`;
 }
 
 function transformFor(
-  stmt: ts.ForStatement | ts.ForInStatement | ts.ForOfStatement,
-  sourceFile: ts.SourceFile,
-  cfg: ControlFlowGraph,
-  fnCtx: FunctionCfg | null,
-  indent: string,
+	stmt: ts.ForStatement | ts.ForInStatement | ts.ForOfStatement,
+	sourceFile: ts.SourceFile,
+	cfg: ControlFlowGraph,
+	fnCtx: FunctionCfg | null,
+	indent: string,
 ): string {
-  let head: string
-  let condText: string
-  let kind: string
-  if (ts.isForStatement(stmt)) {
-    const init = stmt.initializer !== undefined ? stmt.initializer.getText(sourceFile) : ''
-    const cond = stmt.condition !== undefined ? stmt.condition.getText(sourceFile) : ''
-    const inc = stmt.incrementor !== undefined ? stmt.incrementor.getText(sourceFile) : ''
-    head = `for (${init}; ${cond}; ${inc})`
-    condText = cond.length > 0 ? cond : 'true'
-    kind = 'for'
-  } else if (ts.isForInStatement(stmt)) {
-    head = `for (${stmt.initializer.getText(sourceFile)} in ${stmt.expression.getText(sourceFile)})`
-    condText = stmt.initializer.getText(sourceFile)
-    kind = 'for-in'
-  } else {
-    head = `for (${stmt.initializer.getText(sourceFile)} of ${stmt.expression.getText(sourceFile)})`
-    condText = stmt.initializer.getText(sourceFile)
-    kind = 'for-of'
-  }
-  const body = stmt.statement
-  const bodyText = body.getText(sourceFile)
-  const isControlFlow = isRecursable(body)
-  const loopNodeId = lookupControlFlowNodeId(stmt, sourceFile, cfg, fnCtx)
-  const bodyTransformed = isControlFlow
-    ? transformStatement(body, sourceFile, cfg, fnCtx)
-    : `${indent}  { ${emit(kind, condPayload(condText, loopNodeId))} ${bodyText} }`
-  return `${indent}${head} ${bodyTransformed}`
+	let head: string;
+	let condText: string;
+	let kind: string;
+	if (ts.isForStatement(stmt)) {
+		const init =
+			stmt.initializer !== undefined
+				? stmt.initializer.getText(sourceFile)
+				: "";
+		const cond =
+			stmt.condition !== undefined ? stmt.condition.getText(sourceFile) : "";
+		const inc =
+			stmt.incrementor !== undefined
+				? stmt.incrementor.getText(sourceFile)
+				: "";
+		head = `for (${init}; ${cond}; ${inc})`;
+		condText = cond.length > 0 ? cond : "true";
+		kind = "for";
+	} else if (ts.isForInStatement(stmt)) {
+		head = `for (${stmt.initializer.getText(sourceFile)} in ${stmt.expression.getText(sourceFile)})`;
+		condText = stmt.initializer.getText(sourceFile);
+		kind = "for-in";
+	} else {
+		head = `for (${stmt.initializer.getText(sourceFile)} of ${stmt.expression.getText(sourceFile)})`;
+		condText = stmt.initializer.getText(sourceFile);
+		kind = "for-of";
+	}
+	const body = stmt.statement;
+	const bodyText = body.getText(sourceFile);
+	const isControlFlow = isRecursable(body);
+	const loopNodeId = lookupControlFlowNodeId(stmt, sourceFile, cfg, fnCtx);
+	const bodyTransformed = isControlFlow
+		? transformStatement(body, sourceFile, cfg, fnCtx)
+		: `${indent}  { ${emit(kind, condPayload(condText, loopNodeId))} ${bodyText} }`;
+	return `${indent}${head} ${bodyTransformed}`;
 }
 
 function transformFunctionDeclaration(
-  stmt: ts.FunctionDeclaration,
-  sourceFile: ts.SourceFile,
-  cfg: ControlFlowGraph,
-  indent: string,
+	stmt: ts.FunctionDeclaration,
+	sourceFile: ts.SourceFile,
+	cfg: ControlFlowGraph,
+	indent: string,
 ): string {
-  const mods =
-    stmt.modifiers !== undefined
-      ? stmt.modifiers.map((m) => m.getText(sourceFile)).join(' ') + ' '
-      : ''
-  const name = stmt.name !== undefined ? stmt.name.getText(sourceFile) : ''
-  const typeParams =
-    stmt.typeParameters !== undefined
-      ? `<${stmt.typeParameters.map((p) => p.getText(sourceFile)).join(', ')}>`
-      : ''
-  const params = stmt.parameters.map((p) => p.getText(sourceFile)).join(', ')
-  const returnType = stmt.type !== undefined ? `: ${stmt.type.getText(sourceFile)}` : ''
-  if (stmt.body === undefined) {
-    return `${indent}${mods}function ${name}${typeParams}(${params})${returnType};`
-  }
-  const fnCtx = containingFunction(cfg, stmt, sourceFile)
-  const body = transformStatement(stmt.body, sourceFile, cfg, fnCtx)
-  return `${indent}${mods}function ${name}${typeParams}(${params})${returnType} ${body}`
+	const mods =
+		stmt.modifiers !== undefined
+			? stmt.modifiers.map((m) => m.getText(sourceFile)).join(" ") + " "
+			: "";
+	// `*` lives on `asteriskToken`, not in `modifiers` — without it
+	// the emitted `async function foo` silently loses its generator
+	// semantics and the body's `yield` becomes a syntax error.
+	const asterisk = stmt.asteriskToken !== undefined ? "*" : "";
+	const name = stmt.name !== undefined ? stmt.name.getText(sourceFile) : "";
+	const typeParams =
+		stmt.typeParameters !== undefined
+			? `<${stmt.typeParameters.map((p) => p.getText(sourceFile)).join(", ")}>`
+			: "";
+	const params = stmt.parameters.map((p) => p.getText(sourceFile)).join(", ");
+	const returnType =
+		stmt.type !== undefined ? `: ${stmt.type.getText(sourceFile)}` : "";
+	if (stmt.body === undefined) {
+		return `${indent}${mods}function ${asterisk}${name}${typeParams}(${params})${returnType};`;
+	}
+	const fnCtx = containingFunction(cfg, stmt, sourceFile);
+	const body = transformStatement(stmt.body, sourceFile, cfg, fnCtx);
+	return `${indent}${mods}function ${asterisk}${name}${typeParams}(${params})${returnType} ${body}`;
 }
 
 function transformWhile(
-  stmt: ts.WhileStatement | ts.DoStatement,
-  sourceFile: ts.SourceFile,
-  cfg: ControlFlowGraph,
-  fnCtx: FunctionCfg | null,
-  indent: string,
+	stmt: ts.WhileStatement | ts.DoStatement,
+	sourceFile: ts.SourceFile,
+	cfg: ControlFlowGraph,
+	fnCtx: FunctionCfg | null,
+	indent: string,
 ): string {
-  const condText = stmt.expression.getText(sourceFile)
-  const body = stmt.statement
-  const bodyText = body.getText(sourceFile)
-  const isControlFlow = isRecursable(body)
-  const loopNodeId = lookupControlFlowNodeId(stmt, sourceFile, cfg, fnCtx)
-  const bodyTransformed = isControlFlow
-    ? transformStatement(body, sourceFile, cfg, fnCtx)
-    : `${indent}  { ${emit('while', condPayload(condText, loopNodeId))} ${bodyText} }`
-  const head = ts.isWhileStatement(stmt)
-    ? `while (${condText})`
-    : `do`
-  if (ts.isDoStatement(stmt)) {
-    return `${indent}${head} ${bodyTransformed} while (${condText});`
-  }
-  return `${indent}${head} ${bodyTransformed}`
+	const condText = stmt.expression.getText(sourceFile);
+	const body = stmt.statement;
+	const bodyText = body.getText(sourceFile);
+	const isControlFlow = isRecursable(body);
+	const loopNodeId = lookupControlFlowNodeId(stmt, sourceFile, cfg, fnCtx);
+	const bodyTransformed = isControlFlow
+		? transformStatement(body, sourceFile, cfg, fnCtx)
+		: `${indent}  { ${emit("while", condPayload(condText, loopNodeId))} ${bodyText} }`;
+	const head = ts.isWhileStatement(stmt) ? `while (${condText})` : `do`;
+	if (ts.isDoStatement(stmt)) {
+		return `${indent}${head} ${bodyTransformed} while (${condText});`;
+	}
+	return `${indent}${head} ${bodyTransformed}`;
 }
 
 // ---------------------------------------------------------------------------
 // Payload generation: maps CFG nodes to event payloads.
 // ---------------------------------------------------------------------------
 
-type Payload = { readonly kind: string; readonly data: Record<string, unknown> }
+type Payload = {
+	readonly kind: string;
+	readonly data: Record<string, unknown>;
+};
 
 function instrumentPayloadFor(
-  stmt: ts.Statement,
-  sourceFile: ts.SourceFile,
-  cfg: ControlFlowGraph,
-  fnCtx: FunctionCfg | null,
+	stmt: ts.Statement,
+	sourceFile: ts.SourceFile,
+	cfg: ControlFlowGraph,
+	fnCtx: FunctionCfg | null,
 ): Payload {
-  // Look up a CFG node whose location covers the start of this
-  // statement. Falls back to a generic `statement` event.
-  const fn = fnCtx ?? containingFunction(cfg, stmt, sourceFile)
-  if (fn === null) {
-    return { kind: 'statement', data: { label: stmt.getText(sourceFile) } }
-  }
-  const targetLine = sourceFile.getLineAndCharacterOfPosition(stmt.getStart(sourceFile)).line + 1
-  const node = fn.nodes.find(
-    (n) =>
-      n.location !== undefined &&
-      n.location.start.line === targetLine &&
-      n.kind !== 'entry' &&
-      n.kind !== 'exit' &&
-      n.kind !== 'merge',
-  )
-  if (node === undefined) {
-    return { kind: 'statement', data: { label: stmt.getText(sourceFile) } }
-  }
-  return nodeToPayload(node, fn)
+	// Look up a CFG node whose location covers the start of this
+	// statement. Falls back to a generic `statement` event.
+	const fn = fnCtx ?? containingFunction(cfg, stmt, sourceFile);
+	if (fn === null) {
+		return { kind: "statement", data: { label: stmt.getText(sourceFile) } };
+	}
+	const targetLine =
+		sourceFile.getLineAndCharacterOfPosition(stmt.getStart(sourceFile)).line +
+		1;
+	const node = fn.nodes.find(
+		(n) =>
+			n.location !== undefined &&
+			n.location.start.line === targetLine &&
+			n.kind !== "entry" &&
+			n.kind !== "exit" &&
+			n.kind !== "merge",
+	);
+	if (node === undefined) {
+		return { kind: "statement", data: { label: stmt.getText(sourceFile) } };
+	}
+	return nodeToPayload(node, fn);
 }
 
 function nodeToPayload(node: CfgNode, fn: FunctionCfg): Payload {
-  // All instrumented payloads carry the same `{ id, fn, label }`
-  // shape so the visualizer can resolve `id` to a Mermaid node
-  // without branching on the event kind. The `kind` here is the
-  // CFG node kind — control-flow (return/throw/break/continue)
-  // gets its own kind, anything else falls back to 'statement'.
-  const kind =
-    node.kind === 'return' || node.kind === 'throw' || node.kind === 'break' || node.kind === 'continue'
-      ? node.kind
-      : 'statement'
-  return { kind, data: { id: node.id, fn: fn.name, label: node.label } }
+	// All instrumented payloads carry the same `{ id, fn, label }`
+	// shape so the visualizer can resolve `id` to a Mermaid node
+	// without branching on the event kind. The `kind` here is the
+	// CFG node kind — control-flow (return/throw/break/continue)
+	// gets its own kind, anything else falls back to 'statement'.
+	const kind =
+		node.kind === "return" ||
+		node.kind === "throw" ||
+		node.kind === "break" ||
+		node.kind === "continue"
+			? node.kind
+			: "statement";
+	return { kind, data: { id: node.id, fn: fn.name, label: node.label } };
 }
 
 /**
@@ -299,50 +317,52 @@ function nodeToPayload(node: CfgNode, fn: FunctionCfg): Payload {
  * source line.
  */
 function lookupControlFlowNodeId(
-  stmt: ts.Statement,
-  sourceFile: ts.SourceFile,
-  cfg: ControlFlowGraph,
-  parentFn: FunctionCfg | null,
+	stmt: ts.Statement,
+	sourceFile: ts.SourceFile,
+	cfg: ControlFlowGraph,
+	parentFn: FunctionCfg | null,
 ): string | undefined {
-  const fn = parentFn ?? containingFunction(cfg, stmt, sourceFile)
-  if (fn === null) return undefined
-  const targetLine =
-    sourceFile.getLineAndCharacterOfPosition(stmt.getStart(sourceFile)).line + 1
-  const node = fn.nodes.find(
-    (n) =>
-      n.location !== undefined &&
-      n.location.start.line === targetLine &&
-      (n.kind === 'branch' || n.kind === 'switch'),
-  )
-  return node?.id
+	const fn = parentFn ?? containingFunction(cfg, stmt, sourceFile);
+	if (fn === null) return undefined;
+	const targetLine =
+		sourceFile.getLineAndCharacterOfPosition(stmt.getStart(sourceFile)).line +
+		1;
+	const node = fn.nodes.find(
+		(n) =>
+			n.location !== undefined &&
+			n.location.start.line === targetLine &&
+			(n.kind === "branch" || n.kind === "switch"),
+	);
+	return node?.id;
 }
 
 function containingFunction(
-  cfg: ControlFlowGraph,
-  node: ts.Node,
-  sourceFile: ts.SourceFile,
+	cfg: ControlFlowGraph,
+	node: ts.Node,
+	sourceFile: ts.SourceFile,
 ): FunctionCfg | null {
-  // Walk up the parent chain to find the enclosing function-like
-  // declaration, then match by source location to one of the
-  // CFG's FunctionCfg entries.
-  let current: ts.Node | undefined = node
-  while (current !== undefined) {
-    if (
-      ts.isFunctionDeclaration(current) ||
-      ts.isFunctionExpression(current) ||
-      ts.isArrowFunction(current) ||
-      ts.isMethodDeclaration(current)
-    ) {
-      const line =
-        sourceFile.getLineAndCharacterOfPosition(current.getStart(sourceFile)).line + 1
-      const fn = cfg.functions.find(
-        (f) => f.location !== undefined && f.location.start.line === line,
-      )
-      if (fn !== undefined) return fn
-    }
-    current = current.parent
-  }
-  return null
+	// Walk up the parent chain to find the enclosing function-like
+	// declaration, then match by source location to one of the
+	// CFG's FunctionCfg entries.
+	let current: ts.Node | undefined = node;
+	while (current !== undefined) {
+		if (
+			ts.isFunctionDeclaration(current) ||
+			ts.isFunctionExpression(current) ||
+			ts.isArrowFunction(current) ||
+			ts.isMethodDeclaration(current)
+		) {
+			const line =
+				sourceFile.getLineAndCharacterOfPosition(current.getStart(sourceFile))
+					.line + 1;
+			const fn = cfg.functions.find(
+				(f) => f.location !== undefined && f.location.start.line === line,
+			);
+			if (fn !== undefined) return fn;
+		}
+		current = current.parent;
+	}
+	return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -351,19 +371,19 @@ function containingFunction(
 
 /** True for statement shapes we recurse into during the transform. */
 function isRecursable(stmt: ts.Statement): boolean {
-  return (
-    ts.isBlock(stmt) ||
-    ts.isIfStatement(stmt) ||
-    ts.isForStatement(stmt) ||
-    ts.isForInStatement(stmt) ||
-    ts.isForOfStatement(stmt) ||
-    ts.isWhileStatement(stmt) ||
-    ts.isDoStatement(stmt)
-  )
+	return (
+		ts.isBlock(stmt) ||
+		ts.isIfStatement(stmt) ||
+		ts.isForStatement(stmt) ||
+		ts.isForInStatement(stmt) ||
+		ts.isForOfStatement(stmt) ||
+		ts.isWhileStatement(stmt) ||
+		ts.isDoStatement(stmt)
+	);
 }
 
 function emit(kind: string, payload: Record<string, unknown>): string {
-  return `__visualizer_send(${JSON.stringify(kind)}, ${JSON.stringify(payload)});`
+	return `__visualizer_send(${JSON.stringify(kind)}, ${JSON.stringify(payload)});`;
 }
 
 /**
@@ -372,20 +392,23 @@ function emit(kind: string, payload: Record<string, unknown>): string {
  * visualizer can highlight the corresponding node while the
  * program is evaluating the test.
  */
-function condPayload(cond: string, nodeId: string | undefined): Record<string, unknown> {
-  return nodeId === undefined ? { cond } : { cond, id: nodeId }
+function condPayload(
+	cond: string,
+	nodeId: string | undefined,
+): Record<string, unknown> {
+	return nodeId === undefined ? { cond } : { cond, id: nodeId };
 }
 
 function leadingIndent(sourceFile: ts.SourceFile, pos: number): string {
-  const text = sourceFile.text
-  let i = pos - 1
-  while (i >= 0 && text[i] !== '\n') i -= 1
-  const start = i + 1
-  let j = start
-  while (j < pos && (text[j] === ' ' || text[j] === '\t')) j += 1
-  return text.slice(start, j)
+	const text = sourceFile.text;
+	let i = pos - 1;
+	while (i >= 0 && text[i] !== "\n") i -= 1;
+	const start = i + 1;
+	let j = start;
+	while (j < pos && (text[j] === " " || text[j] === "\t")) j += 1;
+	return text.slice(start, j);
 }
 
 function ensureTrailingNewline(s: string): string {
-  return s.endsWith('\n') ? s : `${s}\n`
+	return s.endsWith("\n") ? s : `${s}\n`;
 }
