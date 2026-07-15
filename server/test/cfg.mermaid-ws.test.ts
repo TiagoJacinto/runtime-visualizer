@@ -133,6 +133,22 @@ describe('Mermaid WebSocket /api/mermaid', () => {
       expect((snapshot.mermaid as string).startsWith('flowchart TD')).toBe(true)
       expect(snapshot.files).toEqual(['entry.ts', 'mid.ts', 'leaf.ts'])
 
+      // Every CFG node from the visited subgraph has a corresponding
+      // `nodes` entry so the visualizer can highlight a currently-
+      // running statement in the rendered SVG.
+      const nodes = snapshot.nodes as Array<Record<string, unknown>>
+      expect(Array.isArray(nodes)).toBe(true)
+      expect(nodes.length).toBeGreaterThan(0)
+      for (const n of nodes) {
+        expect(typeof n.nodeId).toBe('string')
+        expect(typeof n.mermaidId).toBe('string')
+        expect(typeof n.fn).toBe('string')
+        expect(typeof n.file).toBe('string')
+        expect(typeof n.label).toBe('string')
+        expect(typeof n.kind).toBe('string')
+        expect(typeof n.fileIdx).toBe('number')
+      }
+
       // The watcher must be armed on every file in the imported subgraph.
       expect(rig.watcher.paths.length).toBe(3)
       expect(rig.watcher.paths.map((p) => path.basename(p)).sort()).toEqual([

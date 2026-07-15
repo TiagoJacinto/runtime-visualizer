@@ -17,7 +17,6 @@
 
 import type {
   CfgEdge,
-  ControlFlowGraph,
   FunctionCfg,
 } from './types.ts'
 import type { ProjectFile } from './project.ts'
@@ -41,21 +40,27 @@ const DEFAULT_DIRECTION: 'TD' | 'LR' | 'RL' | 'BT' = 'TD'
  * Renders a single file's CFG as a Mermaid `flowchart` source.
  */
 export function renderMermaid(input: MermaidInput, options: RenderOptions = {}): string {
-  return renderMermaidMany([input], options)
+  return renderMermaidMany([input], options).mermaid
 }
 
 /**
  * Renders one or more file CFGs as a single Mermaid `flowchart`
  * source. Each file becomes a `subgraph`, so the resulting diagram
  * mirrors the import topology the project walker produces.
+ *
+ * Returns the Mermaid source plus a parallel list of node refs
+ * so the visualizer can highlight a node from its CFG id without
+ * re-walking the rendered SVG (Mermaid prefixes group ids with
+ * `flowchart-<id>-N`; the client just needs the `<id>` part).
  */
 export function renderMermaidMany(
   inputs: ReadonlyArray<MermaidInput>,
   options: RenderOptions = {},
-): string {
+): { mermaid: string; nodes: ReadonlyArray<MermaidNodeRef> } {
   const direction = options.direction ?? DEFAULT_DIRECTION
   const id = makeIdResolver()
   const lines: string[] = []
+  const nodes: MermaidNodeRef[] = []
   lines.push(`flowchart ${direction}`)
 
   for (let i = 0; i < inputs.length; i += 1) {
@@ -64,6 +69,7 @@ export function renderMermaidMany(
     const filePrefix = `f${i}`
     lines.push(`  subgraph ${id(`file_${i}_${input.path}`)}["${escapeLabel(input.path)}"]`)
     lines.push(`    direction ${direction}`)
+    collectNodes(nodes, input.cfg.functions, filePrefix, i, input.path, id)
     emitFunctions(lines, input.cfg.functions, filePrefix, direction, id)
     lines.push(`  end`)
   }
@@ -75,24 +81,68 @@ export function renderMermaidMany(
     emitFunctionEdges(lines, input.cfg.functions, filePrefix, id)
   }
 
-  return lines.join('\n') + '\n'
+  return { mermaid: lines.join('\n') + '\n', nodes }
 }
 
 /**
  * Convenience wrapper: feed it the raw {@link ProjectFile}s and
- * options, get Mermaid back. Returns an empty flowchart for an empty
+ * get back the rendered Mermaid source plus the per-node metadata
+ * the visualizer uses to highlight currently-running statements
+ * in the rendered SVG. Returns an empty flowchart for an empty
  * input list so the websocket can still send a valid message.
  */
 export function renderProjectFiles(
   files: ReadonlyArray<ProjectFile>,
   options: RenderOptions = {},
-): string {
+): { mermaid: string; nodes: ReadonlyArray<MermaidNodeRef> } {
   return renderMermaidMany(files, options)
 }
 
 // ---------------------------------------------------------------------------
 // Emitters
 // ---------------------------------------------------------------------------
+
+/** Per-node metadata emitted alongside the Mermaid source. */
+export type MermaidNodeRef = {
+  /** CFG node id (e.g. `"stmt_3"`); the same id the instrument sends. */
+  readonly nodeId: string
+  /** Mermaid node identifier after sanitisation; matches the SVG group id suffix. */
+  readonly mermaidId: string
+  /** Function the node belongs to. */
+  readonly fn: string
+  /** File index inside the project subgraph. */
+  readonly fileIdx: number
+  /** Source-relative path of the file containing this node. */
+  readonly file: string
+  /** Human-readable label rendered inside the node. */
+  readonly label: string
+  /** CFG node kind (`statement`, `branch`, `return`, …). */
+  readonly kind: string
+}
+
+function collectNodes(
+  out: MermaidNodeRef[],
+  functions: ReadonlyArray<FunctionCfg>,
+  filePrefix: string,
+  fileIdx: number,
+  file: string,
+  id: (raw: string) => string,
+): void {
+  const fnPrefix = `${filePrefix}_fn`
+  for (const fn of functions) {
+    for (const node of fn.nodes) {
+      out.push({
+        nodeId: node.id,
+        mermaidId: id(`${fnPrefix}_${node.id}`),
+        fn: fn.name,
+        fileIdx,
+        file,
+        label: node.label,
+        kind: node.kind,
+      })
+    }
+  }
+}
 
 function emitFunctions(
   lines: string[],
