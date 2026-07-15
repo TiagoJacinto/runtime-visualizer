@@ -4,6 +4,7 @@ import healthRoutes from './routes/health.ts'
 import runtimeRoutes from './routes/runtime.ts'
 import echoRoutes from './routes/echo.ts'
 import cfgRoutes from './routes/cfg.ts'
+import instrumentRoutes from './routes/instrument.ts'
 
 export type AppOptions = {
   readonly now?: () => Date
@@ -62,6 +63,10 @@ export async function createApp(options: AppOptions = {}): Promise<FastifyInstan
   await app.register(echoRoutes, { prefix: '/api/echo' })
   await app.register(cfgRoutes, {
     prefix: '/api/cfg',
+    projectRoot: options.cfgProjectRoot,
+  })
+  await app.register(instrumentRoutes, {
+    prefix: '/api/instrument',
     projectRoot: options.cfgProjectRoot,
   })
 
