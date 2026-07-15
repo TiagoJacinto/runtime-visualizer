@@ -29,3 +29,6 @@ server/dist
 *.njsproj
 *.sln
 *.sw?
+
+# Agents
+.pi-subagents
