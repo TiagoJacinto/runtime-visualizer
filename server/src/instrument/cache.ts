@@ -49,7 +49,12 @@ export function resolveCompileCommand(
   input: string,
   output: string,
 ): CompileCommand {
-  const tokens = Array.isArray(template) ? template : tokeniseShell(template)
+  let tokens: ReadonlyArray<string>
+  if (typeof template === 'string') {
+    tokens = tokeniseShell(template)
+  } else {
+    tokens = template
+  }
   const argv = tokens.map((t) =>
     t === '{input}' ? input : t === '{output}' ? output : t,
   )
@@ -63,7 +68,6 @@ export function resolveCompileCommand(
  * array directly.
  */
 function tokeniseShell(cmd: string): ReadonlyArray<string> {
-  if (Array.isArray(cmd)) return cmd
   return cmd
     .split(/\s+/)
     .map((s) => s.trim())
