@@ -23,42 +23,42 @@
  * compile flags.
  */
 
-import * as crypto from 'node:crypto'
-import * as fs from 'node:fs/promises'
-import * as path from 'node:path'
+import * as crypto from "node:crypto";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 
 /** What we ultimately hand back to the route handler. */
 export type CachedArtifacts = {
-  /** Absolute path to the instrumented JS ready to be spawned. */
-  readonly jsPath: string
-  /** Absolute path to the instrumented TS source (kept for debugging). */
-  readonly tsPath: string
-  /** Whether this call hit the cache (`true`) or rebuilt (`false`). */
-  readonly cached: boolean
-}
+	/** Absolute path to the instrumented JS ready to be spawned. */
+	readonly jsPath: string;
+	/** Absolute path to the instrumented TS source (kept for debugging). */
+	readonly tsPath: string;
+	/** Whether this call hit the cache (`true`) or rebuilt (`false`). */
+	readonly cached: boolean;
+};
 
 /** A compile command template with `{input}` / `{output}` placeholders. */
 export type CompileCommand = {
-  /** Tokens of the command, e.g. `["bun", "build", "{input}", "--outfile", "{output}"]`. */
-  readonly argv: ReadonlyArray<string>
-}
+	/** Tokens of the command, e.g. `["bun", "build", "{input}", "--outfile", "{output}"]`. */
+	readonly argv: ReadonlyArray<string>;
+};
 
 /** Build a CompileCommand from a string or argv, substituting `{input}` / `{output}`. */
 export function resolveCompileCommand(
-  template: string | ReadonlyArray<string>,
-  input: string,
-  output: string,
+	template: string | ReadonlyArray<string>,
+	input: string,
+	output: string,
 ): CompileCommand {
-  let tokens: ReadonlyArray<string>
-  if (typeof template === 'string') {
-    tokens = tokeniseShell(template)
-  } else {
-    tokens = template
-  }
-  const argv = tokens.map((t) =>
-    t === '{input}' ? input : t === '{output}' ? output : t,
-  )
-  return { argv }
+	let tokens: ReadonlyArray<string>;
+	if (typeof template === "string") {
+		tokens = tokeniseShell(template);
+	} else {
+		tokens = template;
+	}
+	const argv = tokens.map((t) =>
+		t === "{input}" ? input : t === "{output}" ? output : t,
+	);
+	return { argv };
 }
 
 /**
@@ -68,20 +68,23 @@ export function resolveCompileCommand(
  * array directly.
  */
 function tokeniseShell(cmd: string): ReadonlyArray<string> {
-  return cmd
-    .split(/\s+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
+	return cmd
+		.split(/\s+/)
+		.map((s) => s.trim())
+		.filter((s) => s.length > 0);
 }
 
 /**
  * Returns the on-disk cache directory for `entry`, creating it if
  * needed. `<projectRoot>/.instrumented/<entry>/`
  */
-export async function cacheDirFor(projectRoot: string, entry: string): Promise<string> {
-  const dir = path.join(projectRoot, '.instrumented', entry)
-  await fs.mkdir(dir, { recursive: true })
-  return dir
+export async function cacheDirFor(
+	projectRoot: string,
+	entry: string,
+): Promise<string> {
+	const dir = path.join(projectRoot, ".instrumented", entry);
+	await fs.mkdir(dir, { recursive: true });
+	return dir;
 }
 
 /**
@@ -89,47 +92,56 @@ export async function cacheDirFor(projectRoot: string, entry: string): Promise<s
  * compile command. The command is hashed too so changing the flags
  * forces a rebuild.
  */
-export function cacheKey(source: string, compileCommand: CompileCommand): string {
-  const h = crypto.createHash('sha256')
-  h.update(source)
-  h.update('\0')
-  h.update(compileCommand.argv.join(' '))
-  return h.digest('hex').slice(0, 16)
+export function cacheKey(
+	source: string,
+	compileCommand: CompileCommand,
+): string {
+	const h = crypto.createHash("sha256");
+	h.update(source);
+	h.update("\0");
+	h.update(compileCommand.argv.join(" "));
+	return h.digest("hex").slice(0, 16);
 }
 
 /** Reads a previously-cached JS artifact if one exists for `key`. */
-export async function readCachedJs(cacheDir: string, key: string): Promise<string | null> {
-  const jsPath = path.join(cacheDir, `${key}.instrumented.js`)
-  try {
-    await fs.access(jsPath)
-    return jsPath
-  } catch {
-    return null
-  }
+export async function readCachedJs(
+	cacheDir: string,
+	key: string,
+): Promise<string | null> {
+	const jsPath = path.join(cacheDir, `${key}.instrumented.js`);
+	try {
+		await fs.access(jsPath);
+		return jsPath;
+	} catch {
+		return null;
+	}
 }
 
 /** Writes the instrumented TS + compiled JS + meta into the cache directory. */
 export async function writeCachedArtifacts(
-  cacheDir: string,
-  key: string,
-  instrumentedTs: string,
-  compiledJs: string,
-  source: string,
-  compileCommand: CompileCommand,
+	cacheDir: string,
+	key: string,
+	instrumentedTs: string,
+	compiledJs: string,
+	source: string,
+	compileCommand: CompileCommand,
 ): Promise<{ tsPath: string; jsPath: string }> {
-  const tsPath = path.join(cacheDir, `${key}.instrumented.ts`)
-  const jsPath = path.join(cacheDir, `${key}.instrumented.js`)
-  const sourcePath = path.join(cacheDir, `${key}.source.ts`)
-  const metaPath = path.join(cacheDir, `${key}.meta.json`)
-  await Promise.all([
-    fs.writeFile(tsPath, instrumentedTs, 'utf8'),
-    fs.writeFile(jsPath, compiledJs, 'utf8'),
-    fs.writeFile(sourcePath, source, 'utf8'),
-    fs.writeFile(
-      metaPath,
-      JSON.stringify({ compileCommand: compileCommand.argv, instrumentedAt: new Date().toISOString() }),
-      'utf8',
-    ),
-  ])
-  return { tsPath, jsPath }
+	const tsPath = path.join(cacheDir, `${key}.instrumented.ts`);
+	const jsPath = path.join(cacheDir, `${key}.instrumented.js`);
+	const sourcePath = path.join(cacheDir, `${key}.source.ts`);
+	const metaPath = path.join(cacheDir, `${key}.meta.json`);
+	await Promise.all([
+		fs.writeFile(tsPath, instrumentedTs, "utf8"),
+		fs.writeFile(jsPath, compiledJs, "utf8"),
+		fs.writeFile(sourcePath, source, "utf8"),
+		fs.writeFile(
+			metaPath,
+			JSON.stringify({
+				compileCommand: compileCommand.argv,
+				instrumentedAt: new Date().toISOString(),
+			}),
+			"utf8",
+		),
+	]);
+	return { tsPath, jsPath };
 }
