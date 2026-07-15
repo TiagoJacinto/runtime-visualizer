@@ -40,29 +40,20 @@ const DEFAULT_DIRECTION: 'TD' | 'LR' | 'RL' | 'BT' = 'TD'
  * Renders a single file's CFG as a Mermaid `flowchart` source.
  */
 export function renderMermaid(input: MermaidInput, options: RenderOptions = {}): string {
-  return renderMermaidMany([input], options)
+  return renderMermaidMany([input], options).mermaid
 }
 
 /**
  * Renders one or more file CFGs as a single Mermaid `flowchart`
  * source. Each file becomes a `subgraph`, so the resulting diagram
  * mirrors the import topology the project walker produces.
+ *
+ * Returns the Mermaid source plus a parallel list of node refs
+ * so the visualizer can highlight a node from its CFG id without
+ * re-walking the rendered SVG (Mermaid prefixes group ids with
+ * `flowchart-<id>-N`; the client just needs the `<id>` part).
  */
 export function renderMermaidMany(
-  inputs: ReadonlyArray<MermaidInput>,
-  options: RenderOptions = {},
-): string {
-  return renderMermaidManyWithNodes(inputs, options).mermaid
-}
-
-/**
- * Renders the Mermaid source and a parallel node list. The node
- * list maps each CFG node id to the resolved Mermaid identifier
- * used in the source so the visualizer can post-render highlight
- * a specific node in the SVG (Mermaid prefixes group ids with
- * `flowchart-<id>-N`, so the client just needs the `<id>` part).
- */
-export function renderMermaidManyWithNodes(
   inputs: ReadonlyArray<MermaidInput>,
   options: RenderOptions = {},
 ): { mermaid: string; nodes: ReadonlyArray<MermaidNodeRef> } {
@@ -95,26 +86,16 @@ export function renderMermaidManyWithNodes(
 
 /**
  * Convenience wrapper: feed it the raw {@link ProjectFile}s and
- * options, get Mermaid back. Returns an empty flowchart for an empty
+ * get back the rendered Mermaid source plus the per-node metadata
+ * the visualizer uses to highlight currently-running statements
+ * in the rendered SVG. Returns an empty flowchart for an empty
  * input list so the websocket can still send a valid message.
  */
 export function renderProjectFiles(
   files: ReadonlyArray<ProjectFile>,
   options: RenderOptions = {},
-): string {
-  return renderMermaidMany(files, options)
-}
-
-/**
- * Like {@link renderProjectFiles} but also returns the per-node
- * metadata the visualizer uses to highlight currently-running
- * statements in the rendered SVG.
- */
-export function renderProjectFilesWithNodes(
-  files: ReadonlyArray<ProjectFile>,
-  options: RenderOptions = {},
 ): { mermaid: string; nodes: ReadonlyArray<MermaidNodeRef> } {
-  return renderMermaidManyWithNodes(files, options)
+  return renderMermaidMany(files, options)
 }
 
 // ---------------------------------------------------------------------------

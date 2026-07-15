@@ -32,7 +32,7 @@ import type http from 'node:http'
 import * as path from 'node:path'
 import { WebSocketServer, type WebSocket } from 'ws'
 import { buildProjectCfg, ProjectCfgError } from '../cfg/project.ts'
-import { renderProjectFilesWithNodes, type MermaidNodeRef } from '../cfg/mermaid.ts'
+import { renderProjectFiles, type MermaidNodeRef } from '../cfg/mermaid.ts'
 import { createFsWatchFactory, type WatchFactory, type WatchHandle } from '../cfg/watcher.ts'
 
 type ClientMessage =
@@ -225,7 +225,7 @@ async function armWatcher(
       ...(projectRoot !== undefined ? { root: projectRoot } : {}),
     })
     const files = initial.files.map((f) => toAbsolutePath(projectRoot, f.path))
-    const rendered = renderProjectFilesWithNodes(initial.files)
+    const rendered = renderProjectFiles(initial.files)
     sendSnapshotTo(
       sub,
       initial.files.map((f) => f.path),
@@ -275,7 +275,7 @@ async function rebuildAndBroadcast(
     sub.handle = watchFactory.watch(files, () =>
       scheduleRebuild(sub, projectRoot, subscriptions, watchFactory),
     )
-    const rendered = renderProjectFilesWithNodes(project.files)
+    const rendered = renderProjectFiles(project.files)
     sendSnapshotTo(
       sub,
       project.files.map((f) => f.path),

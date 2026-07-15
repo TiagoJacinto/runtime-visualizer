@@ -10,13 +10,15 @@
  * running. Multiple runs may be live concurrently — clicking Run
  * while another run is in flight starts a fresh run.
  *
- * ponytail: each run owns its own `AbortController` and reader loop,
- * no shared state across runs. The hook aggregates `currentNodeId`
- * per run for the UI to consume.
+ * ponytail: no per-run abort control. The fetch is cancelled
+ * implicitly when the consumer stops awaiting; the route kills
+ * the child process on stream close.
  */
 
 import { useCallback, useRef, useState } from 'react'
 import type { InstrumentErrorEvent, InstrumentEvent } from '../lib/types.ts'
+
+export type RunStatus = 'running' | 'ok' | 'failed'
 
 export type RunState = {
   /** Sequential id for the run; used as React key. */
@@ -25,9 +27,8 @@ export type RunState = {
   readonly currentNodeId: string | null
   /** Most recent event's label (human-readable), used as a tooltip / status line. */
   readonly currentLabel: string | null
-  /** True until the NDJSON stream closes (or the run is aborted). */
-  readonly running: boolean
-  /** Non-zero exit code if the spawned process failed; `null` while running / on success. */
+  readonly status: RunStatus
+  /** Non-zero exit code on failure; `null` otherwise. */
   readonly exitCode: number | null
   /** Stderr captured on non-zero exit; empty on success / while running. */
   readonly stderr: string | null
@@ -42,21 +43,14 @@ export type UseInstrumentRunsResult = {
 export function useInstrumentRuns(): UseInstrumentRunsResult {
   const [runs, setRuns] = useState<ReadonlyArray<RunState>>([])
   const nextIdRef = useRef(1)
-  // Abort controllers per run, keyed by run id. Keeping a ref
-  // (rather than state) avoids re-rendering on abort changes.
-  const controllersRef = useRef<Map<number, AbortController>>(new Map())
 
   const startRun = useCallback((entry: string) => {
     const runId = nextIdRef.current++
-    const controller = new AbortController()
-    controllersRef.current.set(runId, controller)
-
     setRuns((prev) => [
       ...prev,
-      { id: runId, currentNodeId: null, currentLabel: null, running: true, exitCode: null, stderr: null },
+      { id: runId, currentNodeId: null, currentLabel: null, status: 'running', exitCode: null, stderr: null },
     ])
-
-    void streamRun(entry, runId, controller, (patch) => {
+    void streamRun(entry, runId, (patch) => {
       setRuns((prev) =>
         prev.map((r) => (r.id === runId ? { ...r, ...patch } : r)),
       )
@@ -64,7 +58,7 @@ export function useInstrumentRuns(): UseInstrumentRunsResult {
   }, [])
 
   const clearFinished = useCallback(() => {
-    setRuns((prev) => prev.filter((r) => r.running))
+    setRuns((prev) => prev.filter((r) => r.status === 'running'))
   }, [])
 
   return { runs, startRun, clearFinished }
@@ -73,7 +67,6 @@ export function useInstrumentRuns(): UseInstrumentRunsResult {
 async function streamRun(
   entry: string,
   _runId: number,
-  controller: AbortController,
   patchRun: (patch: Partial<RunState>) => void,
 ): Promise<void> {
   try {
@@ -81,12 +74,11 @@ async function streamRun(
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ entry }),
-      signal: controller.signal,
     })
     if (!response.ok || response.body === null) {
       const text = await response.text().catch(() => '')
       patchRun({
-        running: false,
+        status: 'failed',
         exitCode: response.status,
         stderr: text.length > 0 ? text : `HTTP ${response.status}`,
       })
@@ -110,18 +102,14 @@ async function streamRun(
       }
     }
     if (pending.length > 0) handleLine(pending, patchRun)
+    // Stream ended cleanly with no `__error` sentinel → success.
+    patchRun({ status: 'ok' })
   } catch (err) {
-    if ((err as { name?: string }).name === 'AbortError') {
-      patchRun({ running: false, exitCode: null, stderr: 'aborted' })
-      return
-    }
     patchRun({
-      running: false,
+      status: 'failed',
       exitCode: -1,
       stderr: err instanceof Error ? err.message : String(err),
     })
-  } finally {
-    patchRun({ running: false })
   }
 }
 
@@ -141,7 +129,7 @@ function handleLine(line: string, patchRun: (patch: Partial<RunState>) => void):
   if (parsed.event === '__error') {
     const errEvt = parsed as InstrumentErrorEvent
     patchRun({
-      running: false,
+      status: 'failed',
       exitCode: errEvt.data.exitCode,
       stderr: errEvt.data.stderr,
     })

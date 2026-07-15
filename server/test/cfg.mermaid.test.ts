@@ -86,7 +86,7 @@ describe('renderMermaid', () => {
   it('disambiguates node ids across files', () => {
     const a: MermaidInput = { path: 'a.ts', cfg: analyseTypeScript(`function a() {}`) }
     const b: MermaidInput = { path: 'b.ts', cfg: analyseTypeScript(`function b() {}`) }
-    const out = renderMermaidMany([a, b])
+    const out = renderMermaidMany([a, b]).mermaid
     // Each function block has its own subgraph; the entry node ids
     // must not collide.
     const idMatches = out.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)["\[]/gm) ?? []
@@ -129,13 +129,13 @@ describe('renderMermaid', () => {
   it('renders a ProjectFile list through renderProjectFiles', () => {
     const cfg = analyseTypeScript(`function ping() { return 1 }`)
     const files: ProjectFile[] = [{ path: 'ping.ts', source: '', cfg, imports: [] }]
-    const out = renderProjectFiles(files)
+    const out = renderProjectFiles(files).mermaid
     expect(out).toContain('flowchart TD')
     expect(out).toContain('ping.ts')
   })
 
   it('returns a valid (empty) flowchart for an empty input list', () => {
-    const out = renderMermaidMany([])
+    const out = renderMermaidMany([]).mermaid
     expect(out).toBe('flowchart TD\n')
   })
 

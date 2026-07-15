@@ -5,6 +5,11 @@
  * server trips a TypeScript error here.
  */
 
+export type CfgNodeKind =
+  | 'entry' | 'exit' | 'statement' | 'branch' | 'merge'
+  | 'switch' | 'case' | 'default' | 'return' | 'throw'
+  | 'break' | 'continue' | 'try' | 'catch' | 'finally'
+
 export type MermaidNodeRef = {
   /** CFG node id; same id the instrument endpoint emits. */
   readonly nodeId: string
@@ -14,7 +19,7 @@ export type MermaidNodeRef = {
   readonly fileIdx: number
   readonly file: string
   readonly label: string
-  readonly kind: string
+  readonly kind: CfgNodeKind
 }
 
 export type SnapshotMessage = {

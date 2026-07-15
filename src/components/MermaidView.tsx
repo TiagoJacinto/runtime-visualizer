@@ -3,11 +3,12 @@
  * CSS class to any node whose `mermaidId` appears in
  * `highlightedIds`.
  *
- * Mermaid tags every node group with an id like
- * `flowchart-<nodeId>-<seq>`. We resolve the seq-less form
- * (`flowchart-<nodeId>`) to a regex and toggle a class on each
- * matching `<g>` after each render. This avoids re-rendering the
- * whole diagram on every event tick.
+ * The client receives a list of `{ nodeId, mermaidId }` pairs
+ * alongside the rendered source; the CFG node ids from the
+ * instrument stream are translated to Mermaid ids via that list
+ * before matching, because Mermaid tags groups with namespaced
+ * ids (`flowchart-<mermaidId>-<seq>`) and the namespacing isn't
+ * reconstructible from the CFG id alone.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -31,12 +32,28 @@ let counter = 0
 export type MermaidViewProps = {
   readonly source: string
   readonly nodes: ReadonlyArray<MermaidNodeRef>
+  /** CFG node ids that should be highlighted (from instrument stream). */
   readonly highlightedIds: ReadonlySet<string>
 }
 
 export function MermaidView({ source, nodes, highlightedIds }: MermaidViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Translate CFG node ids → Mermaid ids once per snapshot.
+  const cfgToMermaid = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const n of nodes) m.set(n.nodeId, n.mermaidId)
+    return m
+  }, [nodes])
+  const mermaidHighlightIds = useMemo(() => {
+    const set = new Set<string>()
+    for (const id of highlightedIds) {
+      const mermaidId = cfgToMermaid.get(id)
+      if (mermaidId !== undefined) set.add(mermaidId)
+    }
+    return set
+  }, [highlightedIds, cfgToMermaid])
 
   // Render the mermaid source into the container on `source` change.
   // The graph id is unique per render so consecutive `render()`
@@ -52,7 +69,7 @@ export function MermaidView({ source, nodes, highlightedIds }: MermaidViewProps)
         const { svg } = await mermaid.render(id, source)
         if (cancelled || containerRef.current === null) return
         containerRef.current.innerHTML = svg
-        applyHighlights(containerRef.current, highlightedIds)
+        applyHighlights(containerRef.current, mermaidHighlightIds)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
       }
@@ -66,22 +83,8 @@ export function MermaidView({ source, nodes, highlightedIds }: MermaidViewProps)
   // Re-apply highlights without re-rendering on every event tick.
   useEffect(() => {
     if (containerRef.current === null) return
-    applyHighlights(containerRef.current, highlightedIds)
-  }, [highlightedIds])
-
-  // Build a quick lookup from CFG node id → Mermaid id so we can
-  // translate the per-run `currentNodeId` into a Mermaid group id.
-  // Memoising on `nodes` keeps this cheap even with many events.
-  const cfgToMermaid = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const n of nodes) m.set(n.nodeId, n.mermaidId)
-    return m
-  }, [nodes])
-
-  // We expose the resolved ids to the parent via a derived prop —
-  // but actually we apply highlights directly inside this
-  // component using `highlightedIds`. So we just pass through.
-  void cfgToMermaid
+    applyHighlights(containerRef.current, mermaidHighlightIds)
+  }, [mermaidHighlightIds])
 
   return (
     <div className="mermaid-view">
@@ -91,20 +94,16 @@ export function MermaidView({ source, nodes, highlightedIds }: MermaidViewProps)
   )
 }
 
-function applyHighlights(container: HTMLElement, highlightedIds: ReadonlySet<string>): void {
+function applyHighlights(container: HTMLElement, mermaidIds: ReadonlySet<string>): void {
   // Clear previous highlights.
   const previouslyHighlighted = container.querySelectorAll('g.node.highlighted')
   previouslyHighlighted.forEach((el) => el.classList.remove('highlighted'))
-  if (highlightedIds.size === 0) return
-  // Mermaid prefixes group ids with `flowchart-<sanitised>-<seq>`.
-  // We rebuild the prefix set on each call so we don't miss a
-  // newly-rendered node that wasn't in the previous selection.
-  const prefixes: string[] = []
-  for (const id of highlightedIds) {
-    prefixes.push(`flowchart-${id}-`)
-  }
-  if (prefixes.length === 0) return
-  const pattern = new RegExp(`^(${prefixes.map(escapeRegex).join('|')})`)
+  if (mermaidIds.size === 0) return
+  // Mermaid prefixes group ids with `flowchart-<sanitised>-<seq>`,
+  // so the prefix itself is enough to match.
+  const pattern = new RegExp(
+    `^(${Array.from(mermaidIds, escapeRegexForPrefix).join('|')})`,
+  )
   const allGroups = container.querySelectorAll('g.node')
   allGroups.forEach((el) => {
     const id = el.id
@@ -114,6 +113,6 @@ function applyHighlights(container: HTMLElement, highlightedIds: ReadonlySet<str
   })
 }
 
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function escapeRegexForPrefix(id: string): string {
+  return `flowchart-${id}-`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

@@ -7,7 +7,7 @@
  */
 
 import { useMemo } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { FileSelector } from '../components/FileSelector.tsx'
 import { MermaidView } from '../components/MermaidView.tsx'
 import { useInstrumentRuns, type RunState } from '../hooks/useInstrumentRuns.ts'
@@ -18,18 +18,10 @@ export function FilePage() {
   // file path. React Router v7 strips the leading `/`, so we add
   // it back to match what the server's /api/files returns.
   const location = useLocation()
-  const navigate = useNavigate()
   const file = location.pathname.replace(/^\//, '')
 
-  // Redirect to a default file if the URL has no path (the App's
-  // `/` route already navigates to `/functions.ts`, but a user
-  // typing `/` directly could otherwise land on an empty page).
-  if (file.length === 0) {
-    navigate('/functions.ts', { replace: true })
-  }
-
   const { snapshot, error: wsError, connected } = useMermaidSnapshot(file)
-  const { runs, startRun, clearFinished } = useInstrumentRuns()
+  const { runs, startRun } = useInstrumentRuns()
 
   // The set of currently-highlighted node ids = the union of every
   // running run's `currentNodeId`. Finished runs aren't included —
@@ -37,7 +29,7 @@ export function FilePage() {
   const highlightedIds = useMemo(() => {
     const set = new Set<string>()
     for (const r of runs) {
-      if (r.running && r.currentNodeId !== null) set.add(r.currentNodeId)
+      if (r.status === 'running' && r.currentNodeId !== null) set.add(r.currentNodeId)
     }
     return set
   }, [runs])
@@ -55,15 +47,6 @@ export function FilePage() {
         >
           Run
         </button>
-        {runs.some((r) => !r.running) && (
-          <button
-            type="button"
-            className="clear-button"
-            onClick={clearFinished}
-          >
-            Clear finished
-          </button>
-        )}
         <span className={`connection-pill ${connected ? 'on' : 'off'}`}>
           {connected ? 'live' : 'offline'}
         </span>
@@ -102,16 +85,15 @@ export function FilePage() {
 }
 
 function RunRow({ run }: { run: RunState }) {
-  const status = run.running
-    ? `running — node ${run.currentNodeId ?? '(none yet)'}`
-    : run.exitCode === null
-      ? 'done'
-      : run.exitCode === 0
+  const statusLabel =
+    run.status === 'running'
+      ? `running — node ${run.currentNodeId ?? '(none yet)'}`
+      : run.status === 'ok'
         ? 'done'
-        : `exit ${run.exitCode}`
+        : `exit ${run.exitCode ?? '?'}`
   return (
-    <li className={`run-row ${run.running ? 'active' : 'finished'}`}>
-      <span className="run-status">#{run.id} {status}</span>
+    <li className={`run-row ${run.status === 'running' ? 'active' : 'finished'}`}>
+      <span className="run-status">#{run.id} {statusLabel}</span>
       {run.currentLabel !== null && (
         <span className="run-label"> — {run.currentLabel}</span>
       )}
