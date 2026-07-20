@@ -14,7 +14,9 @@
     "preview": "vite preview",
     "server:start": "bun --filter runtime-visualizer-server start",
     "server:test": "bun --filter runtime-visualizer-server test",
-    "server:typecheck": "bun --filter runtime-visualizer-server typecheck"
+    "server:typecheck": "bun --filter runtime-visualizer-server typecheck",
+    "test:gherkin": "vitest run --config vitest.config.ts",
+    "test:gherkin:browser": "vitest run --config vitest.browser.config.ts"
   },
   "dependencies": {
     "dompurify": "^3.4.12",
@@ -24,6 +26,7 @@
     "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
+    "@amiceli/vitest-cucumber": "^7.0.0",
     "@babel/core": "^7.29.7",
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/babel__core": "^7.20.5",
@@ -31,9 +34,13 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/browser-playwright": "^4.1.10",
     "babel-plugin-react-compiler": "^1.0.0",
+    "jsdom": "^29.1.1",
     "oxlint": "^1.71.0",
+    "playwright": "^1.61.1",
     "typescript": "~6.0.2",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "vitest": "^4.1.10"
   }
 }
