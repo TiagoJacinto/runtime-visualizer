@@ -32,7 +32,7 @@ import type http from "node:http";
 import * as path from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
 import { buildProjectCfg, ProjectCfgError } from "../cfg/project.ts";
-import { renderProjectFiles, type MermaidNodeRef } from "../cfg/mermaid.ts";
+import { renderProjectFiles } from "../cfg/mermaid.ts";
 import {
 	createFsWatchFactory,
 	type WatchFactory,
@@ -50,13 +50,6 @@ type ServerMessage =
 			readonly entry: string;
 			readonly mermaid: string;
 			readonly files: ReadonlyArray<string>;
-			/**
-			 * Per-CFG-node metadata. Each entry maps the CFG node id
-			 * (used by the instrument endpoint) to the Mermaid node
-			 * identifier so the visualizer can highlight a node when its
-			 * id matches a currently-running statement.
-			 */
-			readonly nodes: ReadonlyArray<MermaidNodeRef>;
 	  }
 	| {
 			readonly type: "error";
@@ -247,7 +240,6 @@ async function armWatcher(
 			sub,
 			initial.files.map((f) => f.path),
 			rendered.mermaid,
-			rendered.nodes,
 		);
 		// Stash on the subscription so concurrent subscribers can see
 		// the live handle while this promise is still settling.
@@ -297,7 +289,6 @@ async function rebuildAndBroadcast(
 			sub,
 			project.files.map((f) => f.path),
 			rendered.mermaid,
-			rendered.nodes,
 		);
 	} catch (err) {
 		sendErrorTo(sub, mapCfgError(err), sub.entry);
@@ -336,14 +327,12 @@ function sendSnapshotTo(
 	sub: Subscription,
 	files: ReadonlyArray<string>,
 	mermaid: string,
-	nodes: ReadonlyArray<MermaidNodeRef>,
 ): void {
 	const msg: ServerMessage = {
 		type: "snapshot",
 		entry: sub.entry,
 		mermaid,
 		files,
-		nodes,
 	};
 	for (const ws of sub.clients) send(ws, msg);
 }

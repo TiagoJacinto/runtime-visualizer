@@ -56,11 +56,10 @@ export function renderMermaid(
 export function renderMermaidMany(
 	inputs: ReadonlyArray<MermaidInput>,
 	options: RenderOptions = {},
-): { mermaid: string; nodes: ReadonlyArray<MermaidNodeRef> } {
+): { mermaid: string } {
 	const direction = options.direction ?? DEFAULT_DIRECTION;
 	const id = makeIdResolver();
 	const lines: string[] = [];
-	const nodes: MermaidNodeRef[] = [];
 	lines.push(`flowchart ${direction}`);
 
 	for (let i = 0; i < inputs.length; i += 1) {
@@ -71,7 +70,6 @@ export function renderMermaidMany(
 			`  subgraph ${id(`file_${i}_${input.path}`)}["${escapeLabel(input.path)}"]`,
 		);
 		lines.push(`    direction ${direction}`);
-		collectNodes(nodes, input.cfg.functions, filePrefix, i, input.path, id);
 		emitFunctions(lines, input.cfg.functions, filePrefix, direction, id);
 		lines.push(`  end`);
 	}
@@ -83,7 +81,7 @@ export function renderMermaidMany(
 		emitFunctionEdges(lines, input.cfg.functions, filePrefix, id);
 	}
 
-	return { mermaid: lines.join("\n") + "\n", nodes };
+	return { mermaid: lines.join("\n") + "\n" };
 }
 
 /**
@@ -96,55 +94,13 @@ export function renderMermaidMany(
 export function renderProjectFiles(
 	files: ReadonlyArray<ProjectFile>,
 	options: RenderOptions = {},
-): { mermaid: string; nodes: ReadonlyArray<MermaidNodeRef> } {
+): { mermaid: string } {
 	return renderMermaidMany(files, options);
 }
 
 // ---------------------------------------------------------------------------
 // Emitters
 // ---------------------------------------------------------------------------
-
-/** Per-node metadata emitted alongside the Mermaid source. */
-export type MermaidNodeRef = {
-	/** CFG node id (e.g. `"stmt_3"`); the same id the instrument sends. */
-	readonly nodeId: string;
-	/** Mermaid node identifier after sanitisation; matches the SVG group id suffix. */
-	readonly mermaidId: string;
-	/** Function the node belongs to. */
-	readonly fn: string;
-	/** File index inside the project subgraph. */
-	readonly fileIdx: number;
-	/** Source-relative path of the file containing this node. */
-	readonly file: string;
-	/** Human-readable label rendered inside the node. */
-	readonly label: string;
-	/** CFG node kind (`statement`, `branch`, `return`, …). */
-	readonly kind: string;
-};
-
-function collectNodes(
-	out: MermaidNodeRef[],
-	functions: ReadonlyArray<FunctionCfg>,
-	filePrefix: string,
-	fileIdx: number,
-	file: string,
-	id: (raw: string) => string,
-): void {
-	const fnPrefix = `${filePrefix}_fn`;
-	for (const fn of functions) {
-		for (const node of fn.nodes) {
-			out.push({
-				nodeId: node.id,
-				mermaidId: id(`${fnPrefix}_${node.id}`),
-				fn: fn.name,
-				fileIdx,
-				file,
-				label: node.label,
-				kind: node.kind,
-			});
-		}
-	}
-}
 
 function emitFunctions(
 	lines: string[],
@@ -256,8 +212,8 @@ function escapeLabel(label: string): string {
 		.replace(/\r?\n/g, " ")
 		.replace(/[^A-Za-z0-9 .,;:_=?!&()]/g, "")
 		.replace(/\s+/g, " ")
-		.trim()
-	return sanitized.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
+		.trim();
+	return sanitized.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 function escapePipeLabel(label: string): string {
