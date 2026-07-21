@@ -1,7 +1,7 @@
 /**
  * The single-page-per-file UI. Reads the current path from the
  * URL, subscribes to the Mermaid WebSocket for that file, lets
- * the user run the file repeatedly (each click starts a new
+ * the user run the procedure repeatedly (each click starts a new
  * concurrent run), and highlights every Mermaid node whose CFG
  * node id matches any currently-running run.
  */
