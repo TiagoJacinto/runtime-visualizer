@@ -106,7 +106,7 @@ export function renderProjectFiles(
 
 /** Per-node metadata emitted alongside the Mermaid source. */
 export type MermaidNodeRef = {
-	/** CFG node id (e.g. `"stmt_3"`); the same id the instrument sends. */
+	/** CFG node id (e.g. `"stmt_3"`); the stable id used by the rendered graph. */
 	readonly nodeId: string;
 	/** Mermaid node identifier after sanitisation; matches the SVG group id suffix. */
 	readonly mermaidId: string;

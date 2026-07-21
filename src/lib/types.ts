@@ -6,7 +6,6 @@
  */
 
 export type MermaidNodeRef = {
-  /** CFG node id; same id the instrument endpoint emits. */
   readonly nodeId: string
   /** Mermaid node id; matches the SVG `<g>` id suffix. */
   readonly mermaidId: string
@@ -34,47 +33,3 @@ export type ErrorMessage = {
 export type PongMessage = { readonly type: 'pong' }
 
 export type ServerMessage = SnapshotMessage | ErrorMessage | PongMessage
-
-/**
- * One event from the NDJSON stream produced by the instrument
- * endpoint. `data.id` is the CFG node id used for highlighting.
- */
-export type ExecutionEvent = {
-  readonly kind: string
-  readonly label?: string
-  readonly condition?: string
-  readonly outcome?: string
-  readonly state: 'Active' | 'Completed'
-  readonly id?: string
-}
-
-export type ExecutionResult = {
-  readonly status: 'Succeeded' | 'Failed'
-}
-
-export type InstrumentEvent = {
-  readonly event: string
-  readonly data: {
-    readonly id?: string
-    readonly cond?: string
-    readonly condition?: string
-    readonly outcome?: string
-    readonly kind?: string
-    readonly state?: ExecutionEvent['state']
-    readonly fn?: string
-    readonly label?: string
-    readonly [k: string]: unknown
-  }
-  readonly ts?: number
-}
-
-export type ResultEvent = {
-  readonly event: 'result'
-  readonly data: ExecutionResult
-}
-
-/** Stream-end marker for non-zero exits. */
-export type InstrumentErrorEvent = {
-  readonly event: '__error'
-  readonly data: { readonly exitCode: number; readonly stderr: string }
-}

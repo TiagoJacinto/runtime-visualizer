@@ -53,12 +53,7 @@ type ServerMessage =
 			readonly entry: string;
 			readonly mermaid: string;
 			readonly files: ReadonlyArray<string>;
-			/**
-			 * Per-CFG-node metadata. Each entry maps the CFG node id
-			 * (used by the instrument endpoint) to the Mermaid node
-			 * identifier so the visualizer can highlight a node when its
-			 * id matches a currently-running statement.
-			 */
+			/** Per-CFG-node metadata for the rendered graph. */
 			readonly nodes: ReadonlyArray<MermaidNodeRef>;
 	  }
 	| {
