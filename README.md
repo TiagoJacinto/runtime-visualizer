@@ -34,7 +34,6 @@ Endpoints:
 - `POST /api/echo` — echoes the JSON body back, useful for round-trip checks.
 - `POST /api/cfg` — build a CFG for a TypeScript source snippet.
 - `POST /api/cfg/project` — walk the local-import subgraph from an entry file.
-- `POST /api/instrument/run` — run a TypeScript procedure and stream its execution events as NDJSON, followed by a `Succeeded` or `Failed` result.
 - `GET  /api/files` — list every file under the folder configured in `settings.json`
   (`filesFolder`), returned as forward-slash paths relative to that folder.
 - `WS   /api/mermaid` — subscribe to an entry file and receive a Mermaid `flowchart`
