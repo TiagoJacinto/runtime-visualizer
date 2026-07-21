@@ -10,7 +10,7 @@
  * whole diagram on every event tick.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import mermaid from 'mermaid'
 import type { MermaidNodeRef } from '../lib/types.ts'
 
@@ -52,7 +52,7 @@ export function MermaidView({ source, nodes, highlightedIds }: MermaidViewProps)
         const { svg } = await mermaid.render(id, source)
         if (cancelled || containerRef.current === null) return
         containerRef.current.innerHTML = svg
-        applyHighlights(containerRef.current, highlightedIds)
+        applyHighlights(containerRef.current, highlightedIds, nodes)
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
       }
@@ -66,22 +66,9 @@ export function MermaidView({ source, nodes, highlightedIds }: MermaidViewProps)
   // Re-apply highlights without re-rendering on every event tick.
   useEffect(() => {
     if (containerRef.current === null) return
-    applyHighlights(containerRef.current, highlightedIds)
-  }, [highlightedIds])
+    applyHighlights(containerRef.current, highlightedIds, nodes)
+  }, [highlightedIds, nodes])
 
-  // Build a quick lookup from CFG node id → Mermaid id so we can
-  // translate the per-run `currentNodeId` into a Mermaid group id.
-  // Memoising on `nodes` keeps this cheap even with many events.
-  const cfgToMermaid = useMemo(() => {
-    const m = new Map<string, string>()
-    for (const n of nodes) m.set(n.nodeId, n.mermaidId)
-    return m
-  }, [nodes])
-
-  // We expose the resolved ids to the parent via a derived prop —
-  // but actually we apply highlights directly inside this
-  // component using `highlightedIds`. So we just pass through.
-  void cfgToMermaid
 
   return (
     <div className="mermaid-view">
@@ -91,7 +78,11 @@ export function MermaidView({ source, nodes, highlightedIds }: MermaidViewProps)
   )
 }
 
-function applyHighlights(container: HTMLElement, highlightedIds: ReadonlySet<string>): void {
+function applyHighlights(
+  container: HTMLElement,
+  highlightedIds: ReadonlySet<string>,
+  nodes: ReadonlyArray<MermaidNodeRef>,
+): void {
   // Clear previous highlights.
   const previouslyHighlighted = container.querySelectorAll('g.node.highlighted')
   previouslyHighlighted.forEach((el) => el.classList.remove('highlighted'))
@@ -101,7 +92,8 @@ function applyHighlights(container: HTMLElement, highlightedIds: ReadonlySet<str
   // newly-rendered node that wasn't in the previous selection.
   const prefixes: string[] = []
   for (const id of highlightedIds) {
-    prefixes.push(`flowchart-${id}-`)
+    const mermaidId = nodes.find((node) => node.nodeId === id)?.mermaidId
+    if (mermaidId !== undefined) prefixes.push(`flowchart-${mermaidId}-`)
   }
   if (prefixes.length === 0) return
   const pattern = new RegExp(`^(${prefixes.map(escapeRegex).join('|')})`)
