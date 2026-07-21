@@ -6,6 +6,7 @@ import echoRoutes from "./routes/echo.ts";
 import cfgRoutes from "./routes/cfg.ts";
 import filesRoutes from "./routes/files.ts";
 import { loadSettings } from "./settings.ts";
+import instrumentRoutes from "./routes/instrument.ts";
 
 export type AppOptions = {
 	readonly now?: () => Date;
@@ -80,6 +81,11 @@ export async function createApp(
 		prefix: "/api/files",
 		filesFolder: options.filesFolder ?? loadSettings().filesFolder,
 	});
+	await app.register(instrumentRoutes, {
+		prefix: "/api/instrument",
+		projectRoot: options.cfgProjectRoot,
+	});
+
 	if (options.registerTestRoutes) {
 		options.registerTestRoutes(app);
 	}
