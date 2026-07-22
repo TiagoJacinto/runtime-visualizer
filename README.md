@@ -32,39 +32,10 @@ Endpoints:
 - `GET  /api/runtime/memory` — rss / heap / external memory usage.
 - `GET  /api/runtime/uptime` — process uptime in milliseconds.
 - `POST /api/echo` — echoes the JSON body back, useful for round-trip checks.
-- `POST /api/cfg` — build a CFG for a TypeScript source snippet.
-- `POST /api/cfg/project` — walk the local-import subgraph from an entry file.
 - `GET  /api/files` — list every file under the folder configured in `settings.json`
   (`filesFolder`), returned as forward-slash paths relative to that folder.
-- `WS   /api/mermaid` — subscribe to an entry file and receive a Mermaid `flowchart`
-  snapshot of its CFG; pushes a fresh snapshot whenever any file in the watched
-  subgraph changes. See [Mermaid WebSocket](#mermaid-websocket-api) below.
 
 The server is built with TypeScript and exercised by `bun test` in `server/test/`.
-
-### Mermaid WebSocket API
-
-`ws://<host>/api/mermaid` (path is exact — the HTTP `upgrade` event is intercepted
-only for `/api/mermaid`). Frames are JSON text.
-
-```text
-client → server
-  { "type": "subscribe",   "entry": "file1.ts" }
-  { "type": "unsubscribe" }
-  { "type": "ping" }
-
-server → client
-  { "type": "snapshot", "entry": "file1.ts",
-    "mermaid": "flowchart TD\n...",
-    "files": ["file1.ts", "file2.ts", "file3.ts"] }
-  { "type": "error",   "message": "...", "entry"?: "file1.ts" }
-  { "type": "pong" }
-```
-
-The project root defaults to `<cwd>/target`; override it with the `CFG_PROJECT_ROOT`
-environment variable when starting the server, or per-`createApp` via `cfgProjectRoot`
-in unit tests. Only relative `./` and `../` specifiers are followed — bare specifiers
-and missing files are reported in `graph`/`imports` but never trigger rebuilds.
 
 ### `settings.json`
 

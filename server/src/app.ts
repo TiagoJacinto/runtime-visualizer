@@ -3,7 +3,6 @@ import { HttpError } from "./errors.ts";
 import healthRoutes from "./routes/health.ts";
 import runtimeRoutes from "./routes/runtime.ts";
 import echoRoutes from "./routes/echo.ts";
-import cfgRoutes from "./routes/cfg.ts";
 import filesRoutes from "./routes/files.ts";
 import { loadSettings } from "./settings.ts";
 
@@ -11,8 +10,6 @@ export type AppOptions = {
 	readonly now?: () => Date;
 	/** Hook used by tests to register extra routes. */
 	readonly registerTestRoutes?: (app: FastifyInstance) => void;
-	/** Project root used by `POST /api/cfg/project` (defaults to `<cwd>/target`). */
-	readonly cfgProjectRoot?: string;
 	/** Folder whose files are exposed via `GET /api/files` (defaults to `settings.json:filesFolder`). */
 	readonly filesFolder?: string;
 };
@@ -72,10 +69,6 @@ export async function createApp(
 		now: options.now,
 	});
 	await app.register(echoRoutes, { prefix: "/api/echo" });
-	await app.register(cfgRoutes, {
-		prefix: "/api/cfg",
-		projectRoot: options.cfgProjectRoot,
-	});
 	await app.register(filesRoutes, {
 		prefix: "/api/files",
 		filesFolder: options.filesFolder ?? loadSettings().filesFolder,

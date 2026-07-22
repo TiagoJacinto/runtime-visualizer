@@ -20,3 +20,8 @@ An observable point reached during an Execution, such as a statement or a branch
 ### Trace
 
 The ordered record of Execution events produced by one Execution.
+
+### Control-flow graph
+
+A directed model of every possible path through a Procedure, derived without executing the Procedure. It records possible control-flow transitions rather than the ordered events of a Trace.
+_Avoid_: Trace, which records the path actually taken by one Execution.
