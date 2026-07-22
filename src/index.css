@@ -95,6 +95,12 @@ p {
   margin: 0;
 }
 
+main { padding: 2rem; text-align: left; }
+textarea { display: block; width: 100%; min-height: 10rem; margin: 1rem 0; font: 1rem var(--mono); box-sizing: border-box; }
+button { padding: 0.65rem 1rem; cursor: pointer; }
+section { margin-top: 2rem; }
+li { margin: 0.35rem 0; }
+
 code,
 .counter {
   font-family: var(--mono);
