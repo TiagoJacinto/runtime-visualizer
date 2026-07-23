@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	test: {
-		include: ["tests/e2e/**/*.spec.ts"],
+		include: ["tests/browser/**/*.spec.ts", "tests/browser/**/*.spec.tsx"],
 		browser: {
 			enabled: true,
 			headless: true,

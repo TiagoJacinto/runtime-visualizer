@@ -16,7 +16,8 @@
     "server:test": "bun --filter runtime-visualizer-server test",
     "server:typecheck": "bun --filter runtime-visualizer-server typecheck",
     "test:gherkin": "vitest run --config vitest.config.ts",
-    "test:gherkin:browser": "vitest run --config vitest.browser.config.ts"
+    "test:gherkin:browser": "vitest run --config vitest.browser.config.ts",
+    "test:browser": "vitest run --config vitest.browser.config.ts"
   },
   "dependencies": {
     "dompurify": "^3.4.12",
@@ -41,6 +42,7 @@
     "playwright": "^1.61.1",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "vitest-browser-react": "^2.2.0"
   }
 }
