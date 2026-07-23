@@ -23,7 +23,11 @@ describe("control-flow visualization", () => {
 						{ id: "statement-2", kind: "statement", label: "return value", location: { start: { line: 2 }, end: { line: 2 } } },
 						{ id: "exit", kind: "exit", label: "Exit" },
 					],
-					edges: [],
+					edges: [
+						{ from: "entry", to: "statement-1" },
+						{ from: "statement-1", to: "statement-2" },
+						{ from: "statement-2", to: "exit" },
+					],
 				}],
 			},
 		};
@@ -46,5 +50,7 @@ describe("control-flow visualization", () => {
 		expect(document.body.textContent).toContain("const value = read()");
 		expect(document.body.textContent).toContain("lines 2-2");
 		expect(document.body.textContent).toContain("Exit");
+		expect(document.body.textContent).toContain("Entry → const value = read()");
+		expect(document.body.textContent).toContain("return value → Exit");
 	});
 });

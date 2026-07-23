@@ -6,8 +6,17 @@ describe("POST /api/cfg", () => {
 	it("builds an empty file Procedure from Entry directly to Exit", async () => {
 		const response = await call(await createApp(), "POST", "/api/cfg", { source: "", filePath: "empty.ts" });
 		expect(response.status).toBe(200);
-		const body = response.body as { cfg: { procedures: Array<{ nodes: Array<{ label: string }> }>; } };
-		expect(body.cfg.procedures[0]!.nodes.map((node) => node.label)).toEqual(["Entry", "Exit"]);
+		const body = response.body as {
+			cfg: {
+				procedures: Array<{
+					nodes: Array<{ label: string }>;
+					edges: Array<{ from: string; to: string; kind: string }>;
+				}>;
+			};
+		};
+		const procedure = body.cfg.procedures[0]!;
+		expect(procedure.nodes.map((node) => node.label)).toEqual(["Entry", "Exit"]);
+		expect(procedure.edges).toEqual([{ from: "entry", to: "exit", kind: "next" }]);
 	});
 
 	it("represents executable top-level statements with source locations", async () => {
