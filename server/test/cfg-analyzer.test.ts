@@ -1,0 +1,259 @@
+import * as ts from "typescript";
+import { describe, expect, test } from "bun:test";
+import {
+	analyseFileProcedure,
+	isContainerStatement,
+	isControlStatement,
+	isExecutableStatement,
+	isLeafStatement,
+} from "../src/cfg/file-analyzer.ts";
+
+function graph(source: string, filePath = "inline.ts") {
+	return analyseFileProcedure(source, filePath).procedures?.[0] ?? (() => {
+		throw new Error("expected a file procedure");
+	})();
+}
+
+function nodeLabels(source: string) {
+	return graph(source).nodes.map((node) => node.label);
+}
+
+function edgeLabels(source: string, filePath = "inline.ts") {
+	const procedure = graph(source, filePath);
+	const labels = new Map(procedure.nodes.map((node) => [node.id, node.label]));
+	return procedure.edges.map((edge) => ({
+		from: labels.get(edge.from),
+		outcome: edge.label ?? "",
+		to: labels.get(edge.to),
+	}));
+}
+
+function expectEdge(source: string, edge: { from: string; outcome?: string; to: string }, filePath?: string) {
+	expect(edgeLabels(source, filePath)).toContainEqual({ from: edge.from, outcome: edge.outcome ?? "", to: edge.to });
+}
+
+function firstStatement(source: string): ts.Statement {
+	const file = ts.createSourceFile("inline.ts", source, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TS);
+	const statement = file.statements[0];
+	if (statement === undefined) throw new Error(`No statement in ${source}`);
+	return statement;
+}
+
+function capturesExecution(source: string): boolean {
+	let executed = false;
+	const javascript = ts.transpileModule(source, {
+		compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+	}).outputText;
+	const execute = () => {
+		executed = true;
+	};
+	new Function("execute", javascript)(execute);
+	return executed;
+}
+
+describe("file Procedure control-flow analysis", () => {
+	test("positively classifies executable leaf statements", () => {
+		for (const source of ["execute()", "const value = execute()", "return value", "throw error", "break", "continue", "debugger", "enum State { Ready }"]) {
+			const statement = firstStatement(source);
+			expect(isLeafStatement(statement)).toBe(true);
+			expect(isExecutableStatement(statement)).toBe(true);
+		}
+		expect(capturesExecution("execute()"), "expression statement").toBe(true);
+		expect(capturesExecution("const value = execute()"), "variable statement").toBe(true);
+		expect(capturesExecution("function procedure() { return; execute(); } procedure()"), "return prevents following statement").toBe(false);
+		expect(capturesExecution("try { throw new Error(); execute(); } catch { }"), "throw prevents following statement").toBe(false);
+		expect(capturesExecution("let count = 0; while (count++ < 1) { continue; execute(); }"), "continue prevents following statement").toBe(false);
+		expect(capturesExecution("while (true) { break; execute(); }"), "break prevents following statement").toBe(false);
+		expect(capturesExecution("enum State { Ready = execute() }"), "enum initializer").toBe(true);
+	});
+
+	test("positively classifies executable control statements", () => {
+		for (const source of [
+			"if (ready) execute()",
+			"do execute(); while (ready)",
+			"while (ready) execute()",
+			"for (;;) execute()",
+			"for (const value in values) execute()",
+			"for (const value of values) execute()",
+			"switch (value) { case 1: execute() }",
+			"try { execute() } finally { cleanup() }",
+		]) {
+			const statement = firstStatement(source);
+			expect(isControlStatement(statement)).toBe(true);
+			expect(isExecutableStatement(statement)).toBe(true);
+		}
+		for (const source of [
+			"if (true) execute()",
+			"do execute(); while (false)",
+			"while (execute()) break",
+			"for (let index = 0; index < 1; index++) execute()",
+			"for (const value in { value: 1 }) execute()",
+			"for (const value of [1]) execute()",
+			"switch (1) { case 1: execute() }",
+			"try { execute() } finally { }",
+		]) expect(capturesExecution(source)).toBe(true);
+	});
+
+	test("classifies containers only when they contain runtime work", () => {
+		for (const [source, expected] of [
+			["{ execute() }", true],
+			["{}", false],
+			["label: execute()", true],
+			["label: ;", false],
+			["class Example { static { execute() } }", true],
+			["class Example { static method() { execute() } }", false],
+			["class Example {}", false],
+			["namespace Runtime { export const value = 1 }", true],
+			["namespace Runtime {}", false],
+			["interface Example {}", false],
+			["type Example = string", false],
+			["function example() { execute() }", false],
+			["declare class Example {}", false],
+		] as const) {
+			const statement = firstStatement(source);
+			expect(isContainerStatement(statement)).toBe(expected);
+			expect(isExecutableStatement(statement)).toBe(expected);
+		}
+		const ifStatement = firstStatement("if (ready); else execute()");
+		expect(isContainerStatement(ifStatement)).toBe(false);
+		expect(isExecutableStatement(ifStatement)).toBe(true);
+		expect(isLeafStatement(firstStatement(";"))).toBe(false);
+		expect(isExecutableStatement(firstStatement(";"))).toBe(false);
+		expect(capturesExecution("{ execute() }"), "block body").toBe(true);
+		expect(capturesExecution("label: execute()"), "labeled body").toBe(true);
+		expect(capturesExecution("class Example { static { execute() } }"), "class initialization").toBe(true);
+		expect(capturesExecution("namespace Runtime { export const value = execute() }"), "namespace initialization").toBe(true);
+	});
+
+	test("represents both paths through an if decision", () => {
+		expect(nodeLabels("if (ready) { work() } else { wait() }")).toEqual([
+			"Entry",
+			"ready",
+			"work()",
+			"wait()",
+			"Exit",
+		]);
+		expect(edgeLabels("if (ready) { work() } else { wait() }")).toEqual(expect.arrayContaining([
+			{ from: "Entry", outcome: "", to: "ready" },
+			{ from: "ready", outcome: "true", to: "work()" },
+			{ from: "ready", outcome: "false", to: "wait()" },
+			{ from: "work()", outcome: "", to: "Exit" },
+			{ from: "wait()", outcome: "", to: "Exit" },
+		]));
+	});
+
+	test("routes loop jumps and finally cleanup", () => {
+		const edges = edgeLabels("while (ready) { try { continue } finally { cleanup() } } after()");
+		expect(edges).toEqual(expect.arrayContaining([
+			{ from: "ready", outcome: "true", to: "continue" },
+			{ from: "continue", outcome: "", to: "cleanup()" },
+			{ from: "cleanup()", outcome: "", to: "ready" },
+			{ from: "ready", outcome: "false", to: "after()" },
+		]));
+	});
+
+	test("models expression decisions without including nested procedure bodies", () => {
+		const procedure = graph("const helper = () => work(); helper()");
+		expect(nodeLabels("ready && work()")).toEqual(["Entry", "ready", "work()", "Exit"]);
+		expect(procedure.nodes.map((node) => node.label)).toContain("helper()");
+		expect(procedure.nodes.map((node) => node.label)).not.toContain("work()");
+	});
+
+	test("models runtime class initialization and omits erased syntax", () => {
+		const source = "interface Job {} type JobId = string; class Worker extends makeBase() { static [key ?? fallback()] = initialize(); static ready; static { register() } declare static typeOnly: string; run() { work() } }";
+		const labels = nodeLabels(source);
+		expect(labels).toEqual(expect.arrayContaining([
+			"makeBase()",
+			"key",
+			"fallback()",
+			"static [key ?? fallback()] = initialize()",
+			"static ready",
+			"register()",
+		]));
+		expect(labels).not.toEqual(expect.arrayContaining(["class Worker", "work()", "interface Job {}", "type JobId = string"]));
+		expectEdge(source, { from: "key", outcome: "nullish", to: "fallback()" });
+		expectEdge(source, { from: "key", outcome: "not-nullish", to: "static [key ?? fallback()] = initialize()" });
+	});
+
+	test("connects an empty Procedure directly from Entry to Exit", () => {
+		expect(nodeLabels("")).toEqual(["Entry", "Exit"]);
+		expectEdge("", { from: "Entry", to: "Exit" });
+	});
+
+	test("preserves switch fall-through and resolves break", () => {
+		const source = "switch (kind) { case 'a': first(); case 'b': second(); break; default: other() } done()";
+		expectEdge(source, { from: "kind", outcome: "case 'a'", to: "first()" });
+		expectEdge(source, { from: "kind", outcome: "case 'b'", to: "second()" });
+		expectEdge(source, { from: "kind", outcome: "default", to: "other()" });
+		expectEdge(source, { from: "first()", to: "second()" });
+		expectEdge(source, { from: "break", to: "done()" });
+		expectEdge(source, { from: "other()", to: "done()" });
+		expect(edgeLabels(source)).not.toContainEqual({ from: "kind", outcome: "", to: "done()" });
+	});
+
+	test("retains an empty branch path while preserving the alternate branch", () => {
+		const source = "if (ready); else skipped(); after()";
+		expectEdge(source, { from: "ready", outcome: "true", to: "after()" });
+		expectEdge(source, { from: "ready", outcome: "false", to: "skipped()" });
+		expectEdge(source, { from: "skipped()", to: "after()" });
+	});
+
+	test("executes the empty if branch and captures observable procedure nodes", () => {
+		const execute = new Function(
+			"ready",
+			"after",
+			"skipped",
+			"if (ready); else skipped(); after();",
+		) as (ready: boolean, after: () => void, skipped: () => void) => void;
+		const run = (ready: boolean): string[] => {
+			const captured: string[] = [];
+			execute(ready, () => captured.push("after"), () => captured.push("skip"));
+			return captured;
+		};
+
+		expect(run(true)).toEqual(["after"]);
+		expect(run(false)).toEqual(["skip", "after"]);
+	});
+
+	test("models for phases and do-while entry", () => {
+		const source = "for (let i = 0; i < 3; i++) { continue } after()";
+		expectEdge(source, { from: "let i = 0", to: "i < 3" });
+		expectEdge(source, { from: "i < 3", outcome: "true", to: "continue" });
+		expectEdge(source, { from: "continue", to: "i++" });
+		expectEdge(source, { from: "i++", to: "i < 3" });
+		expectEdge(source, { from: "i < 3", outcome: "false", to: "after()" });
+		expectEdge("do { attempt() } while (retry); finish()", { from: "Entry", to: "attempt()" });
+		expectEdge("do { attempt() } while (retry); finish()", { from: "attempt()", to: "retry" });
+	});
+
+	test("exposes iteration alternatives and labeled jumps", () => {
+		const source = "for (const item of values) { work(item) } after()";
+		expectEdge(source, { from: "values items", outcome: "next item", to: "work(item)" });
+		expectEdge(source, { from: "values items", outcome: "iteration end", to: "after()" });
+		expectEdge("outer: while (ready) { break outer } done()", { from: "break outer", to: "done()" });
+		expect(nodeLabels("outer: while (ready) { break outer } done()")).not.toContain("outer");
+	});
+
+	test("routes explicit throws and abrupt paths through finally", () => {
+		const source = "function recover(failed: boolean, error: Error) { try { if (failed) throw error; work() } catch { recoverWork() } finally { cleanup() } }";
+		expectEdge(source, { from: "throw error", to: "recoverWork()" }, "recover");
+		expectEdge(source, { from: "recoverWork()", to: "cleanup()" }, "recover");
+		expectEdge(source, { from: "work()", to: "cleanup()" }, "recover");
+		expectEdge(source, { from: "cleanup()", to: "Exit" }, "recover");
+		expectEdge("function fail(error: Error) { throw error }", { from: "throw error", to: "Exit" }, "fail");
+	});
+
+	test("labels all supported expression decisions", () => {
+		for (const [source, decision, first, second] of [
+			["ready && work()", "ready", "truthy", "falsy"],
+			["ready || fallback()", "ready", "falsy", "truthy"],
+			["value ?? fallback()", "value", "nullish", "not-nullish"],
+			["condition ? left() : right()", "condition", "true", "false"],
+			["callback?.()", "callback", "not-nullish", "nullish"],
+		] as const) {
+			const edges = edgeLabels(source);
+			expect(edges.some((edge) => edge.from === decision && edge.outcome === first)).toBe(true);
+			expect(edges.some((edge) => edge.from === decision && edge.outcome === second)).toBe(true);
+		}
+	});
+});
