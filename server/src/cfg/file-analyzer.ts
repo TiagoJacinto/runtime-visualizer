@@ -111,12 +111,29 @@ export function isControlStatement(statement: ts.Statement): boolean {
 		ts.isWithStatement(statement);
 }
 
-/** Statements that own nested statements or runtime initialization members. */
+/** Containers whose nested statements or initialization members perform runtime work. */
 export function isContainerStatement(statement: ts.Statement): boolean {
-	return ts.isBlock(statement) ||
-		ts.isLabeledStatement(statement) ||
-		(ts.isClassDeclaration(statement) && !isDeclare(statement)) ||
-		(ts.isModuleDeclaration(statement) && !isDeclare(statement));
+	if (ts.isBlock(statement)) return statement.statements.some(isExecutableStatement);
+	if (ts.isLabeledStatement(statement)) return isExecutableStatement(statement.statement);
+	if (ts.isClassDeclaration(statement)) return !isDeclare(statement) && hasExecutableClassInitialization(statement);
+	if (ts.isModuleDeclaration(statement)) return !isDeclare(statement) && hasExecutableModuleBody(statement.body);
+	return false;
+}
+
+function hasExecutableClassInitialization(declaration: ts.ClassDeclaration): boolean {
+	if (declaration.heritageClauses?.some((clause) => clause.types.length > 0)) return true;
+	return declaration.members.some((member) => {
+		if (isDeclare(member)) return false;
+		if (ts.isClassStaticBlockDeclaration(member)) return member.body.statements.some(isExecutableStatement);
+		if (member.name !== undefined && ts.isComputedPropertyName(member.name)) return true;
+		return isStatic(member) && (ts.isPropertyDeclaration(member) || ts.isMethodDeclaration(member) || ts.isGetAccessorDeclaration(member) || ts.isSetAccessorDeclaration(member));
+	});
+}
+
+function hasExecutableModuleBody(body: ts.ModuleBody | undefined): boolean {
+	if (body === undefined) return false;
+	if (ts.isModuleBlock(body)) return body.statements.some(isExecutableStatement);
+	return ts.isModuleDeclaration(body) && isExecutableStatement(body);
 }
 
 /** A positive runtime-role whitelist; declarations and erased syntax are excluded. */

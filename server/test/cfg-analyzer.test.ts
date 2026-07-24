@@ -94,13 +94,28 @@ describe("file Procedure control-flow analysis", () => {
 		]) expect(capturesExecution(source)).toBe(true);
 	});
 
-	test("positively classifies executable containers and excludes non-executable declarations", () => {
-		for (const source of ["{ execute() }", "label: execute()", "class Example { static { execute() } }", "namespace Runtime { export const value = 1 }", "if (ready); else execute()", "interface Example {}", "type Example = string", "function example() { execute() }", "declare class Example {}"]) {
+	test("classifies containers only when they contain runtime work", () => {
+		for (const [source, expected] of [
+			["{ execute() }", true],
+			["{}", false],
+			["label: execute()", true],
+			["label: ;", false],
+			["class Example { static { execute() } }", true],
+			["class Example {}", false],
+			["namespace Runtime { export const value = 1 }", true],
+			["namespace Runtime {}", false],
+			["interface Example {}", false],
+			["type Example = string", false],
+			["function example() { execute() }", false],
+			["declare class Example {}", false],
+		] as const) {
 			const statement = firstStatement(source);
-			const expected = !["interface Example {}", "type Example = string", "function example() { execute() }", "declare class Example {}"].includes(source);
-			expect(isContainerStatement(statement)).toBe(expected && !source.startsWith("if "));
+			expect(isContainerStatement(statement)).toBe(expected);
 			expect(isExecutableStatement(statement)).toBe(expected);
 		}
+		const ifStatement = firstStatement("if (ready); else execute()");
+		expect(isContainerStatement(ifStatement)).toBe(false);
+		expect(isExecutableStatement(ifStatement)).toBe(true);
 		expect(isLeafStatement(firstStatement(";"))).toBe(false);
 		expect(isExecutableStatement(firstStatement(";"))).toBe(false);
 		expect(capturesExecution("{ execute() }"), "block body").toBe(true);
