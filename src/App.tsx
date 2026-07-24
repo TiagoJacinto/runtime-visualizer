@@ -34,14 +34,29 @@ export default function App() {
 		setIsLoading(true);
 		try {
 			const response = await fetch("/api/cfg", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ source, filePath: fileName }),
-		});
-		const body = (await response.json()) as CfgResponse;
-		if (!response.ok || body.cfg === undefined) {
-			throw new Error(body.error ?? `HTTP ${response.status}`);
-		}
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ source, filePath: fileName }),
+			});
+			const responseText = await response.text();
+			let body: CfgResponse = {};
+			if (responseText.trim() !== "") {
+				try {
+					body = JSON.parse(responseText) as CfgResponse;
+				} catch {
+					throw new Error(
+						`CFG service returned invalid JSON (HTTP ${response.status}).`,
+					);
+				}
+			}
+			if (!response.ok || body.cfg === undefined) {
+				throw new Error(
+					body.error ??
+						(responseText.trim() === ""
+							? `CFG service returned an empty response (HTTP ${response.status}). Is the backend running?`
+							: `HTTP ${response.status}`),
+				);
+			}
 		setGraph(body.cfg);
 	} catch (cause) {
 		setError(cause instanceof Error ? cause.message : String(cause));

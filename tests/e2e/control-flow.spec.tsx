@@ -53,4 +53,21 @@ describe("control-flow visualization", () => {
 		expect(document.body.textContent).toContain("Entry → const value = read()");
 		expect(document.body.textContent).toContain("return value → Exit");
 	});
+
+	it("shows a useful error when the CFG service returns an empty response", async () => {
+		vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 502 })));
+		document.body.innerHTML = '<div id="root"></div>';
+		root = createRoot(document.querySelector("#root")!);
+		root.render(<App />);
+
+		await vi.waitFor(() => expect(document.querySelector("#procedure-source")).not.toBeNull());
+		const textarea = document.querySelector<HTMLTextAreaElement>("#procedure-source")!;
+		textarea.value = "work()";
+		textarea.dispatchEvent(new Event("input", { bubbles: true }));
+		document.querySelector<HTMLButtonElement>("button")!.click();
+
+		await vi.waitFor(() => expect(document.querySelector('[role="alert"]')).not.toBeNull());
+		expect(document.body.textContent).toContain("CFG service returned an empty response");
+		expect(document.body.textContent).not.toContain("Unexpected end of JSON input");
+	});
 });
