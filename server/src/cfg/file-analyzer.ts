@@ -3,7 +3,13 @@ import type { CfgEdge, CfgNode, ControlFlowGraph, SourceLocation } from "./types
 
 /** Builds the file-scoped Procedure graph: top-level runtime statements only. */
 export function analyseFileProcedure(source: string, filePath = "inline.ts"): ControlFlowGraph {
-	const file = ts.createSourceFile(filePath, source, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TSX);
+	const file = ts.createSourceFile(
+		filePath,
+		source,
+		ts.ScriptTarget.ESNext,
+		true,
+		scriptKindFor(filePath),
+	);
 	const nodes: CfgNode[] = [{ id: "entry", kind: "entry", label: "Entry" }];
 	const edges: CfgEdge[] = [];
 	const executable = file.statements.filter(isExecutableStatement);
@@ -18,6 +24,13 @@ export function analyseFileProcedure(source: string, filePath = "inline.ts"): Co
 	nodes.push({ id: "exit", kind: "exit", label: "Exit" });
 	edges.push({ from: previous, to: "exit", kind: "next" });
 	return { filePath, functions: [], procedures: [{ name: filePath, nodes, edges, entry: "entry", exit: "exit" }] };
+}
+
+function scriptKindFor(filePath: string): ts.ScriptKind {
+	const normalizedPath = filePath.toLowerCase();
+	if (normalizedPath.endsWith(".ts")) return ts.ScriptKind.TS;
+	if (normalizedPath.endsWith(".tsx")) return ts.ScriptKind.TSX;
+	return ts.ScriptKind.TSX;
 }
 
 function isExecutableStatement(statement: ts.Statement): boolean {
