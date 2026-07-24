@@ -99,6 +99,23 @@ describe("file Procedure control-flow analysis", () => {
 		expectEdge(source, { from: "skipped()", to: "after()" });
 	});
 
+	test("executes the empty if branch and captures observable procedure nodes", () => {
+		const execute = new Function(
+			"ready",
+			"after",
+			"skipped",
+			"if (ready); else skipped(); after();",
+		) as (ready: boolean, after: () => void, skipped: () => void) => void;
+		const run = (ready: boolean): string[] => {
+			const captured: string[] = [];
+			execute(ready, () => captured.push("after"), () => captured.push("skip"));
+			return captured;
+		};
+
+		expect(run(true)).toEqual(["after"]);
+		expect(run(false)).toEqual(["skip", "after"]);
+	});
+
 	test("models for phases and do-while entry", () => {
 		const source = "for (let i = 0; i < 3; i++) { continue } after()";
 		expectEdge(source, { from: "let i = 0", to: "i < 3" });
