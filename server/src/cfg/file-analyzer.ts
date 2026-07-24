@@ -10,7 +10,8 @@ import type {
 
 type AbruptKind = "return" | "throw" | "break" | "continue";
 type AbruptFlow = { from: string; kind: AbruptKind; label?: string };
-type Flow = { entry?: string; normal: string[]; normalLabels?: Map<string, string>; abrupt: AbruptFlow[] };
+type NormalEdge = { from: string; label?: string };
+type Flow = { entry?: string; normal: string[]; normalLabels?: Map<string, string>; normalEdges?: NormalEdge[]; abrupt: AbruptFlow[] };
 
 type Breakable = {
 	kind: "loop" | "switch";
@@ -69,7 +70,7 @@ function buildProcedure(
 	const exit = builder.node("exit", "Exit");
 	if (flow.entry !== undefined) builder.link(entry, flow.entry, undefined, "entry");
 	else builder.link(entry, exit, undefined, "entry");
-	for (const source of flow.normal) builder.link(source, exit, flow.normalLabels?.get(source));
+	connectNormal(builder, flow, exit);
 	resolveAbrupt(builder, flow.abrupt, exit);
 	return {
 		name,
@@ -84,6 +85,11 @@ function emptyContext(): BuildContext {
 	return { breakables: [], loops: [] };
 }
 
+function connectNormal(builder: GraphBuilder, flow: Pick<Flow, "normal" | "normalLabels" | "normalEdges">, target: string): void {
+	for (const source of flow.normal) builder.link(source, target, flow.normalLabels?.get(source));
+	for (const edge of flow.normalEdges ?? []) builder.link(edge.from, target, edge.label);
+}
+
 function buildStatementList(
 	file: ts.SourceFile,
 	builder: GraphBuilder,
@@ -94,16 +100,18 @@ function buildStatementList(
 	let normal: string[] = [];
 	let normalLabels = new Map<string, string>();
 	let abrupt: AbruptFlow[] = [];
+	let normalEdges: NormalEdge[] = [];
 	for (const statement of statements) {
 		const current = buildStatement(file, builder, statement, context);
 		if (current.entry === undefined) continue;
 		if (entry === undefined) entry = current.entry;
-		for (const source of normal) builder.link(source, current.entry, normalLabels.get(source));
+		connectNormal(builder, { normal, normalLabels, normalEdges }, current.entry);
 		normal = current.normal;
 		normalLabels = current.normalLabels ?? new Map<string, string>();
+		normalEdges = current.normalEdges ?? [];
 		abrupt = [...abrupt, ...current.abrupt];
 	}
-	return { entry, normal, normalLabels, abrupt };
+	return { entry, normal, normalLabels, normalEdges, abrupt };
 }
 
 function buildStatement(file: ts.SourceFile, builder: GraphBuilder, statement: ts.Statement, context: BuildContext): Flow {
@@ -143,11 +151,11 @@ function buildIf(file: ts.SourceFile, builder: GraphBuilder, statement: ts.IfSta
 	if (thenFlow.entry !== undefined) builder.link(decision, thenFlow.entry, "true");
 	const abrupt = [...thenFlow.abrupt];
 	if (statement.elseStatement === undefined) {
-		return { entry: decision, normal: [decision, ...thenFlow.normal], normalLabels: new Map([[decision, "false"], ...(thenFlow.normalLabels ?? new Map())]), abrupt };
+		return { entry: decision, normal: [decision, ...thenFlow.normal], normalLabels: new Map([[decision, "false"], ...(thenFlow.normalLabels ?? new Map())]), normalEdges: thenFlow.entry === undefined ? [{ from: decision, label: "true" }] : thenFlow.normalEdges, abrupt };
 	}
 	const elseFlow = buildStatement(file, builder, statement.elseStatement, context);
 	if (elseFlow.entry !== undefined) builder.link(decision, elseFlow.entry, "false");
-	else return { entry: decision, normal: [decision, ...thenFlow.normal], normalLabels: new Map([[decision, "false"], ...(thenFlow.normalLabels ?? new Map())]), abrupt: [...abrupt, ...elseFlow.abrupt] };
+	else return { entry: decision, normal: [decision, ...thenFlow.normal], normalLabels: new Map([[decision, "false"], ...(thenFlow.normalLabels ?? new Map())]), normalEdges: thenFlow.entry === undefined ? [{ from: decision, label: "true" }] : thenFlow.normalEdges, abrupt: [...abrupt, ...elseFlow.abrupt] };
 	return { entry: decision, normal: [...thenFlow.normal, ...elseFlow.normal], abrupt: [...abrupt, ...elseFlow.abrupt] };
 }
 
@@ -161,7 +169,7 @@ function buildWhile(file: ts.SourceFile, builder: GraphBuilder, statement: ts.Wh
 	context.breakables.pop();
 	if (body.entry !== undefined) builder.link(head, body.entry, "true");
 	else builder.link(head, head, "true");
-	for (const source of body.normal) builder.link(source, head);
+	connectNormal(builder, body, head);
 	for (const jump of body.abrupt) {
 		if (jump.kind === "continue" && matchesTarget(jump.label, loop.label)) builder.link(jump.from, head);
 		else if (jump.kind === "break" && matchesTarget(jump.label, loop.label)) loop.breaks.push(jump.from);
@@ -179,7 +187,7 @@ function buildDoWhile(file: ts.SourceFile, builder: GraphBuilder, statement: ts.
 	context.loops.pop();
 	context.breakables.pop();
 	if (body.entry !== undefined) {
-		for (const source of body.normal) builder.link(source, head);
+		connectNormal(builder, body, head);
 		builder.link(head, body.entry, "true");
 	} else builder.link(head, head, "true");
 	for (const jump of body.abrupt) {
@@ -204,7 +212,7 @@ function buildFor(file: ts.SourceFile, builder: GraphBuilder, statement: ts.ForS
 	if (body.entry !== undefined) builder.link(head, body.entry, "true");
 	else if (statement.condition === undefined) builder.link(head, head, "repeat");
 	else builder.link(head, head, "true");
-	for (const source of body.normal) builder.link(source, update?.entry ?? head);
+	connectNormal(builder, body, update?.entry ?? head);
 	if (update?.entry !== undefined) builder.link(update.entry, head);
 	for (const jump of body.abrupt) {
 		if (jump.kind === "continue" && matchesTarget(jump.label, loop.label)) builder.link(jump.from, loop.continueTarget);
@@ -227,7 +235,7 @@ function buildForInOf(file: ts.SourceFile, builder: GraphBuilder, statement: ts.
 	context.breakables.pop();
 	if (body.entry !== undefined) builder.link(head, body.entry, "next item");
 	else builder.link(head, head, "next item");
-	for (const source of body.normal) builder.link(source, head);
+	connectNormal(builder, body, head);
 	for (const jump of body.abrupt) {
 		if (jump.kind === "continue" && matchesTarget(jump.label, loop.label)) builder.link(jump.from, head);
 		else if (jump.kind === "break" && matchesTarget(jump.label, loop.label)) loop.breaks.push(jump.from);
@@ -251,18 +259,17 @@ function buildSwitch(file: ts.SourceFile, builder: GraphBuilder, statement: ts.S
 		const target = flow.entry ?? nextEntry;
 		const outcome = ts.isCaseClause(clause) ? `case ${clause.expression.getText(file)}` : "default";
 		if (target !== undefined) builder.link(dispatch, target, outcome, ts.isCaseClause(clause) ? "case" : "default");
-		for (const source of flow.normal) {
-			if (nextEntry !== undefined) builder.link(source, nextEntry);
-		}
+		if (nextEntry !== undefined) connectNormal(builder, flow, nextEntry);
 		for (const jump of flow.abrupt ?? []) {
 			if (jump.kind === "break" && matchesTarget(jump.label, breaker.label)) breaker.breaks.push(jump.from);
 			else unhandled.push(jump);
 		}
 	}
 	const finalFlow = [...clauses].reverse().find((flow) => flow?.entry !== undefined);
+	const hasDefault = statement.caseBlock.clauses.some((clause) => ts.isDefaultClause(clause));
 	return {
 		entry: dispatch,
-		normal: [dispatch, ...breaker.breaks, ...(finalFlow?.normal ?? [])],
+		normal: [...(hasDefault ? [] : [dispatch]), ...breaker.breaks, ...(finalFlow?.normal ?? [])],
 		abrupt: unhandled,
 	};
 }
@@ -369,16 +376,18 @@ function joinFlows(builder: GraphBuilder, flows: Flow[]): Flow {
 	let entry: string | undefined;
 	let normal: string[] = [];
 	let normalLabels = new Map<string, string>();
+	let normalEdges: NormalEdge[] = [];
 	let abrupt: AbruptFlow[] = [];
 	for (const flow of flows) {
 		if (flow.entry === undefined) continue;
 		if (entry === undefined) entry = flow.entry;
-		for (const source of normal) builder.link(source, flow.entry, normalLabels.get(source));
+		connectNormal(builder, { normal, normalLabels, normalEdges }, flow.entry);
 		normal = flow.normal;
 		normalLabels = flow.normalLabels ?? new Map<string, string>();
+		normalEdges = flow.normalEdges ?? [];
 		abrupt = [...abrupt, ...flow.abrupt];
 	}
-	return { entry, normal, normalLabels, abrupt };
+	return { entry, normal, normalLabels, normalEdges, abrupt };
 }
 
 function resolveAbrupt(builder: GraphBuilder, abrupt: AbruptFlow[], exit: string): void {
