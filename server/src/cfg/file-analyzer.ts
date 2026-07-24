@@ -85,6 +85,45 @@ function emptyContext(): BuildContext {
 	return { breakables: [], loops: [] };
 }
 
+/** Statements that perform one runtime action without owning statement bodies. */
+export function isLeafStatement(statement: ts.Statement): boolean {
+	return ts.isExpressionStatement(statement) ||
+		ts.isVariableStatement(statement) ||
+		ts.isReturnStatement(statement) ||
+		ts.isThrowStatement(statement) ||
+		ts.isBreakStatement(statement) ||
+		ts.isContinueStatement(statement) ||
+		ts.isDebuggerStatement(statement) ||
+		ts.isEnumDeclaration(statement) ||
+		ts.isExportAssignment(statement);
+}
+
+/** Statements whose evaluation chooses, repeats, or transfers control. */
+export function isControlStatement(statement: ts.Statement): boolean {
+	return ts.isIfStatement(statement) ||
+		ts.isDoStatement(statement) ||
+		ts.isWhileStatement(statement) ||
+		ts.isForStatement(statement) ||
+		ts.isForInStatement(statement) ||
+		ts.isForOfStatement(statement) ||
+		ts.isSwitchStatement(statement) ||
+		ts.isTryStatement(statement) ||
+		ts.isWithStatement(statement);
+}
+
+/** Statements that own nested statements or runtime initialization members. */
+export function isContainerStatement(statement: ts.Statement): boolean {
+	return ts.isBlock(statement) ||
+		ts.isLabeledStatement(statement) ||
+		(ts.isClassDeclaration(statement) && !isDeclare(statement)) ||
+		(ts.isModuleDeclaration(statement) && !isDeclare(statement));
+}
+
+/** A positive runtime-role whitelist; declarations and erased syntax are excluded. */
+export function isExecutableStatement(statement: ts.Statement): boolean {
+	return isLeafStatement(statement) || isControlStatement(statement) || isContainerStatement(statement);
+}
+
 function connectNormal(builder: GraphBuilder, flow: Pick<Flow, "normal" | "normalLabels" | "normalEdges">, target: string): void {
 	for (const source of flow.normal) builder.link(source, target, flow.normalLabels?.get(source));
 	for (const edge of flow.normalEdges ?? []) builder.link(edge.from, target, edge.label);
@@ -115,6 +154,7 @@ function buildStatementList(
 }
 
 function buildStatement(file: ts.SourceFile, builder: GraphBuilder, statement: ts.Statement, context: BuildContext): Flow {
+	if (!isExecutableStatement(statement)) return emptyFlow();
 	if (ts.isEmptyStatement(statement)) return emptyFlow();
 	if (ts.isImportDeclaration(statement) || ts.isImportEqualsDeclaration(statement) || ts.isExportDeclaration(statement)) return emptyFlow();
 	if (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement) || isDeclare(statement)) return emptyFlow();
@@ -268,7 +308,7 @@ function buildSwitch(file: ts.SourceFile, builder: GraphBuilder, statement: ts.S
 			else unhandled.push(jump);
 		}
 	}
-	const finalFlow = [...clauses].reverse().find((flow) => flow?.entry !== undefined);
+	const finalFlow = clauses.findLast((flow) => flow?.entry !== undefined);
 	const hasDefault = statement.caseBlock.clauses.some((clause) => ts.isDefaultClause(clause));
 	return {
 		entry: dispatch,
@@ -403,7 +443,11 @@ function matchesTarget(actual: string | undefined, expected: string | undefined)
 function isDeclare(node: ts.Node): boolean { return ts.canHaveModifiers(node) && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.DeclareKeyword) === true; }
 function isStatic(node: ts.Node): boolean { return ts.canHaveModifiers(node) && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword) === true; }
 function isNestedProcedure(node: ts.Node): boolean { return ts.isFunctionExpression(node) || ts.isArrowFunction(node) || ts.isClassExpression(node); }
-function edgeKind(label?: string): CfgEdge["kind"] { return label === "true" ? "true" : label === "false" ? "false" : "next"; }
+function edgeKind(label?: string): CfgEdge["kind"] {
+	if (label === "true") return "true";
+	if (label === "false") return "false";
+	return "next";
+}
 function scriptKindFor(filePath: string): ts.ScriptKind { return filePath.toLowerCase().endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS; }
 
 function isShortCircuitOperator(kind: ts.SyntaxKind): boolean {

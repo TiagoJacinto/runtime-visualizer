@@ -1,5 +1,12 @@
+import * as ts from "typescript";
 import { describe, expect, test } from "bun:test";
-import { analyseFileProcedure } from "../src/cfg/file-analyzer.ts";
+import {
+	analyseFileProcedure,
+	isContainerStatement,
+	isControlStatement,
+	isExecutableStatement,
+	isLeafStatement,
+} from "../src/cfg/file-analyzer.ts";
 
 function graph(source: string, filePath = "inline.ts") {
 	return analyseFileProcedure(source, filePath).procedures?.[0] ?? (() => {
@@ -25,7 +32,82 @@ function expectEdge(source: string, edge: { from: string; outcome?: string; to: 
 	expect(edgeLabels(source, filePath)).toContainEqual({ from: edge.from, outcome: edge.outcome ?? "", to: edge.to });
 }
 
+function firstStatement(source: string): ts.Statement {
+	const file = ts.createSourceFile("inline.ts", source, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TS);
+	const statement = file.statements[0];
+	if (statement === undefined) throw new Error(`No statement in ${source}`);
+	return statement;
+}
+
+function capturesExecution(source: string): boolean {
+	let executed = false;
+	const javascript = ts.transpileModule(source, {
+		compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
+	}).outputText;
+	const execute = () => {
+		executed = true;
+		return true;
+	};
+	new Function("execute", javascript)(execute);
+	return executed;
+}
+
 describe("file Procedure control-flow analysis", () => {
+	test("positively classifies executable leaf statements", () => {
+		for (const source of ["execute()", "const value = execute()", "return value", "throw error", "break", "continue", "debugger", "enum State { Ready }"]) {
+			const statement = firstStatement(source);
+			expect(isLeafStatement(statement)).toBe(true);
+			expect(isExecutableStatement(statement)).toBe(true);
+		}
+		expect(capturesExecution("execute()"), "expression statement").toBe(true);
+		expect(capturesExecution("const value = execute()"), "variable statement").toBe(true);
+		expect(capturesExecution("function procedure() { return execute(); } procedure()"), "return expression").toBe(true);
+		expect(capturesExecution("try { throw execute(); } catch { }"), "throw expression").toBe(true);
+		expect(capturesExecution("enum State { Ready = execute() }"), "enum initializer").toBe(true);
+	});
+
+	test("positively classifies executable control statements", () => {
+		for (const source of [
+			"if (ready) execute()",
+			"do execute(); while (ready)",
+			"while (ready) execute()",
+			"for (;;) execute()",
+			"for (const value in values) execute()",
+			"for (const value of values) execute()",
+			"switch (value) { case 1: execute() }",
+			"try { execute() } finally { cleanup() }",
+		]) {
+			const statement = firstStatement(source);
+			expect(isControlStatement(statement)).toBe(true);
+			expect(isExecutableStatement(statement)).toBe(true);
+		}
+		for (const source of [
+			"if (true) execute()",
+			"do execute(); while (false)",
+			"while (execute()) break",
+			"for (let index = 0; index < 1; index++) execute()",
+			"for (const value in { value: 1 }) execute()",
+			"for (const value of [1]) execute()",
+			"switch (1) { case 1: execute() }",
+			"try { execute() } finally { }",
+		]) expect(capturesExecution(source)).toBe(true);
+	});
+
+	test("positively classifies executable containers and excludes non-executable declarations", () => {
+		for (const source of ["{ execute() }", "label: execute()", "class Example { static { execute() } }", "namespace Runtime { export const value = 1 }", "if (ready); else execute()", "interface Example {}", "type Example = string", "function example() { execute() }", "declare class Example {}"]) {
+			const statement = firstStatement(source);
+			const expected = !["interface Example {}", "type Example = string", "function example() { execute() }", "declare class Example {}"].includes(source);
+			expect(isContainerStatement(statement)).toBe(expected && !source.startsWith("if "));
+			expect(isExecutableStatement(statement)).toBe(expected);
+		}
+		expect(isLeafStatement(firstStatement(";"))).toBe(false);
+		expect(isExecutableStatement(firstStatement(";"))).toBe(false);
+		expect(capturesExecution("{ execute() }"), "block body").toBe(true);
+		expect(capturesExecution("label: execute()"), "labeled body").toBe(true);
+		expect(capturesExecution("class Example { static { execute() } }"), "class initialization").toBe(true);
+		expect(capturesExecution("namespace Runtime { export const value = execute() }"), "namespace initialization").toBe(true);
+	});
+
 	test("represents both paths through an if decision", () => {
 		expect(nodeLabels("if (ready) { work() } else { wait() }")).toEqual([
 			"Entry",
