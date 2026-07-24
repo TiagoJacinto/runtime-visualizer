@@ -101,6 +101,7 @@ describe("file Procedure control-flow analysis", () => {
 			["label: execute()", true],
 			["label: ;", false],
 			["class Example { static { execute() } }", true],
+			["class Example { static method() { execute() } }", false],
 			["class Example {}", false],
 			["namespace Runtime { export const value = 1 }", true],
 			["namespace Runtime {}", false],

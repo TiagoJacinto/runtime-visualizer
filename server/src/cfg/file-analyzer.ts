@@ -126,7 +126,7 @@ function hasExecutableClassInitialization(declaration: ts.ClassDeclaration): boo
 		if (isDeclare(member)) return false;
 		if (ts.isClassStaticBlockDeclaration(member)) return member.body.statements.some(isExecutableStatement);
 		if (member.name !== undefined && ts.isComputedPropertyName(member.name)) return true;
-		return isStatic(member) && (ts.isPropertyDeclaration(member) || ts.isMethodDeclaration(member) || ts.isGetAccessorDeclaration(member) || ts.isSetAccessorDeclaration(member));
+		return isStatic(member) && ts.isPropertyDeclaration(member);
 	});
 }
 
