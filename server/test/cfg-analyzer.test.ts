@@ -92,10 +92,11 @@ describe("file Procedure control-flow analysis", () => {
 		expect(edgeLabels(source)).not.toContainEqual({ from: "kind", outcome: "", to: "done()" });
 	});
 
-	test("retains both paths when an empty statement is omitted", () => {
-		const source = "if (ready); after()";
+	test("retains an empty branch path while preserving the alternate branch", () => {
+		const source = "if (ready); else skipped(); after()";
 		expectEdge(source, { from: "ready", outcome: "true", to: "after()" });
-		expectEdge(source, { from: "ready", outcome: "false", to: "after()" });
+		expectEdge(source, { from: "ready", outcome: "false", to: "skipped()" });
+		expectEdge(source, { from: "skipped()", to: "after()" });
 	});
 
 	test("models for phases and do-while entry", () => {

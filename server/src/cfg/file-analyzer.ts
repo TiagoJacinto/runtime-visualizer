@@ -149,14 +149,17 @@ function buildIf(file: ts.SourceFile, builder: GraphBuilder, statement: ts.IfSta
 	const decision = builder.node("branch", statement.expression.getText(file).trim(), statement.expression);
 	const thenFlow = buildStatement(file, builder, statement.thenStatement, context);
 	if (thenFlow.entry !== undefined) builder.link(decision, thenFlow.entry, "true");
-	const abrupt = [...thenFlow.abrupt];
-	if (statement.elseStatement === undefined) {
-		return { entry: decision, normal: [decision, ...thenFlow.normal], normalLabels: new Map([[decision, "false"], ...(thenFlow.normalLabels ?? new Map())]), normalEdges: thenFlow.entry === undefined ? [{ from: decision, label: "true" }] : thenFlow.normalEdges, abrupt };
+	const elseFlow = statement.elseStatement === undefined ? emptyFlow() : buildStatement(file, builder, statement.elseStatement, context);
+	if (statement.elseStatement !== undefined && elseFlow.entry !== undefined) builder.link(decision, elseFlow.entry, "false");
+	const normal = [...thenFlow.normal, ...elseFlow.normal];
+	const normalLabels = new Map([...(thenFlow.normalLabels ?? new Map()), ...(elseFlow.normalLabels ?? new Map())]);
+	const normalEdges = [...(thenFlow.normalEdges ?? []), ...(elseFlow.normalEdges ?? [])];
+	if (thenFlow.entry === undefined) normalEdges.push({ from: decision, label: "true" });
+	if (statement.elseStatement === undefined || elseFlow.entry === undefined) {
+		normal.push(decision);
+		normalLabels.set(decision, "false");
 	}
-	const elseFlow = buildStatement(file, builder, statement.elseStatement, context);
-	if (elseFlow.entry !== undefined) builder.link(decision, elseFlow.entry, "false");
-	else return { entry: decision, normal: [decision, ...thenFlow.normal], normalLabels: new Map([[decision, "false"], ...(thenFlow.normalLabels ?? new Map())]), normalEdges: thenFlow.entry === undefined ? [{ from: decision, label: "true" }] : thenFlow.normalEdges, abrupt: [...abrupt, ...elseFlow.abrupt] };
-	return { entry: decision, normal: [...thenFlow.normal, ...elseFlow.normal], abrupt: [...abrupt, ...elseFlow.abrupt] };
+	return { entry: decision, normal, normalLabels, normalEdges, abrupt: [...thenFlow.abrupt, ...elseFlow.abrupt] };
 }
 
 function buildWhile(file: ts.SourceFile, builder: GraphBuilder, statement: ts.WhileStatement, context: BuildContext, label?: string): Flow {
