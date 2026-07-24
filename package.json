@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "dev": "bun run --parallel dev:frontend dev:server",
-    "dev:frontend": "vite",
+    "dev:frontend": "vite --host",
     "dev:server": "bun --filter runtime-visualizer-server dev",
     "build": "bun run build:frontend && bun run build:server",
     "build:frontend": "tsc -b && vite build",
