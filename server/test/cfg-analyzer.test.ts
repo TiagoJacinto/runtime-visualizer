@@ -46,7 +46,6 @@ function capturesExecution(source: string): boolean {
 	}).outputText;
 	const execute = () => {
 		executed = true;
-		return true;
 	};
 	new Function("execute", javascript)(execute);
 	return executed;
