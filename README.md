@@ -13,17 +13,37 @@ The React Compiler is enabled on this template. See [this documentation](https:/
 
 Note: This will impact Vite dev & build performances.
 
-## Server
+## Development commands
 
-A small Fastify server lives in `./server` (declared as a workspace).
+The default development command starts the Vite frontend and Fastify server together:
 
 ```bash
-bun install                          # root install (wires the server workspace)
-bun --filter runtime-visualizer-server install   # server-only install
-bun --filter runtime-visualizer-server start     # start the server (default :3000)
-bun --filter runtime-visualizer-server test      # run server tests
-bun --filter runtime-visualizer-server typecheck
+bun install
+bun run dev                 # frontend (:5173) + server (:3000)
 ```
+
+Run either side independently when needed:
+
+```bash
+bun run dev:frontend        # frontend only
+bun run dev:server          # server only
+bun run start:server        # server without hot reload
+```
+
+Build, lint, typecheck, and test commands use explicit frontend/server suffixes:
+
+```bash
+bun run build               # frontend build + server typecheck
+bun run build:frontend
+bun run build:server
+bun run lint:frontend
+bun run test:frontend
+bun run test:browser:frontend
+bun run test:server
+bun run typecheck:server
+```
+
+A small Fastify server lives in `./server` (declared as a workspace).
 
 Endpoints:
 

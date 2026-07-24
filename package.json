@@ -7,17 +7,19 @@
     "server"
   ],
   "scripts": {
-    "dev": "vite",
+    "dev": "bun run --parallel dev:frontend dev:server",
+    "dev:frontend": "vite",
     "dev:server": "bun --filter runtime-visualizer-server dev",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "vite preview",
-    "server:start": "bun --filter runtime-visualizer-server start",
-    "server:test": "bun --filter runtime-visualizer-server test",
-    "server:typecheck": "bun --filter runtime-visualizer-server typecheck",
-    "test:gherkin": "vitest run --config vitest.config.ts",
-    "test:gherkin:browser": "vitest run --config vitest.browser.config.ts",
-    "test:browser": "vitest run --config vitest.browser.config.ts"
+    "build": "bun run build:frontend && bun run build:server",
+    "build:frontend": "tsc -b && vite build",
+    "build:server": "bun --filter runtime-visualizer-server typecheck",
+    "lint:frontend": "oxlint",
+    "preview:frontend": "vite preview",
+    "start:server": "bun --filter runtime-visualizer-server start",
+    "test:frontend": "vitest run --config vitest.config.ts",
+    "test:browser:frontend": "vitest run --config vitest.browser.config.ts",
+    "test:server": "bun --filter runtime-visualizer-server test",
+    "typecheck:server": "bun --filter runtime-visualizer-server typecheck"
   },
   "dependencies": {
     "dompurify": "^3.4.12",
