@@ -60,8 +60,10 @@ describe("file Procedure control-flow analysis", () => {
 		}
 		expect(capturesExecution("execute()"), "expression statement").toBe(true);
 		expect(capturesExecution("const value = execute()"), "variable statement").toBe(true);
-		expect(capturesExecution("function procedure() { return execute(); } procedure()"), "return expression").toBe(true);
-		expect(capturesExecution("try { throw execute(); } catch { }"), "throw expression").toBe(true);
+		expect(capturesExecution("function procedure() { return; execute(); } procedure()"), "return prevents following statement").toBe(false);
+		expect(capturesExecution("try { throw new Error(); execute(); } catch { }"), "throw prevents following statement").toBe(false);
+		expect(capturesExecution("let count = 0; while (count++ < 1) { continue; execute(); }"), "continue prevents following statement").toBe(false);
+		expect(capturesExecution("while (true) { break; execute(); }"), "break prevents following statement").toBe(false);
 		expect(capturesExecution("enum State { Ready = execute() }"), "enum initializer").toBe(true);
 	});
 
