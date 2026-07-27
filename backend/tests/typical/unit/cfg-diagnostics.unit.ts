@@ -32,4 +32,17 @@ describe("diagnoseProject", () => {
 			expect.objectContaining({ dependency: "unrelated.ts" }),
 		]));
 	});
+
+	test("resolves explicit .ts extension imports", () => {
+		const diagnostics = diagnoseProject({
+			filePath: "main.ts",
+			source: "import { value } from './dep.ts'; work(value)",
+			files: {
+				"./dep.ts": "export const value: number = 'many'",
+			},
+		});
+		expect(diagnostics).toEqual(expect.arrayContaining([
+			expect.objectContaining({ procedure: "main.ts", dependency: "dep.ts", reason: "Type checking failed" }),
+		]));
+	});
 });

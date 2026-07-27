@@ -34,6 +34,9 @@ export function diagnoseProject({ source, filePath, files = {} }: SourceProject)
 	host.fileExists = (fileName) => sources.has(path.normalize(fileName)) || readDefaultLib(fileName) !== undefined;
 	host.resolveModuleNames = (moduleNames, containingFile) => moduleNames.map((moduleName) => {
 		if (moduleName.startsWith(".")) {
+			// Check the exact specifier first so explicit .ts/.tsx extensions resolve.
+			const exact = path.normalize(`${path.dirname(containingFile)}/${moduleName}`);
+			if (sources.has(exact)) return { resolvedFileName: exact, extension: scriptKindFor(exact) === ts.ScriptKind.TSX ? ts.Extension.Tsx : ts.Extension.Ts, isExternalLibraryImport: false };
 			for (const extension of [".ts", ".tsx", ".d.ts"]) {
 				const candidate = path.normalize(`${path.dirname(containingFile)}/${moduleName}${extension}`);
 				if (sources.has(candidate)) return { resolvedFileName: candidate, extension: extension === ".d.ts" ? ts.Extension.Dts : extension === ".tsx" ? ts.Extension.Tsx : ts.Extension.Ts, isExternalLibraryImport: false };
