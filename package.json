@@ -8,6 +8,8 @@
     "browser"
   ],
   "scripts": {
+    "dev": "bun run --parallel backend:dev frontend:dev",
+
     "backend:start": "bun --filter runtime-visualizer-backend run start",
     "backend:dev": "bun --filter runtime-visualizer-backend run dev",
     "backend:typecheck": "bun --filter runtime-visualizer-backend run typecheck",
