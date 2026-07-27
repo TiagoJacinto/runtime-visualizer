@@ -23,7 +23,7 @@ export default defineConfig({
 				extends: true,
 				test: {
 					name: "frontend",
-					include: ["tests/frontend/**/*.spec.ts"],
+					include: ["tests/frontend/**/*.spec.ts", "tests/frontend/**/*.spec.tsx"],
 					environment: "jsdom",
 				},
 			},

@@ -1,10 +1,12 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import { diagnoseProject } from "../cfg/diagnostics.ts";
 import { analyseFileProcedure } from "../cfg/file-analyzer.ts";
 
 const requestSchema = z.object({
 	source: z.string().max(1_000_000),
 	filePath: z.string().optional(),
+	files: z.record(z.string(), z.string()).optional(),
 });
 
 const cfgRoutes: FastifyPluginAsync = async (app) => {
@@ -20,8 +22,11 @@ const cfgRoutes: FastifyPluginAsync = async (app) => {
 			const status = issue?.code === "too_big" ? 413 : 400;
 			return reply.code(status).send({ error: issue?.message ?? "Invalid request body." });
 		}
-		const { source, filePath } = parsed.data;
-		const cfg = analyseFileProcedure(source, filePath ?? "inline.ts");
+		const { source, filePath, files } = parsed.data;
+		const selectedPath = filePath ?? "inline.ts";
+		const diagnostics = diagnoseProject({ source, filePath: selectedPath, files });
+		if (diagnostics.length > 0) return reply.code(422).send({ ok: false, diagnostics });
+		const cfg = analyseFileProcedure(source, selectedPath);
 		return { ok: true, cfg };
 	});
 };

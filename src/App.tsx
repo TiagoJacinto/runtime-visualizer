@@ -11,14 +11,15 @@ type GraphEdge = { from: string; to: string; label?: string; kind?: string };
 type Graph = {
 	procedures?: Array<{ nodes: GraphNode[]; edges: GraphEdge[] }>;
 };
-
-type CfgResponse = { cfg?: Graph; error?: string };
+type GraphDiagnostic = { procedure: string; dependency?: string; reason: string; message?: string };
+type CfgResponse = { cfg?: Graph; diagnostics?: GraphDiagnostic[]; error?: string };
 
 export default function App() {
 	const [fileName, setFileName] = useState("selected.ts");
 	const [source, setSource] = useState("");
 	const [graph, setGraph] = useState<Graph | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [diagnostics, setDiagnostics] = useState<GraphDiagnostic[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 
 	async function selectFile(file: File | undefined) {
@@ -27,10 +28,12 @@ export default function App() {
 		setSource(await file.text());
 		setGraph(null);
 		setError(null);
+		setDiagnostics([]);
 	}
 
 	async function visualize() {
 		setError(null);
+		setDiagnostics([]);
 		setIsLoading(true);
 		try {
 			const response = await fetch("/api/cfg", {
@@ -48,6 +51,11 @@ export default function App() {
 						`CFG service returned invalid JSON (HTTP ${response.status}).`,
 					);
 				}
+			}
+			if (body.diagnostics !== undefined && body.diagnostics.length > 0) {
+				setGraph(null);
+				setDiagnostics(body.diagnostics);
+				return;
 			}
 			if (!response.ok || body.cfg === undefined) {
 				throw new Error(
@@ -91,6 +99,19 @@ export default function App() {
 				{isLoading ? "Building graph…" : "Visualize control flow"}
 			</button>
 			{error !== null && <p role="alert">{error}</p>}
+			{diagnostics.length > 0 && (
+				<section aria-label="Graph diagnostics" role="alert">
+					<h2>Unable to build control-flow graph</h2>
+					<ul>
+						{diagnostics.map((diagnostic, index) => (
+							<li key={`${diagnostic.reason}-${index}`}>
+								<strong>{diagnostic.reason}</strong>{diagnostic.dependency === undefined ? "" : ` (${diagnostic.dependency})`}
+								{diagnostic.message === undefined ? "" : `: ${diagnostic.message}`}
+							</li>
+						))}
+					</ul>
+				</section>
+			)}
 			{procedure !== undefined && (
 				<section aria-label="Control-flow graph" data-testid="control-flow-graph">
 					<h2>Control-flow graph for {fileName}</h2>
