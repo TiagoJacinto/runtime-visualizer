@@ -14,7 +14,7 @@ describeFeature(feature, ({ Scenario }) => {
 
 		Given(
 			'Procedure{name: "main.ts", kind: File, status: Ready, source: {string}}',
-			(_ctx, procedureSource: string) => {
+			(_, procedureSource: string) => {
 				source = procedureSource;
 			},
 		);
@@ -44,7 +44,7 @@ describeFeature(feature, ({ Scenario }) => {
 
 		Given(
 			'current:Procedure{name: "main.ts", kind: File, status: Ready, source: {string}}',
-			(_ctx, procedureSource: string) => {
+			(_, procedureSource: string) => {
 				source = procedureSource;
 			},
 		);

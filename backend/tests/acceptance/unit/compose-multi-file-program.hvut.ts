@@ -16,13 +16,13 @@ describeFeature(feature, ({ Scenario }) => {
 
 		Given(
 			'selected:Procedure{name: "main.ts", kind: File, status: Ready, source: {string}}',
-			(_ctx, procedureSource: string) => {
+			(_, procedureSource: string) => {
 				source = procedureSource;
 			},
 		);
 		And(
 			'dependency:Procedure{name: "helper.ts", kind: File, status: Ready, source: {string}}',
-			(_ctx, procedureSource: string) => {
+			(_, procedureSource: string) => {
 				dependencySource = procedureSource;
 			},
 		);
