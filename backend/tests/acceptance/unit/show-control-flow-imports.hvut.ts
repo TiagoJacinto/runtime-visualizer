@@ -13,9 +13,9 @@ describeFeature(feature, ({ Scenario }) => {
 		let graph: ControlFlowGraph;
 
 		Given(
-			'Procedure{name: "main.ts", kind: File, status: Ready, source: "import { helper } from \'./helper\'; helper()"}',
-			() => {
-				source = "import { helper } from './helper'; helper()";
+			'Procedure{name: "main.ts", kind: File, status: Ready, source: {string}}',
+			(_ctx, procedureSource: string) => {
+				source = procedureSource;
 			},
 		);
 		When('I visualizeControlFlow(procedure: "main.ts")', () => {
@@ -38,21 +38,25 @@ describeFeature(feature, ({ Scenario }) => {
 	});
 
 	Scenario("Show current-file imports as context", ({ Given, When, Then, And }) => {
+		let source = "";
+		let showImports = false;
 		let graph: ControlFlowGraph;
 
 		Given(
-			'current:Procedure{name: "main.ts", kind: File, status: Ready, source: "import { helper } from \'./helper\'; helper()"}',
-			() => undefined,
+			'current:Procedure{name: "main.ts", kind: File, status: Ready, source: {string}}',
+			(_ctx, procedureSource: string) => {
+				source = procedureSource;
+			},
 		);
 		And(
-			'imported:Procedure{name: "helper.ts", kind: File, status: Ready, source: "export function helper() { work() }"}',
+			'imported:Procedure{name: "helper.ts", kind: File, status: Ready, source: {string}}',
 			() => undefined,
 		);
-		And("Import{visibility: Visible}", () => undefined);
+		And("Import{visibility: Visible}", () => {
+			showImports = true;
+		});
 		When('I visualizeControlFlow(procedure: "main.ts")', () => {
-			graph = analyseFileProcedure("import { helper } from './helper'; helper()", "main.ts", {
-				showImports: true,
-			});
+			graph = analyseFileProcedure(source, "main.ts", { showImports });
 		});
 		Then(
 			'I view Import{source: "import { helper } from \'./helper\'"} in ControlFlowGraph: The current file\'s dependency context is visible',
