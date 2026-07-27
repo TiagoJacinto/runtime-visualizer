@@ -26,8 +26,8 @@ test("Hide imports by default", async () => {
 	const screen = await render(createElement(App));
 	await screen.getByRole("button", { name: "Visualize control flow" }).click();
 
-	expect(screen.getByText("import { helper } from './helper'")).not.toBeInTheDocument();
-	expect(screen.getByText("helper()")).toBeInTheDocument();
+	await expect.element(screen.getByText("import { helper } from './helper'")).not.toBeInTheDocument();
+	await expect.element(screen.getByText("helper()")).toBeInTheDocument();
 });
 
 test("Show current-file imports as context", async () => {
@@ -36,15 +36,12 @@ test("Show current-file imports as context", async () => {
 	const screen = await render(createElement(App));
 	const checkbox = screen.getByRole("checkbox", { name: "Show imports" });
 	await checkbox.click();
-	expect(checkbox).toBeChecked();
-	await new Promise((resolve) => setTimeout(resolve, 0));
+	await expect.element(checkbox).toBeChecked();
 	await screen.getByRole("button", { name: "Visualize control flow" }).click();
 	const request = JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body)) as { showImports?: boolean };
 	expect(request.showImports).toBe(true);
-	await new Promise((resolve) => setTimeout(resolve, 50));
-
-	expect(screen.getByText("import { helper } from './helper'")).toBeInTheDocument();
-	expect(screen.getByText("helper()")).toBeInTheDocument();
-	expect(screen.getByLabelText("Control-flow transitions")).not.toHaveTextContent("import { helper } from './helper'");
-	expect(screen.getByText("work()")).not.toBeInTheDocument();
+	await expect.element(screen.getByText("import { helper } from './helper'")).toBeInTheDocument();
+	await expect.element(screen.getByText("helper()")).toBeInTheDocument();
+	await expect.element(screen.getByLabelText("Control-flow transitions")).not.toHaveTextContent("import { helper } from './helper'");
+	await expect.element(screen.getByText("work()")).not.toBeInTheDocument();
 });

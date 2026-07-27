@@ -11,7 +11,7 @@ const requestSchema = z.object({
 const cfgRoutes: FastifyPluginAsync = async (app) => {
 	app.get("/", async () => ({
 		ok: true,
-		info: "POST { source: string, filePath?: string } to build a control-flow graph.",
+		info: "POST { source: string, filePath?: string, showImports?: boolean } to build a control-flow graph.",
 	}));
 
 	app.post("/", async (req, reply) => {
