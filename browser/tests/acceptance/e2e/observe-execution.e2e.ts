@@ -33,7 +33,17 @@ const graph = {
 };
 
 test("Highlight the selected execution path and clear it at completion", async () => {
-	vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(graph))));
+	const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+		if (String(input) === "/api/execute") {
+			return new Response(JSON.stringify({
+				ok: true,
+				events: [{ nodeId: "prepare" }, { nodeId: "ready" }, { nodeId: "work" }],
+				result: { status: "Succeeded" },
+			}));
+		}
+		return new Response(JSON.stringify(graph));
+	});
+	vi.stubGlobal("fetch", fetchMock);
 	const screen = await render(createElement(App));
 	await screen.getByRole("button", { name: "Visualize control flow" }).click();
 
@@ -44,6 +54,7 @@ test("Highlight the selected execution path and clear it at completion", async (
 	await expect.element(preparation).toBeInTheDocument();
 	await expect.element(untaken).toBeInTheDocument();
 	await screen.getByRole("button", { name: "Run procedure" }).click();
+	await expect.poll(() => fetchMock.mock.calls.some(([input]) => String(input) === "/api/execute")).toBe(true);
 
 	await expect.element(preparation).toHaveAttribute("data-execution-state", "active");
 	await expect.element(decision).toHaveAttribute("data-execution-state", "active");

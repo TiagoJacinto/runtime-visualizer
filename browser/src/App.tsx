@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { buildExecutionPath } from "./execution-path.ts";
 import "./index.css";
 
 type GraphNode = {
@@ -26,6 +25,11 @@ type GraphDiagnostic = {
 	message?: string;
 };
 type CfgResponse = { cfg?: Graph; error?: string; diagnostics?: GraphDiagnostic[] };
+type ExecutionResponse = {
+	events?: Array<{ nodeId: string }>;
+	result?: { status: "Succeeded" | "Failed"; error?: string };
+	error?: string;
+};
 
 export default function App() {
 	const [fileName, setFileName] = useState("main.ts");
@@ -39,7 +43,8 @@ export default function App() {
 	const [showImports, setShowImports] = useState(false);
 	const [executionPath, setExecutionPath] = useState<string[]>([]);
 	const [executionIndex, setExecutionIndex] = useState<number | null>(null);
-	const [executionStatus, setExecutionStatus] = useState<"idle" | "running" | "complete">("idle");
+	const [executionStatus, setExecutionStatus] = useState<"idle" | "running" | "complete" | "failed">("idle");
+	const [executionResult, setExecutionResult] = useState<"Succeeded" | "Failed" | null>(null);
 
 	async function selectFile(file: File | undefined) {
 		if (file === undefined) return;
@@ -55,34 +60,60 @@ export default function App() {
 		const timer = window.setTimeout(() => {
 			if (executionIndex + 1 >= executionPath.length) {
 				setExecutionIndex(null);
-				setExecutionStatus("complete");
+				setExecutionStatus(executionResult === "Failed" ? "failed" : "complete");
 				return;
 			}
 			setExecutionIndex(executionIndex + 1);
 		}, 100);
 		return () => window.clearTimeout(timer);
-	}, [executionIndex, executionPath, executionStatus]);
+	}, [executionIndex, executionPath, executionResult, executionStatus]);
 
 	function resetExecution() {
 		setExecutionPath([]);
 		setExecutionIndex(null);
 		setExecutionStatus("idle");
+		setExecutionResult(null);
 	}
 
-	function runProcedure() {
+	async function runProcedure() {
 		if (procedure === undefined) return;
-		const entry = procedure.entry ?? procedure.nodes.find((node) => node.kind === "entry")?.id;
-		const exit = procedure.exit ?? procedure.nodes.find((node) => node.kind === "exit")?.id;
-		if (entry === undefined || exit === undefined) return;
-		const path = buildExecutionPath({ entry, exit, nodes: procedure.nodes, edges: procedure.edges });
-		setExecutionPath(path);
-		if (path.length === 0) {
-			setExecutionIndex(null);
-			setExecutionStatus("complete");
-			return;
-		}
-		setExecutionIndex(0);
+		setError(null);
+		setExecutionPath([]);
+		setExecutionIndex(null);
+		setExecutionResult(null);
 		setExecutionStatus("running");
+		try {
+			const response = await fetch("/api/execute", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					source,
+					filePath: fileName.trim(),
+					files: { [dependencyFileName.trim()]: dependencySource },
+				}),
+			});
+			const responseText = await response.text();
+			let body: ExecutionResponse = {};
+			if (responseText.trim() !== "") body = JSON.parse(responseText) as ExecutionResponse;
+			if (!response.ok || body.result === undefined) {
+				throw new Error(body.error ?? `Execution service returned HTTP ${response.status}.`);
+			}
+			const path = (body.events ?? []).map((event) => event.nodeId);
+			setExecutionResult(body.result.status);
+			setExecutionPath(path);
+			if (body.result.error !== undefined) setError(body.result.error);
+			if (path.length === 0) {
+				setExecutionIndex(null);
+				setExecutionStatus(body.result.status === "Failed" ? "failed" : "complete");
+				return;
+			}
+			setExecutionIndex(0);
+		} catch (cause) {
+			setExecutionIndex(null);
+			setExecutionStatus("failed");
+			setExecutionResult("Failed");
+			setError(cause instanceof Error ? cause.message : String(cause));
+		}
 	}
 
 	async function visualize() {
@@ -215,7 +246,8 @@ export default function App() {
 					<p role="status" aria-live="polite">
 						{executionStatus === "running" && activeNodeId !== null
 							? `Execution running: ${nodeLabels.get(activeNodeId) ?? activeNodeId}`
-							: executionStatus === "complete" ? "Execution complete" : "Execution ready"}
+							: executionStatus === "complete" ? "Execution complete"
+								: executionStatus === "failed" ? "Execution failed" : "Execution ready"}
 					</p>
 				</>
 			)}

@@ -5,6 +5,7 @@ import runtimeRoutes from "./routes/runtime.ts";
 import echoRoutes from "./routes/echo.ts";
 import filesRoutes from "./routes/files.ts";
 import cfgRoutes from "./routes/cfg.ts";
+import executeRoutes from "./routes/execute.ts";
 import { loadSettings } from "./settings.ts";
 
 export type AppOptions = {
@@ -71,6 +72,7 @@ export async function createApp(
 	});
 	await app.register(echoRoutes, { prefix: "/api/echo" });
 	await app.register(cfgRoutes, { prefix: "/api/cfg" });
+	await app.register(executeRoutes, { prefix: "/api/execute" });
 	await app.register(filesRoutes, {
 		prefix: "/api/files",
 		filesFolder: options.filesFolder ?? loadSettings().filesFolder,
