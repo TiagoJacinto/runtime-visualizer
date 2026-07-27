@@ -14,7 +14,7 @@ export default defineConfig({
 			{
 				extends: true,
 				test: {
-					name: "frontend-hve2e",
+					name: "browser-hve2e",
 					include: ["tests/acceptance/**/*.e2e.ts"],
 				},
 			},

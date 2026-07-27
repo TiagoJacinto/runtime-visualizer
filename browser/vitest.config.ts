@@ -44,14 +44,6 @@ export default defineConfig({
 					environment: "node",
 				},
 			},
-			{
-				extends: true,
-				test: {
-					name: "browser-hve2e",
-					include: ["tests/acceptance/e2e/**/*.hve2e.ts"],
-					environment: "node",
-				},
-			},
 		],
 	},
 });

@@ -52,10 +52,31 @@ class GraphBuilder {
 }
 
 /** Build the file-scoped Procedure graph, retaining nested Procedure boundaries. */
-export function analyseFileProcedure(source: string, filePath = "inline.ts"): ControlFlowGraph {
+export function analyseFileProcedure(
+	source: string,
+	filePath = "inline.ts",
+	options: { showImports?: boolean } = {},
+): ControlFlowGraph {
 	const file = ts.createSourceFile(filePath, source, ts.ScriptTarget.ESNext, true, scriptKindFor(filePath));
 	const selectedFunction = findSelectedFunction(file, filePath);
 	const procedure = buildProcedure(file, selectedFunction?.body?.statements ?? file.statements, filePath);
+	if (options.showImports === true) {
+		const imports = file.statements.filter(ts.isImportDeclaration).map((statement) => {
+			const label = statement.getText(file).trim().replace(/;$/, "");
+			return {
+				id: `import-${statement.getStart(file)}`,
+				kind: "import" as const,
+				label,
+				text: label,
+				location: location(file, statement),
+			};
+		});
+		return {
+			filePath,
+			functions: [],
+			procedures: [{ ...procedure, nodes: [...imports, ...procedure.nodes] }],
+		};
+	}
 	return { filePath, functions: [], procedures: [procedure] };
 }
 

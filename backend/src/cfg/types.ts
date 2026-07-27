@@ -22,6 +22,8 @@ export type CfgNodeKind =
   | 'entry'
   /** Synthetic exit point for a function. */
   | 'exit'
+  /** A contextual module dependency declaration. */
+  | 'import'
   /** A straight-line statement (expression, var/let/const, expr-stmt, ...). */
   | 'statement'
   /** A branching condition (`if` test, ternary test, `while`/`for`/`do-while` test). */

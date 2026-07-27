@@ -27,6 +27,7 @@ export default function App() {
 	const [error, setError] = useState<string | null>(null);
 	const [diagnostics, setDiagnostics] = useState<GraphDiagnostic[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
+	const [showImports, setShowImports] = useState(false);
 
 	async function selectFile(file: File | undefined) {
 		if (file === undefined) return;
@@ -46,7 +47,7 @@ export default function App() {
 			const response = await fetch("/api/cfg", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ source, filePath: fileName }),
+				body: JSON.stringify({ source, filePath: fileName, showImports }),
 			});
 			const responseText = await response.text();
 			let body: CfgResponse = {};
@@ -101,6 +102,14 @@ export default function App() {
 				onChange={(event) => setSource(event.target.value)}
 				placeholder="Enter TypeScript source"
 			/>
+			<label>
+				<input
+					type="checkbox"
+					checked={showImports}
+					onChange={(event) => setShowImports(event.target.checked)}
+				/>
+				Show imports
+			</label>
 			<button type="button" onClick={() => void visualize()} disabled={isLoading}>
 				{isLoading ? "Building graph…" : "Visualize control flow"}
 			</button>
