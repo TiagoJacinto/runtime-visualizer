@@ -1,8 +1,7 @@
 import { describeFeature, loadFeature } from "@amiceli/vitest-cucumber";
 import { expect } from "vitest";
-import { diagnoseProject } from "../../../src/cfg/diagnostics.ts";
-import { analyseFileProcedure } from "../../../src/cfg/file-analyzer.ts";
-import type { ControlFlowGraph } from "../../../src/cfg/types.ts";
+import { analyseProject } from "../../../src/cfg/project-analyzer.ts";
+import type { GraphDiagnostic } from "../../../src/cfg/types.ts";
 
 const feature = await loadFeature(
 	new URL("../../../../features/compose-multi-file-program.feature", import.meta.url).pathname,
@@ -12,8 +11,8 @@ describeFeature(feature, ({ Scenario }) => {
 	Scenario("Resolve an import from another file Procedure", ({ Given, When, Then, And }) => {
 		let source = "";
 		let dependencySource = "";
-		let diagnostics: ReturnType<typeof diagnoseProject>;
-		let graph: ControlFlowGraph;
+		let diagnostics: GraphDiagnostic[];
+		let graph: NonNullable<ReturnType<typeof analyseProject>["cfg"]>;
 
 		Given(
 			'selected:Procedure{name: "main.ts", kind: File, status: Ready, source: {string}}',
@@ -28,12 +27,14 @@ describeFeature(feature, ({ Scenario }) => {
 			},
 		);
 		When('I visualizeControlFlow(procedure: "main.ts")', () => {
-			diagnostics = diagnoseProject({
+			const analysis = analyseProject({
 				source,
 				filePath: "main.ts",
 				files: { "helper.ts": dependencySource },
 			});
-			graph = analyseFileProcedure(source, "main.ts");
+			diagnostics = analysis.diagnostics;
+			if (analysis.cfg === undefined) throw new Error("expected a control-flow graph");
+			graph = analysis.cfg;
 		});
 		Then(
 			'I view GraphNode{label: "helper()", kind: Executable} in ControlFlowGraph: The selected Procedure retains its executable call',

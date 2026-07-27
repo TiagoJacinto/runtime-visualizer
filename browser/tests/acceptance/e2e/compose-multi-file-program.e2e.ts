@@ -28,7 +28,7 @@ test("Submit two named files together", async () => {
 		filePath: string;
 		files: Record<string, string>;
 	};
-	expect(request.source).toContain("./helper");
+	expect(request.source).toBe("import { helper } from './helper'; helper();");
 	expect(request.filePath).toBe("main.ts");
 	expect(request.files).toEqual({ "helper.ts": "export function helper() {}" });
 });

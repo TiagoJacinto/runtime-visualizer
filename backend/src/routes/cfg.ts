@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { diagnoseProject } from "../cfg/diagnostics.ts";
-import { analyseFileProcedure } from "../cfg/file-analyzer.ts";
+import { analyseProject } from "../cfg/project-analyzer.ts";
 
 const requestSchema = z.object({
 	source: z.string().max(1_000_000),
@@ -24,11 +23,9 @@ const cfgRoutes: FastifyPluginAsync = async (app) => {
 			return reply.code(status).send({ error: issue?.message ?? "Invalid request body." });
 		}
 		const { source, filePath, showImports, files } = parsed.data;
-		const selectedPath = filePath ?? "inline.ts";
-		const diagnostics = diagnoseProject({ source, filePath: selectedPath, files });
-		if (diagnostics.length > 0) return reply.code(422).send({ ok: false, diagnostics });
-		const cfg = analyseFileProcedure(source, selectedPath, { showImports });
-		return { ok: true, cfg };
+		const analysis = analyseProject({ source, filePath: filePath ?? "inline.ts", files, showImports });
+		if (analysis.diagnostics.length > 0) return reply.code(422).send({ ok: false, diagnostics: analysis.diagnostics });
+		return { ok: true, cfg: analysis.cfg };
 	});
 };
 
