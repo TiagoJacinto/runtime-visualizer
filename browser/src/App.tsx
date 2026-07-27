@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { buildExecutionPath } from "./execution-path.ts";
 import "./index.css";
 
 type GraphNode = {
@@ -8,8 +9,14 @@ type GraphNode = {
 	location?: { start: { line: number }; end: { line: number } };
 };
 type GraphEdge = { from: string; to: string; label?: string; kind?: string };
+type GraphProcedure = {
+	nodes: GraphNode[];
+	edges: GraphEdge[];
+	entry?: string;
+	exit?: string;
+};
 type Graph = {
-	procedures?: Array<{ nodes: GraphNode[]; edges: GraphEdge[] }>;
+	procedures?: GraphProcedure[];
 };
 
 type GraphDiagnostic = {
@@ -30,6 +37,9 @@ export default function App() {
 	const [diagnostics, setDiagnostics] = useState<GraphDiagnostic[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [showImports, setShowImports] = useState(false);
+	const [executionPath, setExecutionPath] = useState<string[]>([]);
+	const [executionIndex, setExecutionIndex] = useState<number | null>(null);
+	const [executionStatus, setExecutionStatus] = useState<"idle" | "running" | "complete">("idle");
 
 	async function selectFile(file: File | undefined) {
 		if (file === undefined) return;
@@ -40,12 +50,48 @@ export default function App() {
 		setDiagnostics([]);
 	}
 
+	useEffect(() => {
+		if (executionStatus !== "running" || executionIndex === null) return;
+		const timer = window.setTimeout(() => {
+			if (executionIndex + 1 >= executionPath.length) {
+				setExecutionIndex(null);
+				setExecutionStatus("complete");
+				return;
+			}
+			setExecutionIndex(executionIndex + 1);
+		}, 100);
+		return () => window.clearTimeout(timer);
+	}, [executionIndex, executionPath, executionStatus]);
+
+	function resetExecution() {
+		setExecutionPath([]);
+		setExecutionIndex(null);
+		setExecutionStatus("idle");
+	}
+
+	function runProcedure() {
+		if (procedure === undefined) return;
+		const entry = procedure.entry ?? procedure.nodes.find((node) => node.kind === "entry")?.id;
+		const exit = procedure.exit ?? procedure.nodes.find((node) => node.kind === "exit")?.id;
+		if (entry === undefined || exit === undefined) return;
+		const path = buildExecutionPath({ entry, exit, nodes: procedure.nodes, edges: procedure.edges });
+		setExecutionPath(path);
+		if (path.length === 0) {
+			setExecutionIndex(null);
+			setExecutionStatus("complete");
+			return;
+		}
+		setExecutionIndex(0);
+		setExecutionStatus("running");
+	}
+
 	async function visualize() {
 		const selectedFileName = fileName.trim();
 		const selectedDependencyFileName = dependencyFileName.trim();
 		setError(null);
 		setDiagnostics([]);
 		setGraph(null);
+		resetExecution();
 		if (selectedFileName === "" || selectedDependencyFileName === "") {
 			setError("File names must not be blank.");
 			return;
@@ -99,6 +145,7 @@ export default function App() {
 
 	const procedure = graph?.procedures?.[0];
 	const nodeLabels = new Map(procedure?.nodes.map((node) => [node.id, node.label]));
+	const activeNodeId = executionIndex === null ? null : executionPath[executionIndex] ?? null;
 
 	return (
 		<main>
@@ -160,6 +207,18 @@ export default function App() {
 			<button type="button" onClick={() => void visualize()} disabled={isLoading}>
 				{isLoading ? "Building graph…" : "Visualize control flow"}
 			</button>
+			{procedure !== undefined && (
+				<>
+					<button type="button" onClick={runProcedure} disabled={executionStatus === "running"}>
+						{executionStatus === "running" ? "Running procedure…" : "Run procedure"}
+					</button>
+					<p role="status" aria-live="polite">
+						{executionStatus === "running" && activeNodeId !== null
+							? `Execution running: ${nodeLabels.get(activeNodeId) ?? activeNodeId}`
+							: executionStatus === "complete" ? "Execution complete" : "Execution ready"}
+					</p>
+				</>
+			)}
 			{error !== null && <p role="alert">{error}</p>}
 			{diagnostics.length > 0 && (
 				<section aria-label="Graph diagnostics" role="alert">
@@ -180,7 +239,13 @@ export default function App() {
 					<h2>Control-flow graph for {fileName}</h2>
 					<ul aria-label="Graph nodes">
 						{procedure.nodes.map((node) => (
-							<li key={node.id} data-kind={node.kind}>
+							<li
+								key={node.id}
+								data-kind={node.kind}
+								data-testid={`graph-node-${node.id}`}
+								data-execution-state={activeNodeId === node.id ? "active" : undefined}
+								aria-current={activeNodeId === node.id ? "step" : undefined}
+							>
 								<strong>{node.label}</strong>
 								{node.location !== undefined && (
 									<span>
