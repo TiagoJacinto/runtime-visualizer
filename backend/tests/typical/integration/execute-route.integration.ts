@@ -24,11 +24,13 @@ describe("POST /api/execute", () => {
 			});
 
 			expect(response.statusCode).toBe(200);
-			expect(response.json()).toMatchObject({
-			ok: true,
-			result: { status: "Succeeded" },
-		});
-			expect(response.json().events).toHaveLength(5);
+			expect(response.headers["content-type"]).toContain("application/x-ndjson");
+			const events = response.body.split("\n").filter(Boolean).map((line) => JSON.parse(line) as {
+				event: string;
+				data: { nodeId?: string; status?: string };
+			});
+			expect(events.at(-1)).toEqual({ event: "result", data: { status: "Succeeded" } });
+			expect(events.filter((event) => event.event === "node")).toHaveLength(5);
 		} finally {
 			await app.close();
 		}

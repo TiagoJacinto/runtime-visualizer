@@ -25,11 +25,9 @@ type GraphDiagnostic = {
 	message?: string;
 };
 type CfgResponse = { cfg?: Graph; error?: string; diagnostics?: GraphDiagnostic[] };
-type ExecutionResponse = {
-	events?: Array<{ nodeId: string }>;
-	result?: { status: "Succeeded" | "Failed"; error?: string };
-	error?: string;
-};
+type ExecutionStreamEvent =
+	| { event: "node"; data: { nodeId: string } }
+	| { event: "result"; data: { status: "Succeeded" | "Failed"; error?: string } };
 
 export default function App() {
 	const [fileName, setFileName] = useState("main.ts");
@@ -45,6 +43,7 @@ export default function App() {
 	const [executionIndex, setExecutionIndex] = useState<number | null>(null);
 	const [executionStatus, setExecutionStatus] = useState<"idle" | "running" | "complete" | "failed">("idle");
 	const [executionResult, setExecutionResult] = useState<"Succeeded" | "Failed" | null>(null);
+	const [executionFinished, setExecutionFinished] = useState(false);
 
 	async function selectFile(file: File | undefined) {
 		if (file === undefined) return;
@@ -59,6 +58,7 @@ export default function App() {
 		if (executionStatus !== "running" || executionIndex === null) return;
 		const timer = window.setTimeout(() => {
 			if (executionIndex + 1 >= executionPath.length) {
+				if (!executionFinished) return;
 				setExecutionIndex(null);
 				setExecutionStatus(executionResult === "Failed" ? "failed" : "complete");
 				return;
@@ -66,13 +66,14 @@ export default function App() {
 			setExecutionIndex(executionIndex + 1);
 		}, 100);
 		return () => window.clearTimeout(timer);
-	}, [executionIndex, executionPath, executionResult, executionStatus]);
+	}, [executionFinished, executionIndex, executionPath, executionResult, executionStatus]);
 
 	function resetExecution() {
 		setExecutionPath([]);
 		setExecutionIndex(null);
 		setExecutionStatus("idle");
 		setExecutionResult(null);
+		setExecutionFinished(false);
 	}
 
 	async function runProcedure() {
@@ -81,6 +82,7 @@ export default function App() {
 		setExecutionPath([]);
 		setExecutionIndex(null);
 		setExecutionResult(null);
+		setExecutionFinished(false);
 		setExecutionStatus("running");
 		try {
 			const response = await fetch("/api/execute", {
@@ -92,26 +94,47 @@ export default function App() {
 					files: { [dependencyFileName.trim()]: dependencySource },
 				}),
 			});
-			const responseText = await response.text();
-			let body: ExecutionResponse = {};
-			if (responseText.trim() !== "") body = JSON.parse(responseText) as ExecutionResponse;
-			if (!response.ok || body.result === undefined) {
-				throw new Error(body.error ?? `Execution service returned HTTP ${response.status}.`);
+			if (!response.ok || response.body === null) {
+				throw new Error(`Execution service returned HTTP ${response.status}.`);
 			}
-			const path = (body.events ?? []).map((event) => event.nodeId);
-			setExecutionResult(body.result.status);
-			setExecutionPath(path);
-			if (body.result.error !== undefined) setError(body.result.error);
-			if (path.length === 0) {
-				setExecutionIndex(null);
-				setExecutionStatus(body.result.status === "Failed" ? "failed" : "complete");
-				return;
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let pending = "";
+			let receivedEvents = false;
+			let receivedResult = false;
+			const handleLine = (line: string): void => {
+				if (line.trim() === "") return;
+				const event = JSON.parse(line) as ExecutionStreamEvent;
+				if (event.event === "node") {
+					receivedEvents = true;
+					setExecutionPath((current) => [...current, event.data.nodeId]);
+					setExecutionIndex((current) => current ?? 0);
+					return;
+				}
+				receivedResult = true;
+				setExecutionResult(event.data.status);
+				setExecutionFinished(true);
+				if (event.data.error !== undefined) setError(event.data.error);
+				if (!receivedEvents) setExecutionStatus(event.data.status === "Failed" ? "failed" : "complete");
+			};
+			for (;;) {
+				const chunk = await reader.read();
+				pending += decoder.decode(chunk.value ?? new Uint8Array(), { stream: !chunk.done });
+				let newline = pending.indexOf("\n");
+				while (newline !== -1) {
+					handleLine(pending.slice(0, newline));
+					pending = pending.slice(newline + 1);
+					newline = pending.indexOf("\n");
+				}
+				if (chunk.done) break;
 			}
-			setExecutionIndex(0);
+			if (pending.trim() !== "") handleLine(pending);
+			if (!receivedResult) throw new Error("Execution service ended without a terminal Result.");
 		} catch (cause) {
 			setExecutionIndex(null);
 			setExecutionStatus("failed");
 			setExecutionResult("Failed");
+			setExecutionFinished(true);
 			setError(cause instanceof Error ? cause.message : String(cause));
 		}
 	}

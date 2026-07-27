@@ -46,4 +46,14 @@ describe("executeProcedure", () => {
 			"work()",
 		]);
 	});
+
+	test("does not fail a Procedure whose await lasts longer than one second", async () => {
+		const source = "await new Promise<void>((resolve) => setTimeout(resolve, 1_100));";
+		const procedure = analyseFileProcedure(source, "slow.ts").procedures?.[0];
+		if (procedure === undefined) throw new Error("expected a file Procedure");
+
+		await expect(executeProcedure(source, "slow.ts", procedure)).resolves.toMatchObject({
+			status: "Succeeded",
+		});
+	});
 });

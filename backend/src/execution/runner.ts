@@ -9,12 +9,15 @@ export type ExecutionResult = {
 };
 
 type Patch = { readonly position: number; readonly text: string };
+export type ExecutionObserver = (nodeId: string) => void;
+const EXECUTION_TIMEOUT_MS = 30_000;
 
 /** Execute a selected file Procedure and report the graph nodes reached at runtime. */
 export async function executeProcedure(
 	source: string,
 	filePath: string,
 	procedure: ProcedureCfg,
+	onEvent?: ExecutionObserver,
 ): Promise<ExecutionResult> {
 	const events: string[] = [];
 	try {
@@ -27,12 +30,15 @@ export async function executeProcedure(
 			fileName: filePath,
 		}).outputText;
 		const context = vm.createContext({
-			__visualizerEmit: (nodeId: string) => events.push(nodeId),
+			__visualizerEmit: (nodeId: string) => {
+				events.push(nodeId);
+				onEvent?.(nodeId);
+			},
 			setTimeout,
 			clearTimeout,
 		});
 		const script = new vm.Script(`(async () => {\n${javascript}\n})()`, { filename: filePath });
-		const result = script.runInContext(context, { timeout: 1_000 });
+		const result = script.runInContext(context, { timeout: EXECUTION_TIMEOUT_MS });
 		await waitForCompletion(result);
 		return { status: "Succeeded", events };
 	} catch (cause) {
@@ -51,7 +57,7 @@ async function waitForCompletion(result: unknown): Promise<void> {
 		await Promise.race([
 			result,
 			new Promise<never>((_resolve, reject) => {
-				timeout = setTimeout(() => reject(new Error("Execution timed out.")), 1_000);
+				timeout = setTimeout(() => reject(new Error("Execution timed out.")), EXECUTION_TIMEOUT_MS);
 			}),
 		]);
 	} finally {

@@ -9,6 +9,10 @@ const requestSchema = z.object({
 	files: z.record(z.string(), z.string()).optional(),
 });
 
+type StreamEvent =
+	| { readonly event: "node"; readonly data: { readonly nodeId: string } }
+	| { readonly event: "result"; readonly data: { readonly status: "Succeeded" | "Failed"; readonly error?: string } };
+
 const executeRoutes: FastifyPluginAsync = async (app) => {
 	app.post("/", async (req, reply) => {
 		const parsed = requestSchema.safeParse(req.body ?? {});
@@ -26,15 +30,36 @@ const executeRoutes: FastifyPluginAsync = async (app) => {
 		const procedure = analysis.cfg?.procedures?.[0];
 		if (procedure === undefined) return reply.code(422).send({ error: "No executable Procedure found." });
 
-		const execution = await executeProcedure(source, filePath, procedure);
-		return {
-			ok: execution.status === "Succeeded",
-			events: execution.events.map((nodeId) => ({ nodeId })),
-			result: {
-				status: execution.status,
-				...(execution.error === undefined ? {} : { error: execution.error }),
+		const encoder = new TextEncoder();
+		const stream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				const send = (event: StreamEvent): void => {
+					controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+				};
+				void executeProcedure(source, filePath, procedure, (nodeId) => {
+					send({ event: "node", data: { nodeId } });
+				}).then((execution) => {
+					send({
+						event: "result",
+						data: {
+							status: execution.status,
+							...(execution.error === undefined ? {} : { error: execution.error }),
+						},
+					});
+					controller.close();
+				}).catch((cause: unknown) => {
+					send({
+						event: "result",
+						data: { status: "Failed", error: cause instanceof Error ? cause.message : String(cause) },
+					});
+					controller.close();
+				});
 			},
-		};
+		});
+		return reply
+			.header("content-type", "application/x-ndjson")
+			.header("cache-control", "no-store")
+			.send(stream);
 	});
 };
 
