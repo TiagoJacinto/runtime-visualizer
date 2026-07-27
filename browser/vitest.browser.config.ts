@@ -3,7 +3,22 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	test: {
-		include: ["tests/browser/**/*.spec.ts", "tests/browser/**/*.spec.tsx", "tests/e2e/**/*.spec.ts", "tests/e2e/**/*.spec.tsx"],
+		projects: [
+			{
+				extends: true,
+				test: {
+					name: "frontend-e2e",
+					include: ["tests/e2e/**/*.ts"],
+				},
+			},
+			{
+				extends: true,
+				test: {
+					name: "frontend-hve2e",
+					include: ["tests/acceptance/**/*.e2e.ts"],
+				},
+			},
+		],
 		browser: {
 			enabled: true,
 			headless: true,

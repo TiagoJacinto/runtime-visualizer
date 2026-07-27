@@ -4,47 +4,43 @@
   "version": "0.0.0",
   "type": "module",
   "workspaces": [
-    "server"
+    "backend",
+    "browser"
   ],
   "scripts": {
-    "dev": "bun run --parallel dev:frontend dev:server",
-    "dev:frontend": "vite --host",
-    "dev:server": "bun --filter runtime-visualizer-server dev",
-    "build": "bun run build:frontend && bun run build:server",
-    "build:frontend": "tsc -b && vite build",
-    "build:server": "bun --filter runtime-visualizer-server typecheck",
-    "lint:frontend": "oxlint",
-    "preview:frontend": "vite preview",
-    "start:server": "bun --filter runtime-visualizer-server start",
-    "test:frontend": "vitest run --config vitest.config.ts",
-    "test:browser:frontend": "vitest run --config vitest.browser.config.ts",
-    "test:server": "bun --filter runtime-visualizer-server test",
-    "typecheck:server": "bun --filter runtime-visualizer-server typecheck"
+    "backend:start": "bun --filter runtime-visualizer-backend run start",
+    "backend:dev": "bun --filter runtime-visualizer-backend run dev",
+    "backend:typecheck": "bun --filter runtime-visualizer-backend run typecheck",
+
+    "backend:test:typical": "bun --filter runtime-visualizer-backend run test:typical",
+    "backend:test:unit": "bun --filter runtime-visualizer-backend run test:unit",
+    "backend:test:integration": "bun --filter runtime-visualizer-backend run test:integration",
+    "backend:test:e2e": "bun --filter runtime-visualizer-backend run test:e2e",
+
+    "backend:test:acceptance": "bun --filter runtime-visualizer-backend run test:acceptance",
+    "backend:test:hvut": "bun --filter runtime-visualizer-backend run test:hvut",
+    "backend:test:hvit": "bun --filter runtime-visualizer-backend run test:hvit",
+    "backend:test:hve2e": "bun --filter runtime-visualizer-backend run test:hve2e",
+
+    "frontend:dev": "bun --filter runtime-visualizer-browser run dev",
+    "frontend:build": "bun --filter runtime-visualizer-browser run build",
+    "frontend:lint": "bun --filter runtime-visualizer-browser run lint",
+    "frontend:preview": "bun --filter runtime-visualizer-browser run preview",
+
+    "frontend:test:typical": "bun --filter runtime-visualizer-browser run test:typical",
+    "frontend:test:unit": "bun --filter runtime-visualizer-browser run test:unit",
+    "frontend:test:integration": "bun --filter runtime-visualizer-browser run test:integration",
+    "frontend:test:e2e": "bun --filter runtime-visualizer-browser run test:e2e",
+    
+    "frontend:test:acceptance": "bun --filter runtime-visualizer-browser run test:acceptance",
+    "frontend:test:hvut": "bun --filter runtime-visualizer-browser run test:hvut",
+    "frontend:test:hvit": "bun --filter runtime-visualizer-browser run test:hvit",
+    "frontend:test:hve2e": "bun --filter runtime-visualizer-browser run test:hve2e"
   },
   "dependencies": {
-    "dompurify": "^3.4.12",
-    "mermaid": "^11.16.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1"
+
   },
   "devDependencies": {
-    "@amiceli/vitest-cucumber": "^7.0.0",
-    "@babel/core": "^7.29.7",
-    "@rolldown/plugin-babel": "^0.2.3",
-    "@types/babel__core": "^7.20.5",
-    "@types/node": "^24.13.2",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "@vitest/browser-playwright": "^4.1.10",
-    "babel-plugin-react-compiler": "^1.0.0",
-    "jsdom": "^29.1.1",
-    "oxlint": "^1.71.0",
-    "playwright": "^1.61.1",
-    "typescript": "~6.0.2",
-    "vite": "^8.1.1",
-    "vitest": "^4.1.10",
-    "vitest-browser-react": "^2.2.0"
+
   }
 }

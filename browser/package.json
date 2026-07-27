@@ -1,0 +1,47 @@
+{
+  "name": "runtime-visualizer-browser",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+
+    "test:typical": "vitest run --config vitest.config.ts --project browser-unit --project browser-integration --project browser-e2e --passWithNoTests",
+    "test:unit": "vitest run --config vitest.config.ts --project browser-unit --passWithNoTests",
+    "test:integration": "vitest run --config vitest.config.ts --project browser-integration --passWithNoTests",
+    "test:e2e": "vitest run --config vitest.config.ts --project browser-e2e --passWithNoTests",
+
+    "test:acceptance": "vitest run --config vitest.config.ts --project browser-hvut --project browser-hvit --project browser-hve2e --passWithNoTests",
+    "test:hvut": "vitest run --config vitest.config.ts --project browser-hvut --passWithNoTests",
+    "test:hvit": "vitest run --config vitest.config.ts --project browser-hvit --passWithNoTests",
+    "test:hve2e": "vitest run --config vitest.config.ts --project browser-hve2e --passWithNoTests"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.12",
+    "mermaid": "^11.16.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.1"
+  },
+  "devDependencies": {
+    "@amiceli/vitest-cucumber": "^7.0.0",
+    "@babel/core": "^7.29.7",
+    "@rolldown/plugin-babel": "^0.2.3",
+    "@types/babel__core": "^7.20.5",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/browser-playwright": "^4.1.10",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "jsdom": "^29.1.1",
+    "oxlint": "^1.71.0",
+    "playwright": "^1.61.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vitest": "^4.1.10",
+    "vitest-browser-react": "^2.2.0"
+  }
+}
