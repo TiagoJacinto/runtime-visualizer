@@ -21,8 +21,10 @@ type GraphDiagnostic = {
 type CfgResponse = { cfg?: Graph; error?: string; diagnostics?: GraphDiagnostic[] };
 
 export default function App() {
-	const [fileName, setFileName] = useState("selected.ts");
+	const [fileName, setFileName] = useState("main.ts");
 	const [source, setSource] = useState("");
+	const [dependencyFileName, setDependencyFileName] = useState("helper.ts");
+	const [dependencySource, setDependencySource] = useState("");
 	const [graph, setGraph] = useState<Graph | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [diagnostics, setDiagnostics] = useState<GraphDiagnostic[]>([]);
@@ -47,7 +49,12 @@ export default function App() {
 			const response = await fetch("/api/cfg", {
 				method: "POST",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ source, filePath: fileName, showImports }),
+				body: JSON.stringify({
+					source,
+					filePath: fileName,
+					showImports,
+					files: { [dependencyFileName]: dependencySource },
+				}),
 			});
 			const responseText = await response.text();
 			let body: CfgResponse = {};
@@ -87,21 +94,51 @@ export default function App() {
 		<main>
 			<h1>Runtime Visualizer</h1>
 			<p>Select a TypeScript file Procedure to inspect its control-flow graph.</p>
-			<label htmlFor="procedure-file">TypeScript file</label>
-			<input
-				id="procedure-file"
-				type="file"
-				accept=".ts,.tsx,text/typescript"
-				onChange={(event) => void selectFile(event.target.files?.[0])}
-			/>
-			<label htmlFor="procedure-source">Procedure source</label>
-			<textarea
-				id="procedure-source"
-				aria-label="Procedure source"
-				value={source}
-				onChange={(event) => setSource(event.target.value)}
-				placeholder="Enter TypeScript source"
-			/>
+			<section aria-label="TypeScript files" className="file-editors">
+				<fieldset>
+					<legend>File 1</legend>
+					<label htmlFor="file-1-name">File 1 name</label>
+					<input
+						id="file-1-name"
+						type="text"
+						value={fileName}
+						onChange={(event) => setFileName(event.target.value)}
+					/>
+					<label htmlFor="file-1-source">File 1 source</label>
+					<textarea
+						id="file-1-source"
+						aria-label="File 1 source"
+						value={source}
+						onChange={(event) => setSource(event.target.value)}
+						placeholder="Enter TypeScript source"
+					/>
+					<label htmlFor="procedure-file">Load File 1 from disk</label>
+					<input
+						id="procedure-file"
+						type="file"
+						accept=".ts,.tsx,text/typescript"
+						onChange={(event) => void selectFile(event.target.files?.[0])}
+					/>
+				</fieldset>
+				<fieldset>
+					<legend>File 2</legend>
+					<label htmlFor="file-2-name">File 2 name</label>
+					<input
+						id="file-2-name"
+						type="text"
+						value={dependencyFileName}
+						onChange={(event) => setDependencyFileName(event.target.value)}
+					/>
+					<label htmlFor="file-2-source">File 2 source</label>
+					<textarea
+						id="file-2-source"
+						aria-label="File 2 source"
+						value={dependencySource}
+						onChange={(event) => setDependencySource(event.target.value)}
+						placeholder="Enter TypeScript source"
+					/>
+				</fieldset>
+			</section>
 			<label>
 				<input
 					type="checkbox"

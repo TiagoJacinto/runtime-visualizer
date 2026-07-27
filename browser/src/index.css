@@ -96,7 +96,13 @@ p {
 }
 
 main { padding: 2rem; text-align: left; }
-textarea { display: block; width: 100%; min-height: 10rem; margin: 1rem 0; font: 1rem var(--mono); box-sizing: border-box; }
+.file-editors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+fieldset { min-width: 0; border: 1px solid var(--border); padding: 1rem; }
+legend { color: var(--text-h); font-weight: 600; }
+label { display: block; margin-top: 0.75rem; }
+input[type="text"] { display: block; width: 100%; box-sizing: border-box; padding: 0.5rem; font: 1rem var(--mono); }
+textarea { display: block; width: 100%; min-height: 10rem; margin: 0.5rem 0; font: 1rem var(--mono); box-sizing: border-box; }
+@media (max-width: 700px) { .file-editors { grid-template-columns: 1fr; } }
 button { padding: 0.65rem 1rem; cursor: pointer; }
 section { margin-top: 2rem; }
 li { margin: 0.35rem 0; }
