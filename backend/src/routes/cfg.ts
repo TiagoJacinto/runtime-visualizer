@@ -5,6 +5,7 @@ import { analyseFileProcedure } from "../cfg/file-analyzer.ts";
 const requestSchema = z.object({
 	source: z.string().max(1_000_000),
 	filePath: z.string().optional(),
+	showImports: z.boolean().optional(),
 });
 
 const cfgRoutes: FastifyPluginAsync = async (app) => {
@@ -20,8 +21,8 @@ const cfgRoutes: FastifyPluginAsync = async (app) => {
 			const status = issue?.code === "too_big" ? 413 : 400;
 			return reply.code(status).send({ error: issue?.message ?? "Invalid request body." });
 		}
-		const { source, filePath } = parsed.data;
-		const cfg = analyseFileProcedure(source, filePath ?? "inline.ts");
+		const { source, filePath, showImports } = parsed.data;
+		const cfg = analyseFileProcedure(source, filePath ?? "inline.ts", { showImports });
 		return { ok: true, cfg };
 	});
 };
