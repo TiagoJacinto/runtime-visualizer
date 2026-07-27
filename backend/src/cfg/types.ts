@@ -115,6 +115,14 @@ export type ProcedureCfg = {
   readonly exit: string
 }
 
+export type GraphDiagnostic = {
+	readonly procedure: string
+	readonly dependency?: string
+	readonly reason: string
+	readonly message?: string
+	readonly location?: SourceLocation
+}
+
 export type ControlFlowGraph = {
   /** Optional virtual file name attached to the source. */
   readonly filePath?: string
