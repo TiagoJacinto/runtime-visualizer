@@ -10,34 +10,34 @@
   "scripts": {
     "dev": "bun run --parallel backend:dev frontend:dev",
 
-    "backend:start": "bun --filter runtime-visualizer-backend run start",
-    "backend:dev": "bun --filter runtime-visualizer-backend run dev",
-    "backend:typecheck": "bun --filter runtime-visualizer-backend run typecheck",
+    "backend:start": "bun run --filter runtime-visualizer-backend start",
+    "backend:dev": "bun run --filter runtime-visualizer-backend dev",
+    "backend:typecheck": "bun run --filter runtime-visualizer-backend typecheck",
 
-    "backend:test:typical": "bun --filter runtime-visualizer-backend run test:typical",
-    "backend:test:unit": "bun --filter runtime-visualizer-backend run test:unit",
-    "backend:test:integration": "bun --filter runtime-visualizer-backend run test:integration",
-    "backend:test:e2e": "bun --filter runtime-visualizer-backend run test:e2e",
+    "backend:test:typical": "bun run --filter runtime-visualizer-backend test:typical",
+    "backend:test:unit": "bun run --filter runtime-visualizer-backend test:unit",
+    "backend:test:integration": "bun run --filter runtime-visualizer-backend test:integration",
+    "backend:test:e2e": "bun run --filter runtime-visualizer-backend test:e2e",
 
-    "backend:test:acceptance": "bun --filter runtime-visualizer-backend run test:acceptance",
-    "backend:test:hvut": "bun --filter runtime-visualizer-backend run test:hvut",
-    "backend:test:hvit": "bun --filter runtime-visualizer-backend run test:hvit",
-    "backend:test:hve2e": "bun --filter runtime-visualizer-backend run test:hve2e",
+    "backend:test:acceptance": "bun run --filter runtime-visualizer-backend test:acceptance",
+    "backend:test:hvut": "bun run --filter runtime-visualizer-backend test:hvut",
+    "backend:test:hvit": "bun run --filter runtime-visualizer-backend test:hvit",
+    "backend:test:hve2e": "bun run --filter runtime-visualizer-backend test:hve2e",
 
-    "frontend:dev": "bun --filter runtime-visualizer-browser run dev",
-    "frontend:build": "bun --filter runtime-visualizer-browser run build",
-    "frontend:lint": "bun --filter runtime-visualizer-browser run lint",
-    "frontend:preview": "bun --filter runtime-visualizer-browser run preview",
+    "frontend:dev": "bun run --filter runtime-visualizer-browser dev",
+    "frontend:build": "bun run --filter runtime-visualizer-browser build",
+    "frontend:lint": "bun run --filter runtime-visualizer-browser lint",
+    "frontend:preview": "bun run --filter runtime-visualizer-browser preview",
 
-    "frontend:test:typical": "bun --filter runtime-visualizer-browser run test:typical",
-    "frontend:test:unit": "bun --filter runtime-visualizer-browser run test:unit",
-    "frontend:test:integration": "bun --filter runtime-visualizer-browser run test:integration",
-    "frontend:test:e2e": "bun --filter runtime-visualizer-browser run test:e2e",
+    "frontend:test:typical": "bun run --filter runtime-visualizer-browser test:typical",
+    "frontend:test:unit": "bun run --filter runtime-visualizer-browser test:unit",
+    "frontend:test:integration": "bun run --filter runtime-visualizer-browser test:integration",
+    "frontend:test:e2e": "bun run --filter runtime-visualizer-browser test:e2e",
     
-    "frontend:test:acceptance": "bun --filter runtime-visualizer-browser run test:acceptance",
-    "frontend:test:hvut": "bun --filter runtime-visualizer-browser run test:hvut",
-    "frontend:test:hvit": "bun --filter runtime-visualizer-browser run test:hvit",
-    "frontend:test:hve2e": "bun --filter runtime-visualizer-browser run test:hve2e"
+    "frontend:test:acceptance": "bun run --filter runtime-visualizer-browser test:acceptance",
+    "frontend:test:hvut": "bun run --filter runtime-visualizer-browser test:hvut",
+    "frontend:test:hvit": "bun run --filter runtime-visualizer-browser test:hvit",
+    "frontend:test:hve2e": "bun run --filter runtime-visualizer-browser test:hve2e"
   },
   "dependencies": {
 
