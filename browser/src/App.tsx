@@ -41,9 +41,19 @@ export default function App() {
 	}
 
 	async function visualize() {
+		const selectedFileName = fileName.trim();
+		const selectedDependencyFileName = dependencyFileName.trim();
 		setError(null);
 		setDiagnostics([]);
 		setGraph(null);
+		if (selectedFileName === "" || selectedDependencyFileName === "") {
+			setError("File names must not be blank.");
+			return;
+		}
+		if (selectedFileName === selectedDependencyFileName) {
+			setError("File names must be distinct.");
+			return;
+		}
 		setIsLoading(true);
 		try {
 			const response = await fetch("/api/cfg", {
@@ -51,9 +61,9 @@ export default function App() {
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify({
 					source,
-					filePath: fileName,
+					filePath: selectedFileName,
 					showImports,
-					files: { [dependencyFileName]: dependencySource },
+					files: { [selectedDependencyFileName]: dependencySource },
 				}),
 			});
 			const responseText = await response.text();

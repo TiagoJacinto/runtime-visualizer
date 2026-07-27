@@ -32,3 +32,18 @@ test("Submit two named files together", async () => {
 	expect(request.filePath).toBe("main.ts");
 	expect(request.files).toEqual({ "helper.ts": "export function helper() {}" });
 });
+
+test("Reject blank and duplicate file names before submitting", async () => {
+	const fetchMock = vi.fn();
+	vi.stubGlobal("fetch", fetchMock);
+	const screen = await render(createElement(App));
+
+	await screen.getByRole("textbox", { name: "File 1 name" }).fill(" ");
+	await screen.getByRole("button", { name: "Visualize control flow" }).click();
+	await expect.element(screen.getByRole("alert")).toHaveTextContent("File names must not be blank.");
+
+	await screen.getByRole("textbox", { name: "File 1 name" }).fill("helper.ts");
+	await screen.getByRole("button", { name: "Visualize control flow" }).click();
+	await expect.element(screen.getByRole("alert")).toHaveTextContent("File names must be distinct.");
+	expect(fetchMock).not.toHaveBeenCalled();
+});
