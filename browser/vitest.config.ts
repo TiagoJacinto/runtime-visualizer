@@ -33,7 +33,7 @@ export default defineConfig({
 				test: {
 					name: "browser-hvut",
 					include: ["tests/acceptance/unit/**/*.hvut.ts"],
-					environment: "node",
+					environment: "jsdom",
 				},
 			},
 			{

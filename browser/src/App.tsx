@@ -12,13 +12,20 @@ type Graph = {
 	procedures?: Array<{ nodes: GraphNode[]; edges: GraphEdge[] }>;
 };
 
-type CfgResponse = { cfg?: Graph; error?: string };
+type GraphDiagnostic = {
+	procedure: string;
+	dependency?: string;
+	reason: string;
+	message?: string;
+};
+type CfgResponse = { cfg?: Graph; error?: string; diagnostics?: GraphDiagnostic[] };
 
 export default function App() {
 	const [fileName, setFileName] = useState("selected.ts");
 	const [source, setSource] = useState("");
 	const [graph, setGraph] = useState<Graph | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [diagnostics, setDiagnostics] = useState<GraphDiagnostic[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [showImports, setShowImports] = useState(false);
 
@@ -28,10 +35,13 @@ export default function App() {
 		setSource(await file.text());
 		setGraph(null);
 		setError(null);
+		setDiagnostics([]);
 	}
 
 	async function visualize() {
 		setError(null);
+		setDiagnostics([]);
+		setGraph(null);
 		setIsLoading(true);
 		try {
 			const response = await fetch("/api/cfg", {
@@ -51,6 +61,10 @@ export default function App() {
 				}
 			}
 			if (!response.ok || body.cfg === undefined) {
+				if (body.diagnostics !== undefined) {
+					setDiagnostics(body.diagnostics);
+					return;
+				}
 				throw new Error(
 					body.error ??
 						(responseText.trim() === ""
@@ -58,7 +72,7 @@ export default function App() {
 							: `HTTP ${response.status}`),
 				);
 			}
-		setGraph(body.cfg);
+			setGraph(body.cfg);
 	} catch (cause) {
 		setError(cause instanceof Error ? cause.message : String(cause));
 	} finally {
@@ -100,6 +114,20 @@ export default function App() {
 				{isLoading ? "Building graph…" : "Visualize control flow"}
 			</button>
 			{error !== null && <p role="alert">{error}</p>}
+			{diagnostics.length > 0 && (
+				<section aria-label="Graph diagnostics" role="alert">
+					<h2>Graph diagnostics</h2>
+					<ul>
+						{diagnostics.map((diagnostic, index) => (
+							<li key={`${diagnostic.reason}-${diagnostic.dependency ?? "selected"}-${index}`}>
+								<strong>{diagnostic.reason}</strong>
+								{diagnostic.dependency === undefined ? "" : ` (${diagnostic.dependency})`}
+								{diagnostic.message === undefined ? "" : `: ${diagnostic.message}`}
+							</li>
+						))}
+					</ul>
+				</section>
+			)}
 			{procedure !== undefined && (
 				<section aria-label="Control-flow graph" data-testid="control-flow-graph">
 					<h2>Control-flow graph for {fileName}</h2>
