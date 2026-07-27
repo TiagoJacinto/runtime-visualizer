@@ -1,4 +1,4 @@
-import * as vm from "node:vm";
+import vm from "node:vm";
 import * as ts from "typescript";
 import type { CfgNode, ProcedureCfg } from "../cfg/types.ts";
 
@@ -11,11 +11,11 @@ export type ExecutionResult = {
 type Patch = { readonly position: number; readonly text: string };
 
 /** Execute a selected file Procedure and report the graph nodes reached at runtime. */
-export function executeProcedure(
+export async function executeProcedure(
 	source: string,
 	filePath: string,
 	procedure: ProcedureCfg,
-): ExecutionResult {
+): Promise<ExecutionResult> {
 	const events: string[] = [];
 	try {
 		const instrumented = instrument(source, filePath, procedure);
@@ -28,8 +28,12 @@ export function executeProcedure(
 		}).outputText;
 		const context = vm.createContext({
 			__visualizerEmit: (nodeId: string) => events.push(nodeId),
+			setTimeout,
+			clearTimeout,
 		});
-		new vm.Script(javascript, { filename: filePath }).runInContext(context, { timeout: 1_000 });
+		const script = new vm.Script(`(async () => {\n${javascript}\n})()`, { filename: filePath });
+		const result = script.runInContext(context, { timeout: 1_000 });
+		await waitForCompletion(result);
 		return { status: "Succeeded", events };
 	} catch (cause) {
 		return {
@@ -38,6 +42,25 @@ export function executeProcedure(
 			error: cause instanceof Error ? cause.message : String(cause),
 		};
 	}
+}
+
+async function waitForCompletion(result: unknown): Promise<void> {
+	if (!isPromiseLike(result)) return;
+	let timeout: ReturnType<typeof setTimeout> | undefined;
+	try {
+		await Promise.race([
+			result,
+			new Promise<never>((_resolve, reject) => {
+				timeout = setTimeout(() => reject(new Error("Execution timed out.")), 1_000);
+			}),
+		]);
+	} finally {
+		if (timeout !== undefined) clearTimeout(timeout);
+	}
+}
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+	return typeof value === "object" && value !== null && "then" in value && typeof value.then === "function";
 }
 
 function instrument(source: string, filePath: string, procedure: ProcedureCfg): string {

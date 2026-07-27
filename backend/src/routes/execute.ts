@@ -26,7 +26,7 @@ const executeRoutes: FastifyPluginAsync = async (app) => {
 		const procedure = analysis.cfg?.procedures?.[0];
 		if (procedure === undefined) return reply.code(422).send({ error: "No executable Procedure found." });
 
-		const execution = executeProcedure(source, filePath, procedure);
+		const execution = await executeProcedure(source, filePath, procedure);
 		return {
 			ok: execution.status === "Succeeded",
 			events: execution.events.map((nodeId) => ({ nodeId })),
