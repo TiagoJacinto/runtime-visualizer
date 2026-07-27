@@ -1,5 +1,5 @@
 import vm from "node:vm";
-import * as ts from "typescript";
+import ts from "typescript";
 import type { CfgNode, ProcedureCfg } from "../cfg/types.ts";
 
 export type ExecutionResult = {
@@ -18,7 +18,7 @@ export async function executeProcedure(
 ): Promise<ExecutionResult> {
 	const events: string[] = [];
 	try {
-		const instrumented = instrument(source, filePath, procedure);
+		const instrumented = instrument(stripModuleMarker(source), filePath, procedure);
 		const javascript = ts.transpileModule(instrumented, {
 			compilerOptions: {
 				target: ts.ScriptTarget.ES2022,
@@ -61,6 +61,10 @@ async function waitForCompletion(result: unknown): Promise<void> {
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 	return typeof value === "object" && value !== null && "then" in value && typeof value.then === "function";
+}
+
+function stripModuleMarker(source: string): string {
+	return source.replace(/^\s*export\s*\{\s*\};?\s*$/gm, "");
 }
 
 function instrument(source: string, filePath: string, procedure: ProcedureCfg): string {

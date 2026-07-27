@@ -19,8 +19,8 @@ export function diagnoseProject({ source, filePath, files = {} }: SourceProject)
 	const compilerOptions: ts.CompilerOptions = {
 		allowJs: false,
 		jsx: ts.JsxEmit.Preserve,
-		module: ts.ModuleKind.CommonJS,
-		moduleResolution: ts.ModuleResolutionKind.Node10,
+		module: ts.ModuleKind.ESNext,
+		moduleResolution: ts.ModuleResolutionKind.Bundler,
 		noEmit: true,
 		target: ts.ScriptTarget.ESNext,
 	};

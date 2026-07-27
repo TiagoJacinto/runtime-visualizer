@@ -16,7 +16,9 @@ describe("POST /api/execute", () => {
 						"function work() {}",
 						"function wait() {}",
 						"prepare();",
+						"await new Promise<void>((resolve) => setTimeout(resolve, 10));",
 						"if (ready) { work(); } else { wait(); }",
+						"export {};",
 					].join("\n"),
 				},
 			});
@@ -26,7 +28,7 @@ describe("POST /api/execute", () => {
 			ok: true,
 			result: { status: "Succeeded" },
 		});
-			expect(response.json().events).toHaveLength(4);
+			expect(response.json().events).toHaveLength(5);
 		} finally {
 			await app.close();
 		}
