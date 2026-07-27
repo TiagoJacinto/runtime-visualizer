@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./index.css";
 
 type GraphNode = {
@@ -8,8 +8,14 @@ type GraphNode = {
 	location?: { start: { line: number }; end: { line: number } };
 };
 type GraphEdge = { from: string; to: string; label?: string; kind?: string };
+type GraphProcedure = {
+	nodes: GraphNode[];
+	edges: GraphEdge[];
+	entry?: string;
+	exit?: string;
+};
 type Graph = {
-	procedures?: Array<{ nodes: GraphNode[]; edges: GraphEdge[] }>;
+	procedures?: GraphProcedure[];
 };
 
 type GraphDiagnostic = {
@@ -19,6 +25,9 @@ type GraphDiagnostic = {
 	message?: string;
 };
 type CfgResponse = { cfg?: Graph; error?: string; diagnostics?: GraphDiagnostic[] };
+type ExecutionStreamEvent =
+	| { event: "node"; data: { nodeId: string } }
+	| { event: "result"; data: { status: "Succeeded" | "Failed"; error?: string } };
 
 export default function App() {
 	const [fileName, setFileName] = useState("main.ts");
@@ -30,6 +39,11 @@ export default function App() {
 	const [diagnostics, setDiagnostics] = useState<GraphDiagnostic[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [showImports, setShowImports] = useState(false);
+	const [executionPath, setExecutionPath] = useState<string[]>([]);
+	const [executionIndex, setExecutionIndex] = useState<number | null>(null);
+	const [executionStatus, setExecutionStatus] = useState<"idle" | "running" | "complete" | "failed">("idle");
+	const [executionResult, setExecutionResult] = useState<"Succeeded" | "Failed" | null>(null);
+	const [executionFinished, setExecutionFinished] = useState(false);
 
 	async function selectFile(file: File | undefined) {
 		if (file === undefined) return;
@@ -40,12 +54,98 @@ export default function App() {
 		setDiagnostics([]);
 	}
 
+	useEffect(() => {
+		if (executionStatus !== "running" || executionIndex === null) return;
+		const timer = window.setTimeout(() => {
+			if (executionIndex + 1 >= executionPath.length) {
+				if (!executionFinished) return;
+				setExecutionIndex(null);
+				setExecutionStatus(executionResult === "Failed" ? "failed" : "complete");
+				return;
+			}
+			setExecutionIndex(executionIndex + 1);
+		}, 100);
+		return () => window.clearTimeout(timer);
+	}, [executionFinished, executionIndex, executionPath, executionResult, executionStatus]);
+
+	function resetExecution() {
+		setExecutionPath([]);
+		setExecutionIndex(null);
+		setExecutionStatus("idle");
+		setExecutionResult(null);
+		setExecutionFinished(false);
+	}
+
+	async function runProcedure() {
+		if (procedure === undefined) return;
+		setError(null);
+		setExecutionPath([]);
+		setExecutionIndex(null);
+		setExecutionResult(null);
+		setExecutionFinished(false);
+		setExecutionStatus("running");
+		try {
+			const response = await fetch("/api/execute", {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					source,
+					filePath: fileName.trim(),
+					files: { [dependencyFileName.trim()]: dependencySource },
+				}),
+			});
+			if (!response.ok || response.body === null) {
+				throw new Error(`Execution service returned HTTP ${response.status}.`);
+			}
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let pending = "";
+			let receivedEvents = false;
+			let receivedResult = false;
+			const handleLine = (line: string): void => {
+				if (line.trim() === "") return;
+				const event = JSON.parse(line) as ExecutionStreamEvent;
+				if (event.event === "node") {
+					receivedEvents = true;
+					setExecutionPath((current) => [...current, event.data.nodeId]);
+					setExecutionIndex((current) => current ?? 0);
+					return;
+				}
+				receivedResult = true;
+				setExecutionResult(event.data.status);
+				setExecutionFinished(true);
+				if (event.data.error !== undefined) setError(event.data.error);
+				if (!receivedEvents) setExecutionStatus(event.data.status === "Failed" ? "failed" : "complete");
+			};
+			for (;;) {
+				const chunk = await reader.read();
+				pending += decoder.decode(chunk.value ?? new Uint8Array(), { stream: !chunk.done });
+				let newline = pending.indexOf("\n");
+				while (newline !== -1) {
+					handleLine(pending.slice(0, newline));
+					pending = pending.slice(newline + 1);
+					newline = pending.indexOf("\n");
+				}
+				if (chunk.done) break;
+			}
+			if (pending.trim() !== "") handleLine(pending);
+			if (!receivedResult) throw new Error("Execution service ended without a terminal Result.");
+		} catch (cause) {
+			setExecutionIndex(null);
+			setExecutionStatus("failed");
+			setExecutionResult("Failed");
+			setExecutionFinished(true);
+			setError(cause instanceof Error ? cause.message : String(cause));
+		}
+	}
+
 	async function visualize() {
 		const selectedFileName = fileName.trim();
 		const selectedDependencyFileName = dependencyFileName.trim();
 		setError(null);
 		setDiagnostics([]);
 		setGraph(null);
+		resetExecution();
 		if (selectedFileName === "" || selectedDependencyFileName === "") {
 			setError("File names must not be blank.");
 			return;
@@ -99,6 +199,7 @@ export default function App() {
 
 	const procedure = graph?.procedures?.[0];
 	const nodeLabels = new Map(procedure?.nodes.map((node) => [node.id, node.label]));
+	const activeNodeId = executionIndex === null ? null : executionPath[executionIndex] ?? null;
 
 	return (
 		<main>
@@ -160,6 +261,19 @@ export default function App() {
 			<button type="button" onClick={() => void visualize()} disabled={isLoading}>
 				{isLoading ? "Building graph…" : "Visualize control flow"}
 			</button>
+			{procedure !== undefined && (
+				<>
+					<button type="button" onClick={runProcedure} disabled={executionStatus === "running"}>
+						{executionStatus === "running" ? "Running procedure…" : "Run procedure"}
+					</button>
+					<p role="status" aria-live="polite">
+						{executionStatus === "running" && activeNodeId !== null
+							? `Execution running: ${nodeLabels.get(activeNodeId) ?? activeNodeId}`
+							: executionStatus === "complete" ? "Execution complete"
+								: executionStatus === "failed" ? "Execution failed" : "Execution ready"}
+					</p>
+				</>
+			)}
 			{error !== null && <p role="alert">{error}</p>}
 			{diagnostics.length > 0 && (
 				<section aria-label="Graph diagnostics" role="alert">
@@ -180,7 +294,13 @@ export default function App() {
 					<h2>Control-flow graph for {fileName}</h2>
 					<ul aria-label="Graph nodes">
 						{procedure.nodes.map((node) => (
-							<li key={node.id} data-kind={node.kind}>
+							<li
+								key={node.id}
+								data-kind={node.kind}
+								data-testid={`graph-node-${node.id}`}
+								data-execution-state={activeNodeId === node.id ? "active" : undefined}
+								aria-current={activeNodeId === node.id ? "step" : undefined}
+							>
 								<strong>{node.label}</strong>
 								{node.location !== undefined && (
 									<span>

@@ -106,6 +106,12 @@ textarea { display: block; width: 100%; min-height: 10rem; margin: 0.5rem 0; fon
 button { padding: 0.65rem 1rem; cursor: pointer; }
 section { margin-top: 2rem; }
 li { margin: 0.35rem 0; }
+[data-execution-state="active"] {
+  background: var(--accent-bg);
+  outline: 2px solid var(--accent-border);
+  border-radius: 4px;
+  color: var(--text-h);
+}
 
 code,
 .counter {
