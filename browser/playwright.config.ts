@@ -1,5 +1,8 @@
+/// <reference types="node" />
+
 import { defineConfig } from "@playwright/test";
 import { defineBddConfig } from "playwright-bdd";
+import process from "node:process";
 
 const testDir = defineBddConfig({
 	featuresRoot: "../features",
@@ -23,13 +26,13 @@ export default defineConfig({
 			command: "bun run backend:dev",
 			cwd: "..",
 			url: "http://127.0.0.1:3000/api/health",
-			reuseExistingServer: true,
+			reuseExistingServer: !process.env.CI,
 		},
 		{
 			command: "bun run frontend:dev",
 			cwd: "..",
 			url: "http://127.0.0.1:5173",
-			reuseExistingServer: true,
+			reuseExistingServer: !process.env.CI,
 		},
 	],
 	projects: [
