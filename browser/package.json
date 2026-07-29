@@ -7,17 +7,17 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:bdd:generate": "bddgen --config playwright.config.ts",
-    "test:bdd": "bun run test:bdd:generate && playwright test --config playwright.config.ts",
-    "test:bdd:ui": "bun run test:bdd:generate && playwright test --config playwright.config.ts --ui",
+
     "test:typical": "vitest run --config vitest.config.ts --project browser-unit --project browser-integration --project browser-e2e --passWithNoTests",
     "test:unit": "vitest run --config vitest.config.ts --project browser-unit --passWithNoTests",
     "test:integration": "vitest run --config vitest.config.ts --project browser-integration --passWithNoTests",
     "test:e2e": "vitest run --config vitest.config.ts --project browser-e2e --passWithNoTests",
+
     "test:acceptance": "bun run test:hvut && bun run test:hvit && bun run test:hve2e",
     "test:hvut": "vitest run --config vitest.config.ts --project browser-hvut --passWithNoTests",
     "test:hvit": "vitest run --config vitest.config.ts --project browser-hvit --passWithNoTests",
-    "test:hve2e": "vitest run --config vitest.browser.config.ts --project browser-hve2e --passWithNoTests"
+    "test:hve2e": "bddgen --config playwright.config.ts && playwright test --config playwright.config.ts",
+    "test:hve2e:ui": "bddgen --config playwright.config.ts && playwright test --config playwright.config.ts --ui"
   },
   "dependencies": {
     "dompurify": "^3.4.12",

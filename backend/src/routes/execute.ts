@@ -6,12 +6,25 @@ import { executeProcedure } from "../execution/runner.ts";
 const requestSchema = z.object({
 	source: z.string().max(1_000_000),
 	filePath: z.string().optional(),
+	functionName: z
+		.string()
+		.regex(
+			/^[A-Za-z_$][A-Za-z0-9_$]*$/,
+			"Function name must be a valid identifier.",
+		)
+		.optional(),
 	files: z.record(z.string(), z.string()).optional(),
 });
 
 type StreamEvent =
 	| { readonly event: "node"; readonly data: { readonly nodeId: string } }
-	| { readonly event: "result"; readonly data: { readonly status: "Succeeded" | "Failed"; readonly error?: string } };
+	| {
+			readonly event: "result";
+			readonly data: {
+				readonly status: "Succeeded" | "Failed";
+				readonly error?: string;
+			};
+	  };
 
 const executeRoutes: FastifyPluginAsync = async (app) => {
 	app.post("/", async (req, reply) => {
@@ -19,16 +32,21 @@ const executeRoutes: FastifyPluginAsync = async (app) => {
 		if (!parsed.success) {
 			const issue = parsed.error.issues[0];
 			const status = issue?.code === "too_big" ? 413 : 400;
-			return reply.code(status).send({ error: issue?.message ?? "Invalid request body." });
+			return reply
+				.code(status)
+				.send({ error: issue?.message ?? "Invalid request body." });
 		}
 
-		const { source, filePath = "inline.ts", files } = parsed.data;
-		const analysis = analyseProject({ source, filePath, files });
+		const { source, filePath = "inline.ts", functionName, files } = parsed.data;
+		const analysis = analyseProject({ source, filePath, functionName, files });
 		if (analysis.diagnostics.length > 0) {
-			return reply.code(422).send({ ok: false, diagnostics: analysis.diagnostics });
+			return reply
+				.code(422)
+				.send({ ok: false, diagnostics: analysis.diagnostics });
 		}
 		const procedure = analysis.cfg?.procedures?.[0];
-		if (procedure === undefined) return reply.code(422).send({ error: "No executable Procedure found." });
+		if (procedure === undefined)
+			return reply.code(422).send({ error: "No executable Procedure found." });
 
 		const encoder = new TextEncoder();
 		const stream = new ReadableStream<Uint8Array>({
@@ -36,24 +54,37 @@ const executeRoutes: FastifyPluginAsync = async (app) => {
 				const send = (event: StreamEvent): void => {
 					controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 				};
-				void executeProcedure(source, filePath, procedure, (nodeId) => {
-					send({ event: "node", data: { nodeId } });
-				}).then((execution) => {
-					send({
-						event: "result",
-						data: {
-							status: execution.status,
-							...(execution.error === undefined ? {} : { error: execution.error }),
-						},
+				void executeProcedure(
+					source,
+					filePath,
+					procedure,
+					functionName,
+					(nodeId) => {
+						send({ event: "node", data: { nodeId } });
+					},
+				)
+					.then((execution) => {
+						send({
+							event: "result",
+							data: {
+								status: execution.status,
+								...(execution.error === undefined
+									? {}
+									: { error: execution.error }),
+							},
+						});
+						controller.close();
+					})
+					.catch((cause: unknown) => {
+						send({
+							event: "result",
+							data: {
+								status: "Failed",
+								error: cause instanceof Error ? cause.message : String(cause),
+							},
+						});
+						controller.close();
 					});
-					controller.close();
-				}).catch((cause: unknown) => {
-					send({
-						event: "result",
-						data: { status: "Failed", error: cause instanceof Error ? cause.message : String(cause) },
-					});
-					controller.close();
-				});
 			},
 		});
 		return reply

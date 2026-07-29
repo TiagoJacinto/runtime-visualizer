@@ -7,18 +7,24 @@ type ExecutionRequest = {
 	readonly source: string;
 	readonly filePath: string;
 	readonly procedure: ProcedureCfg;
+	readonly functionName?: string;
 };
 
 type WorkerMessage =
 	| { readonly type: "node"; readonly nodeId: string }
-	| { readonly type: "result"; readonly status: "Succeeded" | "Failed"; readonly error?: string };
+	| {
+			readonly type: "result";
+			readonly status: "Succeeded" | "Failed";
+			readonly error?: string;
+	  };
 
 type Patch = { readonly position: number; readonly text: string };
 const EXECUTION_TIMEOUT_MS = 30_000;
 const hostSetTimeout = globalThis.setTimeout.bind(globalThis);
 const hostClearTimeout = globalThis.clearTimeout.bind(globalThis);
 
-if (parentPort === null) throw new Error("Execution worker has no parent port.");
+if (parentPort === null)
+	throw new Error("Execution worker has no parent port.");
 const port = parentPort;
 
 const post = (message: WorkerMessage): void => port.postMessage(message);
@@ -26,7 +32,11 @@ const post = (message: WorkerMessage): void => port.postMessage(message);
 try {
 	const request = workerData as ExecutionRequest;
 	const events: string[] = [];
-	const instrumented = instrument(stripModuleMarker(request.source), request.filePath, request.procedure);
+	const instrumented = instrument(
+		stripModuleMarker(request.source),
+		request.filePath,
+		request.procedure,
+	);
 	const javascript = ts.transpileModule(instrumented, {
 		compilerOptions: {
 			target: ts.ScriptTarget.ES2022,
@@ -43,12 +53,25 @@ try {
 		setTimeout: timerApi.setTimeout,
 		clearTimeout: timerApi.clearTimeout,
 	});
-	const script = new vm.Script(`(async () => {\n${javascript}\n})()`, { filename: request.filePath });
-	const result = script.runInContext(context, { timeout: EXECUTION_TIMEOUT_MS });
+	const invocation =
+		request.functionName === undefined
+			? ""
+			: `\nawait ${request.functionName}();`;
+	const script = new vm.Script(
+		`(async () => {\n${javascript}${invocation}\n})()`,
+		{ filename: request.filePath },
+	);
+	const result = script.runInContext(context, {
+		timeout: EXECUTION_TIMEOUT_MS,
+	});
 	await waitForCompletion(result);
 	post({ type: "result", status: "Succeeded" });
 } catch (cause) {
-	post({ type: "result", status: "Failed", error: cause instanceof Error ? cause.message : String(cause) });
+	post({
+		type: "result",
+		status: "Failed",
+		error: cause instanceof Error ? cause.message : String(cause),
+	});
 }
 
 async function waitForCompletion(result: unknown): Promise<void> {
@@ -58,7 +81,10 @@ async function waitForCompletion(result: unknown): Promise<void> {
 		await Promise.race([
 			result,
 			new Promise<never>((_resolve, reject) => {
-				timeout = hostSetTimeout(() => reject(new Error("Execution timed out.")), EXECUTION_TIMEOUT_MS);
+				timeout = hostSetTimeout(
+					() => reject(new Error("Execution timed out.")),
+					EXECUTION_TIMEOUT_MS,
+				);
 			}),
 		]);
 	} finally {
@@ -67,7 +93,11 @@ async function waitForCompletion(result: unknown): Promise<void> {
 }
 
 function createSandboxTimerApi(): {
-	readonly setTimeout: (callback: (...args: unknown[]) => void, delay?: number, ...args: unknown[]) => number;
+	readonly setTimeout: (
+		callback: (...args: unknown[]) => void,
+		delay?: number,
+		...args: unknown[]
+	) => number;
 	readonly clearTimeout: (id: number) => void;
 } {
 	let nextId = 0;
@@ -75,10 +105,13 @@ function createSandboxTimerApi(): {
 	return {
 		setTimeout(callback, delay = 0, ...args) {
 			const id = ++nextId;
-			handles.set(id, hostSetTimeout(() => {
-				handles.delete(id);
-				callback(...args);
-			}, delay));
+			handles.set(
+				id,
+				hostSetTimeout(() => {
+					handles.delete(id);
+					callback(...args);
+				}, delay),
+			);
 			return id;
 		},
 		clearTimeout(id) {
@@ -91,19 +124,42 @@ function createSandboxTimerApi(): {
 }
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
-	return typeof value === "object" && value !== null && "then" in value && typeof value.then === "function";
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"then" in value &&
+		typeof value.then === "function"
+	);
 }
 
 function stripModuleMarker(source: string): string {
 	return source.replace(/^\s*export\s*\{\s*\};?\s*$/gm, "");
 }
 
-function instrument(source: string, filePath: string, procedure: ProcedureCfg): string {
-	const file = ts.createSourceFile(filePath, source, ts.ScriptTarget.ESNext, true, scriptKindFor(filePath));
+function instrument(
+	source: string,
+	filePath: string,
+	procedure: ProcedureCfg,
+): string {
+	const file = ts.createSourceFile(
+		filePath,
+		source,
+		ts.ScriptTarget.ESNext,
+		true,
+		scriptKindFor(filePath),
+	);
 	const nodeByStart = new Map<number, CfgNode>();
 	for (const node of procedure.nodes) {
-		if (node.location === undefined || node.kind === "entry" || node.kind === "exit") continue;
-		const start = file.getPositionOfLineAndCharacter(node.location.start.line - 1, node.location.start.column - 1);
+		if (
+			node.location === undefined ||
+			node.kind === "entry" ||
+			node.kind === "exit"
+		)
+			continue;
+		const start = file.getPositionOfLineAndCharacter(
+			node.location.start.line - 1,
+			node.location.start.column - 1,
+		);
 		nodeByStart.set(start, node);
 	}
 
@@ -113,7 +169,10 @@ function instrument(source: string, filePath: string, procedure: ProcedureCfg): 
 			const sourceStart = runtimeSourceStart(node, file);
 			const graphNode = nodeByStart.get(sourceStart);
 			if (graphNode !== undefined) {
-				patches.push({ position: node.getStart(file), text: `__visualizerEmit(${JSON.stringify(graphNode.id)});\n` });
+				patches.push({
+					position: node.getStart(file),
+					text: `__visualizerEmit(${JSON.stringify(graphNode.id)});\n`,
+				});
 			}
 		}
 		ts.forEachChild(node, visit);
@@ -122,20 +181,33 @@ function instrument(source: string, filePath: string, procedure: ProcedureCfg): 
 
 	patches.sort((left, right) => right.position - left.position);
 	let output = source;
-	for (const patch of patches) output = `${output.slice(0, patch.position)}${patch.text}${output.slice(patch.position)}`;
+	for (const patch of patches)
+		output = `${output.slice(0, patch.position)}${patch.text}${output.slice(patch.position)}`;
 	return output;
 }
 
-function runtimeSourceStart(statement: ts.Statement, file: ts.SourceFile): number {
-	if (ts.isIfStatement(statement) || ts.isWhileStatement(statement) || ts.isDoStatement(statement)) {
+function runtimeSourceStart(
+	statement: ts.Statement,
+	file: ts.SourceFile,
+): number {
+	if (
+		ts.isIfStatement(statement) ||
+		ts.isWhileStatement(statement) ||
+		ts.isDoStatement(statement)
+	) {
 		return statement.expression.getStart(file);
 	}
-	if (ts.isForStatement(statement)) return statement.condition?.getStart(file) ?? statement.getStart(file);
-	if (ts.isForInStatement(statement) || ts.isForOfStatement(statement)) return statement.expression.getStart(file);
-	if (ts.isSwitchStatement(statement)) return statement.expression.getStart(file);
+	if (ts.isForStatement(statement))
+		return statement.condition?.getStart(file) ?? statement.getStart(file);
+	if (ts.isForInStatement(statement) || ts.isForOfStatement(statement))
+		return statement.expression.getStart(file);
+	if (ts.isSwitchStatement(statement))
+		return statement.expression.getStart(file);
 	return statement.getStart(file);
 }
 
 function scriptKindFor(filePath: string): ts.ScriptKind {
-	return filePath.toLowerCase().endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+	return filePath.toLowerCase().endsWith(".tsx")
+		? ts.ScriptKind.TSX
+		: ts.ScriptKind.TS;
 }

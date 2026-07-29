@@ -204,7 +204,7 @@ Feature: Visualize a control-flow graph
     And I view GraphNode{label: "import type { JobSpec } from './types'"} not in ControlFlowGraph: Erased type-only imports are omitted
 
   Scenario: Show executable class initialization without a bare class node
-    Given Procedure{name: "worker.ts", kind: File, status: Ready, source: "class Worker extends makeBase() { static [key ?? fallback()] = initialize(); static ready; static { register() } declare static typeOnly: string; run() { work() } }"}
+    Given Procedure{name: "worker.ts", kind: File, status: Ready, source: "class Worker extends makeBase() { static [key ?? fallback()]() {} static initialized = initialize(); static ready; static { register() } declare static typeOnly: string; run() { work() } }"}
     When I visualizeControlFlow(procedure: "worker.ts")
     Then I view GraphNode{label: "class Worker"} not in ControlFlowGraph: The bare declaration is omitted
     And I view GraphNode{} in ControlFlowGraph: Runtime class initialization is visible
@@ -212,7 +212,7 @@ Feature: Visualize a control-flow graph
       | makeBase()                  | Executable |
       | key                         | Decision   |
       | fallback()                  | Executable |
-      | static [key ?? fallback()] = initialize() | Executable |
+      | static initialized = initialize()              | Executable |
       | static ready                              | Executable |
       | register()                               | Executable |
     And I view GraphNode{label: "declare static typeOnly: string"} not in ControlFlowGraph: Erased static syntax is omitted
