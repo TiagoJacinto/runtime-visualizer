@@ -9,11 +9,21 @@ export type ProjectAnalysis = {
 
 export type ProjectAnalysisRequest = SourceProject & {
 	readonly showImports?: boolean;
+	readonly functionName?: string;
 };
 
 /** Validate a complete uploaded program before building its selected file graph. */
-export function analyseProject({ source, filePath, files, showImports }: ProjectAnalysisRequest): ProjectAnalysis {
+export function analyseProject({
+	source,
+	filePath,
+	files,
+	showImports,
+	functionName,
+}: ProjectAnalysisRequest): ProjectAnalysis {
 	const diagnostics = diagnoseProject({ source, filePath, files });
 	if (diagnostics.length > 0) return { diagnostics };
-	return { diagnostics, cfg: analyseFileProcedure(source, filePath, { showImports }) };
+	return {
+		diagnostics,
+		cfg: analyseFileProcedure(source, filePath, { showImports, functionName }),
+	};
 }

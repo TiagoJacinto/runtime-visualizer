@@ -9,6 +9,7 @@ type GraphNode = {
 };
 type GraphEdge = { from: string; to: string; label?: string; kind?: string };
 type GraphProcedure = {
+	name?: string;
 	nodes: GraphNode[];
 	edges: GraphEdge[];
 	entry?: string;
@@ -24,13 +25,23 @@ type GraphDiagnostic = {
 	reason: string;
 	message?: string;
 };
-type CfgResponse = { cfg?: Graph; error?: string; diagnostics?: GraphDiagnostic[] };
+type CfgResponse = {
+	cfg?: Graph;
+	error?: string;
+	diagnostics?: GraphDiagnostic[];
+};
 type ExecutionStreamEvent =
 	| { event: "node"; data: { nodeId: string } }
-	| { event: "result"; data: { status: "Succeeded" | "Failed"; error?: string } };
+	| {
+			event: "result";
+			data: { status: "Succeeded" | "Failed"; error?: string };
+	  };
+
+const EXECUTION_HIGHLIGHT_INTERVAL_MS = 1_000;
 
 export default function App() {
 	const [fileName, setFileName] = useState("main.ts");
+	const [functionName, setFunctionName] = useState("");
 	const [source, setSource] = useState("");
 	const [dependencyFileName, setDependencyFileName] = useState("helper.ts");
 	const [dependencySource, setDependencySource] = useState("");
@@ -41,13 +52,18 @@ export default function App() {
 	const [showImports, setShowImports] = useState(false);
 	const [executionPath, setExecutionPath] = useState<string[]>([]);
 	const [executionIndex, setExecutionIndex] = useState<number | null>(null);
-	const [executionStatus, setExecutionStatus] = useState<"idle" | "running" | "complete" | "failed">("idle");
-	const [executionResult, setExecutionResult] = useState<"Succeeded" | "Failed" | null>(null);
+	const [executionStatus, setExecutionStatus] = useState<
+		"idle" | "running" | "complete" | "failed"
+	>("idle");
+	const [executionResult, setExecutionResult] = useState<
+		"Succeeded" | "Failed" | null
+	>(null);
 	const [executionFinished, setExecutionFinished] = useState(false);
 
 	async function selectFile(file: File | undefined) {
 		if (file === undefined) return;
 		setFileName(file.name);
+		setFunctionName("");
 		setSource(await file.text());
 		setGraph(null);
 		setError(null);
@@ -60,13 +76,21 @@ export default function App() {
 			if (executionIndex + 1 >= executionPath.length) {
 				if (!executionFinished) return;
 				setExecutionIndex(null);
-				setExecutionStatus(executionResult === "Failed" ? "failed" : "complete");
+				setExecutionStatus(
+					executionResult === "Failed" ? "failed" : "complete",
+				);
 				return;
 			}
 			setExecutionIndex(executionIndex + 1);
-		}, 100);
+		}, EXECUTION_HIGHLIGHT_INTERVAL_MS);
 		return () => window.clearTimeout(timer);
-	}, [executionFinished, executionIndex, executionPath, executionResult, executionStatus]);
+	}, [
+		executionFinished,
+		executionIndex,
+		executionPath,
+		executionResult,
+		executionStatus,
+	]);
 
 	function resetExecution() {
 		setExecutionPath([]);
@@ -91,6 +115,9 @@ export default function App() {
 				body: JSON.stringify({
 					source,
 					filePath: fileName.trim(),
+					...(functionName.trim() === ""
+						? {}
+						: { functionName: functionName.trim() }),
 					files: { [dependencyFileName.trim()]: dependencySource },
 				}),
 			});
@@ -115,11 +142,16 @@ export default function App() {
 				setExecutionResult(event.data.status);
 				setExecutionFinished(true);
 				if (event.data.error !== undefined) setError(event.data.error);
-				if (!receivedEvents) setExecutionStatus(event.data.status === "Failed" ? "failed" : "complete");
+				if (!receivedEvents)
+					setExecutionStatus(
+						event.data.status === "Failed" ? "failed" : "complete",
+					);
 			};
 			for (;;) {
 				const chunk = await reader.read();
-				pending += decoder.decode(chunk.value ?? new Uint8Array(), { stream: !chunk.done });
+				pending += decoder.decode(chunk.value ?? new Uint8Array(), {
+					stream: !chunk.done,
+				});
 				let newline = pending.indexOf("\n");
 				while (newline !== -1) {
 					handleLine(pending.slice(0, newline));
@@ -129,7 +161,8 @@ export default function App() {
 				if (chunk.done) break;
 			}
 			if (pending.trim() !== "") handleLine(pending);
-			if (!receivedResult) throw new Error("Execution service ended without a terminal Result.");
+			if (!receivedResult)
+				throw new Error("Execution service ended without a terminal Result.");
 		} catch (cause) {
 			setExecutionIndex(null);
 			setExecutionStatus("failed");
@@ -141,6 +174,7 @@ export default function App() {
 
 	async function visualize() {
 		const selectedFileName = fileName.trim();
+		const selectedFunctionName = functionName.trim();
 		const selectedDependencyFileName = dependencyFileName.trim();
 		setError(null);
 		setDiagnostics([]);
@@ -162,6 +196,9 @@ export default function App() {
 				body: JSON.stringify({
 					source,
 					filePath: selectedFileName,
+					...(selectedFunctionName === ""
+						? {}
+						: { functionName: selectedFunctionName }),
 					showImports,
 					files: { [selectedDependencyFileName]: dependencySource },
 				}),
@@ -190,21 +227,26 @@ export default function App() {
 				);
 			}
 			setGraph(body.cfg);
-	} catch (cause) {
-		setError(cause instanceof Error ? cause.message : String(cause));
-	} finally {
-		setIsLoading(false);
-	}
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : String(cause));
+		} finally {
+			setIsLoading(false);
+		}
 	}
 
 	const procedure = graph?.procedures?.[0];
-	const nodeLabels = new Map(procedure?.nodes.map((node) => [node.id, node.label]));
-	const activeNodeId = executionIndex === null ? null : executionPath[executionIndex] ?? null;
+	const nodeLabels = new Map(
+		procedure?.nodes.map((node) => [node.id, node.label]),
+	);
+	const activeNodeId =
+		executionIndex === null ? null : (executionPath[executionIndex] ?? null);
 
 	return (
 		<main>
 			<h1>Runtime Visualizer</h1>
-			<p>Select a TypeScript file Procedure to inspect its control-flow graph.</p>
+			<p>
+				Select a TypeScript file Procedure to inspect its control-flow graph.
+			</p>
 			<section aria-label="TypeScript files" className="file-editors">
 				<fieldset>
 					<legend>File 1</legend>
@@ -214,6 +256,14 @@ export default function App() {
 						type="text"
 						value={fileName}
 						onChange={(event) => setFileName(event.target.value)}
+					/>
+					<label htmlFor="function-name">Function name (optional)</label>
+					<input
+						id="function-name"
+						type="text"
+						value={functionName}
+						onChange={(event) => setFunctionName(event.target.value)}
+						placeholder="Leave blank for the file Procedure"
 					/>
 					<label htmlFor="file-1-source">File 1 source</label>
 					<textarea
@@ -258,19 +308,32 @@ export default function App() {
 				/>
 				Show imports
 			</label>
-			<button type="button" onClick={() => void visualize()} disabled={isLoading}>
+			<button
+				type="button"
+				onClick={() => void visualize()}
+				disabled={isLoading}
+			>
 				{isLoading ? "Building graph…" : "Visualize control flow"}
 			</button>
 			{procedure !== undefined && (
 				<>
-					<button type="button" onClick={runProcedure} disabled={executionStatus === "running"}>
-						{executionStatus === "running" ? "Running procedure…" : "Run procedure"}
+					<button
+						type="button"
+						onClick={runProcedure}
+						disabled={executionStatus === "running"}
+					>
+						{executionStatus === "running"
+							? "Running procedure…"
+							: "Run procedure"}
 					</button>
 					<p role="status" aria-live="polite">
 						{executionStatus === "running" && activeNodeId !== null
 							? `Execution running: ${nodeLabels.get(activeNodeId) ?? activeNodeId}`
-							: executionStatus === "complete" ? "Execution complete"
-								: executionStatus === "failed" ? "Execution failed" : "Execution ready"}
+							: executionStatus === "complete"
+								? "Execution complete"
+								: executionStatus === "failed"
+									? "Execution failed"
+									: "Execution ready"}
 					</p>
 				</>
 			)}
@@ -280,31 +343,43 @@ export default function App() {
 					<h2>Graph diagnostics</h2>
 					<ul>
 						{diagnostics.map((diagnostic, index) => (
-							<li key={`${diagnostic.reason}-${diagnostic.dependency ?? "selected"}-${index}`}>
+							<li
+								key={`${diagnostic.reason}-${diagnostic.dependency ?? "selected"}-${index}`}
+							>
 								<strong>{diagnostic.reason}</strong>
-								{diagnostic.dependency === undefined ? "" : ` (${diagnostic.dependency})`}
-								{diagnostic.message === undefined ? "" : `: ${diagnostic.message}`}
+								{diagnostic.dependency === undefined
+									? ""
+									: ` (${diagnostic.dependency})`}
+								{diagnostic.message === undefined
+									? ""
+									: `: ${diagnostic.message}`}
 							</li>
 						))}
 					</ul>
 				</section>
 			)}
 			{procedure !== undefined && (
-				<section aria-label="Control-flow graph" data-testid="control-flow-graph">
-					<h2>Control-flow graph for {fileName}</h2>
+				<section
+					aria-label="Control-flow graph"
+					data-testid="control-flow-graph"
+				>
+					<h2>Control-flow graph for {procedure.name ?? fileName}</h2>
 					<ul aria-label="Graph nodes">
 						{procedure.nodes.map((node) => (
 							<li
 								key={node.id}
 								data-kind={node.kind}
 								data-testid={`graph-node-${node.id}`}
-								data-execution-state={activeNodeId === node.id ? "active" : undefined}
+								data-execution-state={
+									activeNodeId === node.id ? "active" : undefined
+								}
 								aria-current={activeNodeId === node.id ? "step" : undefined}
 							>
 								<strong>{node.label}</strong>
 								{node.location !== undefined && (
 									<span>
-										{" "}(lines {node.location.start.line}-{node.location.end.line})
+										{" "}
+										(lines {node.location.start.line}-{node.location.end.line})
 									</span>
 								)}
 							</li>

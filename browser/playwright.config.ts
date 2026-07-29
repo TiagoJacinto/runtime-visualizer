@@ -3,21 +3,35 @@ import { defineBddConfig } from "playwright-bdd";
 
 const testDir = defineBddConfig({
 	featuresRoot: "../features",
-	paths: ["../features/**/*.feature"],
-	require: ["tests/bdd/steps/**/*.ts"],
-	outputDir: "tests/acceptance/e2e",
-	missingSteps: "fail-on-run",
+	features: "../features/**/*.feature",
+	steps: "tests/acceptance/e2e/*.hve2e.ts",
+	outputDir: ".features-gen",
+	missingSteps: "fail-on-gen",
 });
 
 export default defineConfig({
 	testDir,
-	testMatch: /.*\.feature\.spec\.ts/,
-	fullyParallel: true,
+	fullyParallel: false,
+	workers: 1,
 	reporter: "list",
 	use: {
 		baseURL: "http://127.0.0.1:5173",
 		trace: "on-first-retry",
 	},
+	webServer: [
+		{
+			command: "bun run backend:dev",
+			cwd: "..",
+			url: "http://127.0.0.1:3000/api/health",
+			reuseExistingServer: true,
+		},
+		{
+			command: "bun run frontend:dev",
+			cwd: "..",
+			url: "http://127.0.0.1:5173",
+			reuseExistingServer: true,
+		},
+	],
 	projects: [
 		{
 			name: "chromium",
