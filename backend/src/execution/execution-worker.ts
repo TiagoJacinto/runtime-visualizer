@@ -53,10 +53,14 @@ try {
 		setTimeout: timerApi.setTimeout,
 		clearTimeout: timerApi.clearTimeout,
 	});
+	const functionName = request.functionName;
+	if (
+		functionName !== undefined &&
+		!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(functionName)
+	)
+		throw new Error("Function name must be a valid identifier.");
 	const invocation =
-		request.functionName === undefined
-			? ""
-			: `\nawait ${request.functionName}();`;
+		functionName === undefined ? "" : `\nawait ${functionName}();`;
 	const script = new vm.Script(
 		`(async () => {\n${javascript}${invocation}\n})()`,
 		{ filename: request.filePath },
