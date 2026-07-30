@@ -117,7 +117,7 @@ Returns read-only source text and a revision identifier for the selected backend
 
 Builds the CFG for the selected backend-owned Procedure. The frontend no longer sends source text or a dependency map. The backend resolves required files from its configured folder.
 
-The response includes the file revision used for analysis so the frontend can reject stale results.
+The response includes the file revision used for analysis so the frontend can reject stale results. The backend also retains an immutable, short-lived snapshot for that analyzed revision. The snapshot is the execution input corresponding to the displayed graph.
 
 ### `GET /api/events`
 
@@ -136,7 +136,19 @@ Provides an SSE stream of backend file events:
 
 ### `POST /api/execute`
 
-Starts one independent Execution for the selected backend-owned Procedure. The request identifies the file and optional function name; it does not upload source.
+Starts one independent Execution for the selected backend-owned Procedure. The request identifies the file, optional function name, and the revision returned with the displayed CFG; it does not upload source.
+
+```json
+{
+  "file": "main.ts",
+  "name": "prepare",
+  "revision": "displayed-cfg-revision"
+}
+```
+
+The backend executes the immutable snapshot for that revision, not whatever source happens to be newest on disk. Therefore, repeated clicks made while a newer file update is queued still produce node IDs that belong to the graph currently on screen.
+
+Snapshots remain available for a bounded retention period and while referenced by active Executions. If a requested snapshot has expired, the endpoint returns `409 Revision unavailable`; that Run fails visibly and the frontend revalidates the selected Procedure.
 
 The response remains an NDJSON stream containing node events followed by one terminal Result. Concurrent requests are independent and are not serialized by the UI.
 
@@ -187,7 +199,7 @@ For an event affecting the selected file:
 6. If the selected Procedure still exists, preserve the route and selection.
 7. If it disappeared, preserve the file selection, clear obsolete graph data, and show a Procedure-selection error with the newly available choices.
 
-An Execution continues against the source revision with which it started. The graph never changes underneath an active Run.
+Every new Execution starts against the revision of the graph currently displayed, including Runs started after a newer file event has been queued. An Execution continues against that immutable snapshot, and the graph never changes underneath an active Run.
 
 ## Error handling
 
@@ -218,6 +230,8 @@ An Execution continues against the source revision with which it started. The gr
 - CFG and Execution use backend-owned source and dependency resolution.
 - SSE emits added, modified, and deleted events and survives watcher churn.
 - Concurrent Execution requests remain independent.
+- Execution revision snapshots produce node IDs from the displayed CFG even after the file changes on disk.
+- Expired execution snapshots return `409` and trigger frontend revalidation.
 
 ### Frontend
 
@@ -226,7 +240,7 @@ An Execution continues against the source revision with which it started. The gr
 - Top level and function choices render from the Procedure endpoint.
 - CFG-to-Mermaid conversion escapes labels and preserves nodes, edges, and outcomes.
 - Tab pointer and keyboard navigation select the correct panel.
-- Repeated Run clicks create independent Run entries and streams.
+- Repeated Run clicks create independent Run entries and streams bound to the displayed CFG revision.
 - Multiple Run markers render concurrently, including multiple markers on one node.
 - Runs are collapsible, vertical, newest-first, and scrollable.
 - Selected-file events refresh immediately with no active Runs.
