@@ -1,9 +1,9 @@
 # Product Requirements Document: Live Procedure Workspace
 
 **Date:** 2026-07-30  
-**Status:** Ready for review  
+**Status:** Updated to match the approved Live Control Room design  
 **Product:** Runtime Visualizer  
-**Validated UX:** H1 — Balanced tabs
+**Validated UX:** Live Control Room workspace
 
 ## 1. Executive summary
 
@@ -85,7 +85,6 @@ The first release will not provide:
 - WebSocket commands
 - Authentication or multi-user collaboration
 - User-defined graph styling
-- Polished visual design beyond the validated H1 information architecture
 
 ## 7. Success criteria
 
@@ -101,36 +100,66 @@ The release is successful when all of the following are demonstrably true:
 8. A Run started while an update is queued still executes the revision represented by the displayed graph.
 9. File, Procedure, graph, execution, and SSE failures remain local and recoverable.
 10. The complete Operator journey passes automated acceptance coverage.
+11. The workspace uses the Live Control Room shell: top bar, left navigation rail, graph workspace, and responsive Run inspector.
+12. The Operator can switch between Graph and Source + graph views, show or hide imports, copy source, and use the graph search and fit controls.
+13. Selecting a Run opens its status, current node, displayed revision, client execution ID, and event stream in the Run inspector on wide screens.
+14. The Operator can open a contextual Diagnostics panel without losing the selected graph or Run state.
 
 ## 8. Validated user experience
 
 ### 8.1 Page structure
 
-The selected design is **H1 — Balanced tabs**.
+The selected design is the **Live Control Room** workspace.
 
-The workspace contains one left sidebar and one main area.
+The workspace is a full-height shell with a 56px top bar, a 268px left navigation rail, a flexible main area, and an optional 250px Run inspector on wide screens.
+
+#### Top bar
+
+The top bar contains, in order:
+
+1. Responsive navigation toggle on narrow screens
+2. Runtime Visualizer identity and `Live procedure workspace` label
+3. Current file and Procedure breadcrumb
+4. Connection status chip
+5. Diagnostics action
+6. Workspace settings action
+
+The connection chip shows `Connected`, `Reconnecting`, or a local connection failure. The settings action is a frontend workspace-settings affordance and does not change backend configuration.
 
 #### Left sidebar
 
 In order:
 
-1. Vertical File dropdown
-2. Vertical Procedure dropdown
+1. Labeled native File dropdown
+2. Labeled native Procedure dropdown
 3. Always-enabled Run Procedure button
 4. Collapsible Runs disclosure
+5. Session summary with active-Run count and displayed revision
 
-The Runs disclosure is open by default. Its list is vertical, newest-first, and scrollable after reaching its height limit.
+The Runs disclosure is open by default. Its list is vertical, newest-first, and scrollable after reaching its height limit. The sidebar becomes an off-canvas drawer below the large-screen breakpoint.
 
 #### Main area
 
-The main area contains four navigable tabs:
+The main area contains:
 
-- **Overview:** connection state, graph-node count, active-Run count, and queued-update state
-- **Source:** read-only source for the selected file
-- **Graph:** Mermaid control-flow graph and concurrent Execution markers
-- **Diagnostics:** graph, file, selection, revision, and SSE diagnostics
+1. An optional `Update queued` banner.
+2. The selected Procedure heading, source location, and displayed revision.
+3. A `Show imports` toggle and workspace view controls.
+4. Four navigable tabs:
+   - **Overview:** connection state, graph-node count, active-Run count, and queued-update state.
+   - **Source + graph:** read-only source beside the graph on wide screens, with a stacked layout on smaller screens.
+   - **Graph:** Mermaid control-flow graph and concurrent Execution markers.
+   - **Diagnostics:** graph, file, selection, revision, SSE, and execution diagnostics.
 
-Tabs support pointer interaction and left/right arrow-key navigation.
+Tabs support pointer interaction and left/right arrow-key navigation. The graph has accessible `Search graph` and `Fit graph` controls. The graph receives all available main-area width; the Runs list stays in the left sidebar.
+
+#### Run inspector
+
+Selecting a Run opens the Run inspector on wide screens. It shows the Run status, current node, start time, displayed revision, client execution ID, and a readable event stream. It is hidden below the wide-screen breakpoint; the Run remains available in the left sidebar.
+
+#### Diagnostics panel
+
+The Diagnostics action opens a contextual panel over the workspace and selects the Diagnostics view. The panel shows connection, selection, graph, revision, filesystem, SSE, and execution diagnostics. The Diagnostics tab provides the same information as a full workspace view. Closing the panel preserves the selected tab, graph, and Run state.
 
 ### 8.2 File and Procedure selection
 
@@ -184,9 +213,21 @@ Requirements:
 - A newer selection supersedes stale in-flight responses.
 - Diagnostics replace obsolete graph content.
 - The graph includes a textual fallback derived from CFG nodes and transitions.
+- The Overview view summarizes connection state, graph-node count, active-Run count, and queued-update state.
 - The graph receives the available horizontal space; Runs never create a second sidebar.
+- `Search graph` focuses matching node labels and exposes the match count.
+- `Fit graph` restores the complete graph to the available viewport.
+- Graph controls have visible labels or accessible names and do not change the displayed CFG revision.
 
-### 8.5 Run behavior
+### 8.5 Source behavior
+
+- Source is read-only and comes from the backend-selected file.
+- Source shows line numbers and the selected Procedure source range when available.
+- `Show imports` controls contextual import nodes in the CFG without changing source contents.
+- `Copy source` copies the displayed source and reports success or failure locally.
+- Source and graph use the same displayed revision.
+
+### 8.6 Run behavior
 
 Every click creates one Execution with:
 
@@ -204,6 +245,14 @@ The Run Procedure button never becomes disabled because another Run is active.
 Completed and failed Runs remain in the current page session. A terminal Run clears its active graph marker.
 
 A node may show multiple markers. Marker identity is communicated through color and a textual Run label.
+
+### 8.7 Diagnostics behavior
+
+- Diagnostics remain local to the affected resource or Run.
+- Opening or closing the Diagnostics panel does not reload the graph.
+- The Diagnostics tab and contextual panel show the same current diagnostic state.
+- A failed Run shows its terminal error in the Run list, Run inspector, and Diagnostics panel when selected.
+- A queued update remains visible until the deferred refresh completes; it cannot be dismissed as if the update were applied.
 
 ## 9. Functional requirements
 
@@ -282,6 +331,22 @@ If the file disappeared, refresh Files and show a file-not-found diagnostic.
 
 The frontend shall reconnect SSE automatically, show `Reconnecting`, and revalidate the current selection after reconnection.
 
+### FR-13. Provide the Live Control Room workspace
+
+The frontend shall implement the approved shell with a top bar, left navigation rail, main graph workspace, responsive off-canvas navigation, and optional wide-screen Run inspector.
+
+### FR-14. Provide source and graph controls
+
+The Source + graph view shall show read-only source, line numbers, the `Show imports` toggle, and a working `Copy source` action. The Graph view shall provide working `Search graph` and `Fit graph` actions.
+
+### FR-15. Provide contextual Run inspection
+
+Selecting a Run shall show its status, current node, start time, displayed revision, client execution ID, and event stream. This information shall remain available when the Run is not active.
+
+### FR-16. Provide Overview and contextual diagnostics
+
+The Overview tab shall show connection state, graph-node count, active-Run count, and queued-update state. The Diagnostics tab shall show connection, selection, graph, revision, filesystem, SSE, and execution state. The Diagnostics action shall open the same content in a local panel. Closing it shall preserve workspace state.
+
 ## 10. Backend interface requirements
 
 ### `GET /api/files`
@@ -296,11 +361,13 @@ Example:
 {
   "file": "main.ts",
   "procedures": [
-    { "kind": "TopLevel", "name": null, "label": "Top level (main.ts)" },
-    { "kind": "Function", "name": "prepare", "label": "prepare()" }
+    { "id": "top-level", "kind": "TopLevel", "name": null, "label": "Top level (main.ts)" },
+    { "id": "function:prepare", "kind": "Function", "name": "prepare", "label": "prepare()" }
   ]
 }
 ```
+
+Procedure IDs are deterministic for a file revision. The frontend uses the Procedure name in the canonical URL for compatibility, and uses the ID to disambiguate duplicate names within a response.
 
 ### `GET /api/source?file=<path>`
 
@@ -349,9 +416,11 @@ The implementation shall separate these responsibilities:
 - File resource
 - Procedure resource
 - Source and CFG workspace resource
-- CFG-to-Mermaid conversion and rendering
+- CFG-to-Mermaid conversion, marker placement, and textual fallback
+- Source controls and graph controls
 - SSE subscription and reconnect state
-- Concurrent Execution registry
+- Concurrent Execution registry and Run inspector
+- Diagnostics panel state
 - Deferred-refresh coordinator
 
 No module shall depend on another module's private state.
@@ -366,7 +435,8 @@ No module shall depend on another module's private state.
 4. Load Procedures.
 5. Validate requested function or resolve Top level.
 6. Load source and CFG.
-7. Render the selected tab and live status.
+7. Render the Graph tab and live status.
+8. Keep the Overview, Source + graph, and Diagnostics views available when their data is ready.
 
 ### 12.2 File change without active Runs
 
@@ -408,10 +478,12 @@ Each stream updates only its Run record. One failed stream does not cancel or al
 ## 14. Accessibility requirements
 
 - Use native labeled selects for File and Procedure.
-- Use `tablist`, `tab`, `aria-selected`, associated panels, and arrow-key navigation.
+- Use `tablist`, `tab`, `aria-selected`, associated panels, and arrow-key navigation for Overview, Source + graph, Graph, and Diagnostics.
+- Use a labeled dialog or complementary panel for Diagnostics and close it with Escape.
+- Give every icon-only action an accessible name and visible focus state.
 - Do not communicate Run identity or status by color alone.
 - Label each graph marker with its Run identity.
-- Announce connection and queued-update state without excessive live-region noise.
+- Announce connection, queued-update, copy, and Run state changes without excessive live-region noise.
 - Provide a textual graph fallback.
 - Keep the Runs disclosure keyboard operable through native semantics.
 
@@ -449,9 +521,9 @@ Given active Runs, when the selected file changes, then the graph remains stable
 
 Given a newer file revision is queued, when the Operator starts another Run, then it executes the displayed CFG revision and emits node IDs valid for that graph.
 
-### AC-9. Navigable tabs
+### AC-9. Navigable workspace views
 
-Given the H1 workspace, when the Operator clicks a tab or uses left/right arrows, then the corresponding Overview, Source, Graph, or Diagnostics panel becomes active.
+Given the Live Control Room workspace, when the Operator clicks a tab or uses left/right arrows, then the corresponding Overview, Source + graph, Graph, or Diagnostics panel becomes active.
 
 ### AC-10. Collapsible Runs
 
@@ -464,6 +536,22 @@ Given one Run fails, when its terminal Result arrives, then that Run shows faile
 ### AC-12. Selection disappears
 
 Given the selected function is removed, when deferred or immediate refresh occurs, then the File remains selected, obsolete graph content clears, and available Procedures are shown.
+
+### AC-13. Source and graph controls
+
+Given a selected Procedure, when the Operator opens Source + graph, toggles Show imports, copies source, searches the graph, or fits the graph, then each action changes only its local presentation state and keeps the displayed revision unchanged.
+
+### AC-14. Run inspector
+
+Given a Run exists, when the Operator selects it, then the wide-screen inspector shows its status, current node, start time, displayed revision, client execution ID, and event stream.
+
+### AC-15. Diagnostics panel
+
+Given a selected Procedure, when the Operator opens Diagnostics, then connection, selection, graph, revision, filesystem, and execution state are visible without replacing the graph.
+
+### AC-16. Responsive workspace
+
+Given a narrow viewport, when the Operator opens navigation or selects a Run, then the navigation rail becomes an off-canvas drawer and Run details remain available without making the graph horizontally unusable.
 
 ## 16. Test requirements
 
@@ -486,10 +574,13 @@ Given the selected function is removed, when deferred or immediate refresh occur
 - File and Procedure selector synchronization
 - Top level and function rendering
 - CFG-to-Mermaid escaping and edge preservation
-- H1 tab pointer and keyboard navigation
+- Overview, Source + graph, Graph, and Diagnostics tab pointer and keyboard navigation
+- Read-only source, Show imports, Copy source, Search graph, and Fit graph
 - Repeated Run clicks and independent streams
 - Multiple markers, including same-node markers
-- Collapsible vertical scrollable Runs
+- Collapsible vertical scrollable Runs and Run inspector
+- Diagnostics panel and local failure display
+- Responsive navigation and graph layout
 - Immediate refresh
 - Deferred and coalesced refresh
 - Run binding during queued updates
@@ -520,6 +611,9 @@ One end-to-end journey covers routed selection, automatic graph rendering, repea
 | Procedure disappears after refresh | Preserve File, clear obsolete graph, show choices and diagnostic |
 | Snapshot retention grows memory | Bound retention and release unreferenced snapshots |
 | Out-of-order resource responses overwrite current state | Compare selection and revision before commit |
+| Mermaid marker placement becomes unstable when the graph resizes | Keep markers in a separate accessible overlay tied to rendered node bounds and retain the textual Run list as the source of truth |
+| Dense controls reduce graph space on small screens | Move navigation off canvas, hide the Run inspector, and stack Source + graph below the responsive breakpoint |
+| A design control implies unsupported behavior | Define and test each visible control or remove it before release |
 
 ## 19. Rollout sequence
 
@@ -527,11 +621,12 @@ One end-to-end journey covers routed selection, automatic graph rendering, repea
 2. Add revision-aware CFG and Execution contracts.
 3. Add SSE file events.
 4. Build route-driven File and Procedure selection.
-5. Build H1 tabs and automatic Mermaid rendering.
-6. Add concurrent Execution registry, markers, and Runs disclosure.
-7. Add deferred-refresh coordination and recovery states.
-8. Remove local file upload, editable source inputs, dependency editor, and Visualize control flow button.
-9. Complete acceptance verification.
+5. Build the Live Control Room shell and automatic Mermaid rendering.
+6. Add Source + graph controls, diagnostics panel, and responsive Run inspector.
+7. Add concurrent Execution registry, markers, and Runs disclosure.
+8. Add deferred-refresh coordination and recovery states.
+9. Remove local file upload, editable source inputs, dependency editor, and Visualize control flow button.
+10. Complete acceptance verification.
 
 ## 20. Product decision record
 
@@ -542,11 +637,17 @@ The following choices are settled for this release:
 - Frontend-owned CFG-to-Mermaid transformation
 - Backend-owned files and source
 - Separate backend Procedure-discovery endpoint
-- H1 balanced tabbed workspace
+- Live Control Room workspace
+- 56px top bar with identity, breadcrumb, connection status, Diagnostics, and settings actions
 - Vertical File and Procedure controls
 - Run Procedure in the left sidebar
 - Collapsible vertical scrollable Runs in the same sidebar
 - Always-enabled Run Procedure
+- Optional wide-screen Run inspector
+- Overview, Source + graph, Graph, and Diagnostics tabs
+- Show imports and Copy source controls
+- Search graph and Fit graph controls
+- Contextual Diagnostics panel
 - Multiple colored active-node markers
 - Refresh after all displayed active Runs finish
 - Immutable displayed-revision snapshots for new and active Runs
