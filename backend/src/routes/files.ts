@@ -20,9 +20,8 @@ export type FilesRoutesOptions = {
  * tool output that shouldn't be exposed as user-editable
  * source files.
  *
- * Order is "directories' contents before sibling files" within
- * each level (recursion emits the subtree first, then the file
- * at the current level).
+ * Results are sorted by their relative forward-slash path so callers
+ * receive one stable order independent of filesystem directory order.
  *
  * ponytail: O(n) syscalls via `readdir({ withFileTypes: true })`.
  * Adequate for project-sized folders; switch to a streaming
@@ -51,7 +50,7 @@ async function walk(abs: string, rel: string): Promise<string[]> {
 	const out: string[] = [];
 	for (const entry of entries) {
 		if (entry.isSymbolicLink()) continue;
-		if (entry.isDirectory() && entry.name.startsWith(".")) continue;
+		if (entry.name.startsWith(".")) continue;
 		const childRel = rel === "" ? entry.name : `${rel}/${entry.name}`;
 		if (entry.isDirectory()) {
 			out.push(...(await walk(path.join(abs, entry.name), childRel)));
@@ -59,7 +58,7 @@ async function walk(abs: string, rel: string): Promise<string[]> {
 			out.push(childRel);
 		}
 	}
-	return out;
+	return out.sort((left, right) => left.localeCompare(right));
 }
 
 const filesRoutes: FastifyPluginAsync<FilesRoutesOptions> = async (
