@@ -1,13 +1,13 @@
 # Source: [Live Procedure Workspace PRD](../2026-07-30-live-procedure-workspace-design.md)
-Feature: Inspect a backend-owned Procedure
+Feature: Inspect a source Procedure
   As an Operator,
-  I want to inspect a backend-owned Procedure,
-  So that I can understand its source and control flow without providing source in the browser
+  I want to inspect a source Procedure,
+  So that I can understand its source and control flow through the workspace
   Domain definitions: [Operator](../ROLES.md#operator), [Source file](../CONTEXT.md#source-file), [Source revision](../CONTEXT.md#source-revision), [Procedure](../CONTEXT.md#procedure), [Procedure catalog](../CONTEXT.md#procedure-catalog), [Control-flow graph](../CONTEXT.md#control-flow-graph), [Graph diagnostic](../CONTEXT.md#graph-diagnostic)
   Actor: [Operator](../ROLES.md#operator)
   Platform: [Runtime Visualizer workspace](../PLATFORMS.md#runtime-visualizer-workspace)
 
-  Rule: Source files are listed from the configured backend folder
+  Rule: Source files are listed from the configured source repository
 
     Scenario: List regular source files in deterministic order
       Given Source folder{entries: ["main.ts", "nested/helper.ts", ".private.ts", "linked.ts"], hiddenDirectories: [".cache"], symbolicLinks: ["linked.ts"]}
@@ -40,12 +40,12 @@ Feature: Inspect a backend-owned Procedure
       When I readSource(file: "main.ts")
       Then I view Source revision{file: "main.ts", source: "function prepare() { return 1 }"} in Procedure workspace: The source revision is available
 
-  Rule: A selected backend-owned Procedure remains addressable
+  Rule: A selected source Procedure remains addressable
 
-    Scenario: Reject a path outside the configured source folder
+    Scenario: Reject a path outside the configured source repository
       Given Source folder{entries: ["main.ts"]}
       When I inspectProcedure(file: "../secret.ts", name: "", showImports: false)
-      Then I view Graph diagnostic{reason: "Path is outside the configured source folder"} in Procedure workspace: The source path is rejected
+      Then I view Graph diagnostic{reason: "Path is outside the configured source repository"} in Procedure workspace: The source path is rejected
       And I view Control-flow graph{} not in Procedure workspace: No graph is created for the rejected path
 
     Scenario: Preserve a missing function as an explicit selection error
