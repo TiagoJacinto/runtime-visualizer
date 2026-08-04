@@ -1,10 +1,15 @@
 import { defineConfig } from "vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
+import { frontmanPlugin } from "@frontman-ai/vite";
 
 // https://vite.dev/config/
 export default defineConfig({
-	plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
+	plugins: [
+		frontmanPlugin({ host: "api.frontman.sh" }),
+		react(),
+		babel({ presets: [reactCompilerPreset()] }),
+	],
 	server: {
 		// Proxy /api/* to the Fastify backend so the React UI can develop against a
 		// single origin. Default port is the Fastify server's default

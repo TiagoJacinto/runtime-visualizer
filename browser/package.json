@@ -7,12 +7,10 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-
     "test:typical": "vitest run --config vitest.config.ts --project browser-unit --project browser-integration --project browser-e2e --passWithNoTests",
     "test:unit": "vitest run --config vitest.config.ts --project browser-unit --passWithNoTests",
     "test:integration": "vitest run --config vitest.config.ts --project browser-integration --passWithNoTests",
     "test:e2e": "vitest run --config vitest.config.ts --project browser-e2e --passWithNoTests",
-
     "test:acceptance": "bun run test:hvut && bun run test:hvit && bun run test:hve2e",
     "test:hvut": "vitest run --config vitest.config.ts --project browser-hvut --passWithNoTests",
     "test:hvit": "vitest run --config vitest.config.ts --project browser-hvit --passWithNoTests",
@@ -20,15 +18,21 @@
     "test:hve2e:ui": "bddgen --config playwright.config.ts && playwright test --config playwright.config.ts --ui"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "dompurify": "^3.4.12",
+    "framer-motion": "^12.43.0",
+    "lucide-react": "^1.28.0",
     "mermaid": "^11.16.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1"
+    "react-router-dom": "^7.18.1",
+    "tailwindcss": "^4.3.3",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@amiceli/vitest-cucumber": "^7.0.0",
     "@babel/core": "^7.29.7",
+    "@frontman-ai/vite": "^1.0.3",
     "@playwright/test": "^1.61.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/babel__core": "^7.20.5",

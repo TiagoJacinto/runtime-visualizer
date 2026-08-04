@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-30T00:00:00.000Z",
+  "title": "Design System: Runtime Visualizer",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink Canvas",
+        "canonical": "#07110E",
+        "tonalRamp": ["#07110E", "#0A1712", "#122A21", "#1B332A", "#29483D", "#48645A", "#71877D", "#AEBBB5"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Panel Green",
+        "canonical": "#091510",
+        "tonalRamp": ["#091510", "#0D1D17", "#142A22", "#1E382E", "#315044", "#566F64", "#82988E", "#BBC7C1"]
+      },
+      "sidebar": {
+        "role": "neutral",
+        "displayName": "Sidebar Green",
+        "canonical": "#0A1712",
+        "tonalRamp": ["#0A1712", "#0E2019", "#172E25", "#214036", "#38594C", "#607B6E", "#8FA79B", "#C1CDC6"]
+      },
+      "diagnostic-surface": {
+        "role": "neutral",
+        "displayName": "Diagnostic Green",
+        "canonical": "#0B1713",
+        "tonalRamp": ["#0B1713", "#0F2019", "#182D24", "#234036", "#3A584B", "#638073", "#91A99D", "#C3CEC8"]
+      },
+      "graph-node": {
+        "role": "neutral",
+        "displayName": "Graph Green",
+        "canonical": "#0E1D18",
+        "tonalRamp": ["#0E1D18", "#12261F", "#1B342A", "#27463A", "#3D5D4F", "#668072", "#95AA9F", "#C5D0CA"]
+      },
+      "active-node": {
+        "role": "primary",
+        "displayName": "Active Graph Green",
+        "canonical": "#122A21",
+        "tonalRamp": ["#122A21", "#173328", "#214638", "#2E5948", "#467060", "#6E9080", "#9DB8A9", "#C8D8CF"]
+      },
+      "signal": {
+        "role": "primary",
+        "displayName": "Live Emerald",
+        "canonical": "#6EE7B7",
+        "tonalRamp": ["#064E3B", "#047857", "#059669", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#ECFDF5"]
+      },
+      "signal-soft": {
+        "role": "primary",
+        "displayName": "Soft Emerald",
+        "canonical": "#A7F3D0",
+        "tonalRamp": ["#065F46", "#047857", "#059669", "#10B981", "#34D399", "#6EE7B7", "#A7F3D0", "#F0FDF4"]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Queue Amber",
+        "canonical": "#FCD34D",
+        "tonalRamp": ["#78350F", "#92400E", "#B45309", "#D97706", "#F59E0B", "#FCD34D", "#FDE68A", "#FFFBEB"]
+      },
+      "info": {
+        "role": "secondary",
+        "displayName": "Trace Sky",
+        "canonical": "#7DD3FC",
+        "tonalRamp": ["#0C4A6E", "#0369A1", "#0284C7", "#0EA5E9", "#38BDF8", "#7DD3FC", "#BAE6FD", "#F0F9FF"]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Failure Rose",
+        "canonical": "#FDA4AF",
+        "tonalRamp": ["#881337", "#9F1239", "#BE123C", "#E11D48", "#FB7185", "#FDA4AF", "#FECDD3", "#FFF1F2"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Inter Display", "purpose": "Selected Procedure name and primary workspace heading." },
+      "code": { "displayName": "IBM Plex Mono", "purpose": "Source, paths, revisions, nodes, and event timestamps." }
+    },
+    "shadows": [
+      { "name": "graph-node-lift", "value": "0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2)", "purpose": "Separate graph nodes from the dotted graph field." },
+      { "name": "drawer-lift", "value": "0 25px 50px -12px rgb(0 0 0 / 0.25)", "purpose": "Separate the diagnostics drawer from the dimmed workspace." }
+    ],
+    "motion": [
+      { "name": "state-transition", "value": "160ms ease", "purpose": "Default control, border, and toggle state changes." },
+      { "name": "panel-transition", "value": "200ms ease", "purpose": "Navigation drawer and surface transitions." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" },
+      { "name": "run-inspector", "value": "1180px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Starts a Procedure execution and carries the main workspace action.",
+      "html": "<button class=\"ds-btn-primary\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M5 3.2v9.6L12.4 8 5 3.2Z\"/></svg>Run Procedure</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #6EE7B7; color: #07110E; padding: 10px 16px; border: 0; border-radius: 8px; font: 600 12px/1.4 Inter, sans-serif; transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease; } .ds-btn-primary svg { width: 14px; height: 14px; fill: currentColor; } .ds-btn-primary:hover { background: #A7F3D0; } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 2px solid #6EE7B7; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(7,17,14,0.9); }"
+    },
+    {
+      "name": "Quiet Icon Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Provides compact graph and workspace actions without competing with the primary action.",
+      "html": "<button class=\"ds-btn-quiet\" aria-label=\"Fit graph\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4M5 5l6 6M11 5 5 11\"/></svg></button>",
+      "css": ".ds-btn-quiet { display: inline-grid; place-items: center; width: 32px; height: 32px; background: rgba(7,17,14,0.9); color: #64748B; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; transition: color 160ms ease, background 160ms ease; } .ds-btn-quiet svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; } .ds-btn-quiet:hover { color: #FFFFFF; background: rgba(255,255,255,0.05); } .ds-btn-quiet:focus-visible { outline: 2px solid #6EE7B7; outline-offset: 2px; }"
+    },
+    {
+      "name": "Procedure Select",
+      "kind": "input",
+      "refersTo": "input-select",
+      "description": "Selects the file or Procedure that supplies the current graph.",
+      "html": "<label class=\"ds-field\"><span>Procedure</span><select><option>prepare()</option><option>classify()</option></select></label>",
+      "css": ".ds-field { display: grid; gap: 6px; color: #64748B; font: 500 9px/1.4 'IBM Plex Mono', monospace; letter-spacing: 0.16em; text-transform: uppercase; } .ds-field select { appearance: none; width: 100%; background: #07110E; color: #CBD5E1; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 12px; font: 400 12px/1.4 Inter, sans-serif; letter-spacing: normal; text-transform: none; transition: border-color 160ms ease, box-shadow 160ms ease; } .ds-field select:hover { border-color: rgba(110,231,183,0.35); } .ds-field select:focus-visible { outline: 2px solid #6EE7B7; outline-offset: 2px; box-shadow: 0 0 0 4px rgba(110,231,183,0.1); }"
+    },
+    {
+      "name": "Graph Node",
+      "kind": "custom",
+      "refersTo": "graph-node",
+      "description": "Represents one point in a Procedure control-flow graph.",
+      "html": "<div class=\"ds-graph-node\"><div class=\"ds-graph-node-label\"><span></span><code>validate_input</code></div><small>payload.accountId</small></div>",
+      "css": ".ds-graph-node { width: 250px; background: #0E1D18; color: #FFFFFF; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 14px 16px; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.2), 0 8px 10px -6px rgb(0 0 0 / 0.2); transition: border-color 160ms ease, background 160ms ease; } .ds-graph-node:hover { border-color: rgba(110,231,183,0.35); } .ds-graph-node-label { display: flex; align-items: center; gap: 8px; } .ds-graph-node-label span { width: 6px; height: 6px; border-radius: 9999px; background: #475569; } .ds-graph-node code { font: 500 11px/1.4 'IBM Plex Mono', monospace; } .ds-graph-node small { display: block; margin: 6px 0 0 14px; color: #64748B; font: 400 10px/1.5 Inter, sans-serif; }"
+    },
+    {
+      "name": "Connected Status",
+      "kind": "chip",
+      "refersTo": "status-chip",
+      "description": "Confirms that the workspace has an active connection.",
+      "html": "<span class=\"ds-status\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><circle cx=\"8\" cy=\"8\" r=\"3\"/></svg>Connected</span>",
+      "css": ".ds-status { display: inline-flex; align-items: center; gap: 8px; background: rgba(110,231,183,0.1); color: #A7F3D0; border: 1px solid rgba(110,231,183,0.2); border-radius: 9999px; padding: 6px 10px; font: 400 10px/1.4 Inter, sans-serif; } .ds-status svg { width: 12px; height: 12px; fill: #6EE7B7; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Live Control Room",
+    "overview": "This interface treats runtime inspection as a calm control room. A green-black canvas holds layered graphite-green panels. Small emerald signals show connection, execution, and active graph state. The visual system is compact because the Operator needs to scan code, graph structure, and run state at the same time.\n\nThe incumbent system uses a quiet technical voice: Inter carries readable interface text, while IBM Plex Mono marks source, revisions, event times, and other machine-facing values. Hairline borders and tonal changes separate regions. Shadows stay local to graph nodes and drawers.",
+    "keyCharacteristics": ["Green-black operational canvas with layered surfaces.", "Emerald signal color reserved for active and connected states.", "Dense two-font system: Inter for UI, IBM Plex Mono for runtime detail.", "Hairline borders, compact controls, and generous graph breathing room.", "Responsive workspace with a collapsible navigation rail and contextual run panel."],
+    "rules": [
+      { "name": "The Signal Scarcity Rule", "body": "Use Live Emerald for state and action. Do not turn every label or border emerald. The signal must identify what is live now.", "section": "colors" },
+      { "name": "The Two-Voice Rule", "body": "Use Inter for actions and interpretation. Use IBM Plex Mono for values that describe code, time, identity, or revision.", "section": "typography" },
+      { "name": "The Local Lift Rule", "body": "Do not add shadows to every panel. Use tonal layering for structure and shadows only when a surface must sit above active work.", "section": "elevation" }
+    ],
+    "dos": ["Do keep the green-black canvas and layered surfaces as the visual base.", "Do reserve emerald for action and live state.", "Do use IBM Plex Mono for source, revisions, paths, nodes, and event times.", "Do keep borders subtle and use tonal contrast before shadow.", "Do keep graph controls close to the graph and make icon-only controls accessible.", "Do preserve the responsive shell: off-canvas navigation and a hidden narrow-screen run inspector."],
+    "donts": ["Don't introduce bright rainbow accents for ordinary interface decoration.", "Don't use large marketing-style display type inside the operational workspace.", "Don't make every surface float with a shadow or gradient.", "Don't hide run, error, or connection state behind color without text or an icon.", "Don't flatten source and graph into one undifferentiated panel.", "Don't replace the compact control-room density with oversized cards or loose dashboard tiles."]
+  }
+}
