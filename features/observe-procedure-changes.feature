@@ -1,7 +1,7 @@
 # Source: [Live Procedure Workspace PRD](../2026-07-30-live-procedure-workspace-design.md)
-Feature: Observe backend source changes
+Feature: Observe source changes
   As an Operator,
-  I want to observe backend source changes,
+  I want to observe source changes,
   So that I know when a selected Procedure has a newer revision
   Domain definitions: [Operator](../ROLES.md#operator), [Source file](../CONTEXT.md#source-file), [Source revision](../CONTEXT.md#source-revision), [File change](../CONTEXT.md#file-change)
   Actor: [Operator](../ROLES.md#operator)
