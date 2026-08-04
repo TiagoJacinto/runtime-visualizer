@@ -87,3 +87,39 @@ A deprecated statement excluded from the Control-flow graph.
 ### Graph diagnostic
 
 A clear diagnostic explaining why graph generation cannot represent a Procedure. Encountering a `With statement` or a type-checking failure fails graph generation rather than producing a partial graph.
+
+### Source folder
+
+The configured backend-owned folder beneath which Source files are discovered. Directory traversal outside this folder is not part of the source workspace.
+
+### Source file
+
+A regular TypeScript source file beneath the configured files folder. A Source file is identified by its relative forward-slash path and is owned by the Runtime Visualizer backend.
+
+### Source revision
+
+The immutable content identity of a Source file used to associate source, a Control-flow graph, and an Execution. A Source revision is opaque to the Operator.
+
+### File catalog
+
+The deterministic set of Source files discovered beneath the configured Source folder. Paths are relative, use forward slashes, and exclude symbolic links and hidden directories.
+
+### Procedure catalog
+
+The ordered set of Procedures discovered in a Source file. It always includes the file's Top level Procedure and includes supported functions in source order.
+
+### Procedure revision
+
+A Source revision together with the selected Procedure and its complete Control-flow graph. A Procedure revision is the displayed execution basis for a Run.
+
+### File change
+
+An observable addition, modification, or deletion of a Source file, together with the resulting Source revision when one exists.
+
+### Execution event
+
+An observable event emitted while an Execution progresses. A node event identifies the current Graph node; a terminal Result ends the event stream.
+
+### Terminal Result
+
+The final outcome of an Execution. It identifies success or failure and includes a terminal error when the Execution fails.
