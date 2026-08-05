@@ -1,7 +1,9 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { analyseProject } from "../cfg/project-analyzer.ts";
+import type { ProcedureCfg } from "../cfg/types.ts";
 import { executeProcedure } from "../execution/runner.ts";
+import type { RevisionStore } from "../execution/revision-store.ts";
 import { readSource } from "../source-resources.ts";
 
 const requestSchema = z.object({
@@ -31,6 +33,7 @@ const revisionRequestSchema = z.object({
 
 type ExecuteRoutesOptions = {
 	readonly filesFolder: string;
+	readonly revisionStore: RevisionStore;
 };
 
 type StreamEvent =
@@ -52,6 +55,7 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 		let filePath: string;
 		let functionName: string | undefined;
 		let files: Record<string, string> | undefined;
+		let snapshotProcedure: ProcedureCfg | undefined;
 		const body = req.body ?? {};
 		if (typeof body === "object" && body !== null && "source" in body) {
 			const parsed = requestSchema.safeParse(body);
@@ -72,11 +76,17 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 					.send({ error: issue?.message ?? "Invalid request body." });
 			}
 			const resource = await readSource(options.filesFolder, parsed.data.file);
-			if (resource.revision !== parsed.data.revision)
+			const snapshot = options.revisionStore.get(
+				resource.file,
+				parsed.data.name,
+				parsed.data.revision,
+			);
+			if (snapshot === undefined)
 				return reply.code(409).send({ error: "Revision unavailable" });
-			source = resource.source;
-			filePath = resource.file;
-			functionName = parsed.data.name;
+			source = snapshot.source;
+			filePath = snapshot.filePath;
+			functionName = snapshot.functionName;
+			snapshotProcedure = snapshot.procedure;
 		}
 		const analysis = analyseProject({ source, filePath, functionName, files });
 		if (analysis.diagnostics.length > 0) {
@@ -84,7 +94,7 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 				.code(422)
 				.send({ ok: false, diagnostics: analysis.diagnostics });
 		}
-		const procedure = analysis.cfg?.procedures?.[0];
+		const procedure = snapshotProcedure ?? analysis.cfg?.procedures?.[0];
 		if (procedure === undefined)
 			return reply.code(422).send({ error: "No executable Procedure found." });
 

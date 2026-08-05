@@ -7,6 +7,7 @@ import filesRoutes from "./routes/files.ts";
 import sourceRoutes from "./routes/source.ts";
 import cfgRoutes from "./routes/cfg.ts";
 import executeRoutes from "./routes/execute.ts";
+import { RevisionStore } from "./execution/revision-store.ts";
 import { loadSettings } from "./settings.ts";
 
 export type AppOptions = {
@@ -72,11 +73,17 @@ export async function createApp(
 		now: options.now,
 	});
 	const filesFolder = options.filesFolder ?? loadSettings().filesFolder;
+	const revisionStore = new RevisionStore();
 	await app.register(echoRoutes, { prefix: "/api/echo" });
-	await app.register(cfgRoutes, { prefix: "/api/cfg" });
+	await app.register(cfgRoutes, {
+		prefix: "/api/cfg",
+		filesFolder,
+		revisionStore,
+	});
 	await app.register(executeRoutes, {
 		prefix: "/api/execute",
 		filesFolder,
+		revisionStore,
 	});
 	await app.register(filesRoutes, {
 		prefix: "/api/files",
