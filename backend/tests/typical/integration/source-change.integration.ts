@@ -50,6 +50,29 @@ describe("source change SSE", () => {
 		folder = undefined;
 	});
 
+	it("detects a change immediately after connecting", async () => {
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
+		await fs.writeFile(
+			path.join(folder, "main.ts"),
+			"export const value = 1;\n",
+		);
+		app = await createApp({ filesFolder: folder });
+		const address = await app.listen({ port: 0, host: "127.0.0.1" });
+
+		const response = await fetch(`${address}/api/events`);
+		await fs.writeFile(
+			path.join(folder, "main.ts"),
+			"export const value = 2;\n",
+		);
+		const change = await nextEvent(response);
+
+		expect(change).toMatchObject({
+			type: "file-changed",
+			file: "main.ts",
+			change: "modified",
+		});
+	});
+
 	it("publishes added, modified, and deleted source changes", async () => {
 		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
 		await fs.writeFile(

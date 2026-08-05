@@ -40,6 +40,7 @@ export class RevisionStore {
 		this.removeExpired();
 		const key = this.key(filePath, functionName, revision);
 		const existing = this.snapshots.get(key);
+		this.snapshots.delete(key);
 		this.snapshots.set(key, {
 			snapshot,
 			createdAt: this.now(),

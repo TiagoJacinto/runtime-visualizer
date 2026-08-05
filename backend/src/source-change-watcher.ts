@@ -1,7 +1,13 @@
-import { listSourceFiles } from "./routes/files.ts";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { isSourceFile, listSourceFiles } from "./routes/files.ts";
 import { readSource } from "./source-resources.ts";
 
-type FileState = { readonly revision: string };
+type FileState = {
+	readonly revision: string;
+	readonly mtimeMs: number;
+	readonly size: number;
+};
 export type SourceChange = {
 	readonly type: "file-changed";
 	readonly file: string;
@@ -20,7 +26,7 @@ export class SourceChangeWatcher {
 
 	constructor(
 		private readonly filesFolder: string,
-		private readonly intervalMs = 100,
+		private readonly intervalMs = 250,
 	) {}
 
 	subscribe(subscriber: Subscriber): () => void {
@@ -38,16 +44,38 @@ export class SourceChangeWatcher {
 		};
 	}
 
-	private async refresh(): Promise<void> {
+	close(): void {
+		this.subscribers.clear();
+		if (this.timer !== undefined) clearInterval(this.timer);
+		this.timer = undefined;
+	}
+
+	async refresh(): Promise<void> {
 		if (this.polling) return;
 		this.polling = true;
 		try {
-			const files = await listSourceFiles(this.filesFolder);
+			const files = (await listSourceFiles(this.filesFolder)).filter(
+				isSourceFile,
+			);
 			const current = new Map<string, FileState>();
 			for (const file of files) {
 				try {
+					const stat = await fs.stat(path.join(this.filesFolder, file));
+					const oldState = this.previous.get(file);
+					if (
+						oldState !== undefined &&
+						oldState.mtimeMs === stat.mtimeMs &&
+						oldState.size === stat.size
+					) {
+						current.set(file, oldState);
+						continue;
+					}
 					const resource = await readSource(this.filesFolder, file);
-					current.set(file, { revision: resource.revision });
+					current.set(file, {
+						revision: resource.revision,
+						mtimeMs: stat.mtimeMs,
+						size: stat.size,
+					});
 				} catch {
 					// A file can disappear between listing and reading.
 				}
@@ -77,6 +105,12 @@ export class SourceChangeWatcher {
 
 	private publish(change: SourceChangePayload): void {
 		const event: SourceChange = { type: "file-changed", ...change };
-		for (const subscriber of this.subscribers) subscriber(event);
+		for (const subscriber of this.subscribers) {
+			try {
+				subscriber(event);
+			} catch {
+				this.subscribers.delete(subscriber);
+			}
+		}
 	}
 }

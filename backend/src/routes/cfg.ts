@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { analyseProject } from "../cfg/project-analyzer.ts";
 import type { RevisionStore } from "../execution/revision-store.ts";
-import { listSourceFiles } from "./files.ts";
+import { isSourceFile, listSourceFiles } from "./files.ts";
 import { readSource } from "../source-resources.ts";
 
 const requestSchema = z.object({
@@ -57,17 +57,26 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (
 			options.filesFolder,
 			parsedQuery.data.file,
 		);
-		const files = Object.fromEntries(
-			await Promise.all(
-				(await listSourceFiles(options.filesFolder)).map(
-					async (file) =>
-						[
-							file,
-							(await readSource(options.filesFolder, file)).source,
-						] as const,
-				),
-			),
+		const sourceFiles = (await listSourceFiles(options.filesFolder)).filter(
+			isSourceFile,
 		);
+		const entries: Array<readonly [string, string]> = [];
+		let nextIndex = 0;
+		const readNext = async (): Promise<void> => {
+			while (nextIndex < sourceFiles.length) {
+				const file = sourceFiles[nextIndex];
+				nextIndex += 1;
+				if (file === undefined) return;
+				entries.push([
+					file,
+					(await readSource(options.filesFolder, file)).source,
+				]);
+			}
+		};
+		await Promise.all(
+			Array.from({ length: Math.min(8, sourceFiles.length) }, () => readNext()),
+		);
+		const files = Object.fromEntries(entries);
 		const analysis = analyseProject({
 			source: resource.source,
 			filePath: resource.file,

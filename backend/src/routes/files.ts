@@ -61,6 +61,10 @@ async function walk(abs: string, rel: string): Promise<string[]> {
 	return out.sort((left, right) => left.localeCompare(right));
 }
 
+export function isSourceFile(file: string): boolean {
+	return /\.(?:ts|tsx)$/i.test(file);
+}
+
 export async function listSourceFiles(folder: string): Promise<string[]> {
 	return walk(folder, "");
 }

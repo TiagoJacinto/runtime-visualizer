@@ -36,6 +36,29 @@ describe("backend-owned execution revisions", () => {
 		expect(response.json()).toEqual({ error: "Revision unavailable" });
 	});
 
+	it("returns 409 when a stored revision backing file is deleted", async () => {
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
+		const file = path.join(folder, "main.ts");
+		await fs.writeFile(file, "function prepare() { return 1; }\n");
+		app = await createApp({ filesFolder: folder });
+		const cfgResponse = await app.inject({
+			method: "GET",
+			url: "/api/cfg?file=main.ts&name=prepare",
+		});
+		const revision = (cfgResponse.json() as { revision: string }).revision;
+		await fs.rm(file);
+
+		const response = await app.inject({
+			method: "POST",
+			url: "/api/execute",
+			payload: { file: "main.ts", name: "prepare", revision },
+		});
+
+		// result verification
+		expect(response.statusCode).toBe(409);
+		expect(response.json()).toEqual({ error: "Revision unavailable" });
+	});
+
 	it("runs during a queued update against the displayed revision", async () => {
 		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
 		await fs.writeFile(

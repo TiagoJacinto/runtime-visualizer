@@ -10,6 +10,7 @@ const eventsRoutes: FastifyPluginAsync<EventsRoutesOptions> = async (
 	options,
 ) => {
 	app.get("/", async (_request, reply) => {
+		await options.watcher.refresh();
 		const encoder = new TextEncoder();
 		let unsubscribe: (() => void) | undefined;
 		const stream = new ReadableStream<Uint8Array>({

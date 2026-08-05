@@ -77,6 +77,9 @@ export async function createApp(
 	const filesFolder = options.filesFolder ?? loadSettings().filesFolder;
 	const revisionStore = new RevisionStore();
 	const sourceChangeWatcher = new SourceChangeWatcher(filesFolder);
+	app.addHook("onClose", async () => {
+		sourceChangeWatcher.close();
+	});
 	await app.register(echoRoutes, { prefix: "/api/echo" });
 	await app.register(cfgRoutes, {
 		prefix: "/api/cfg",
