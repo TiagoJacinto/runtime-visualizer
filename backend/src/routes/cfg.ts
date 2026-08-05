@@ -2,8 +2,8 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { analyseProject } from "../cfg/project-analyzer.ts";
 import type { RevisionStore } from "../execution/revision-store.ts";
-import { isSourceFile, listSourceFiles } from "./files.ts";
-import { readSource } from "../source-resources.ts";
+import { isSourceFile, listSourceFiles } from "../source/source-files.ts";
+import { readSource } from "../source/source-resources.ts";
 
 const requestSchema = z.object({
 	source: z.string().max(1_000_000),

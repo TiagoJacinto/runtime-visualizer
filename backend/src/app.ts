@@ -10,7 +10,7 @@ import executeRoutes from "./routes/execute.ts";
 import { RevisionStore } from "./execution/revision-store.ts";
 import { loadSettings } from "./settings.ts";
 import eventsRoutes from "./routes/events.ts";
-import { SourceChangeWatcher } from "./source-change-watcher.ts";
+import { SourceChangeWatcher } from "./source/index.ts";
 
 export type AppOptions = {
 	readonly now?: () => Date;

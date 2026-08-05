@@ -5,7 +5,7 @@ import { HttpError } from "../errors.ts";
 import type { ProcedureCfg } from "../cfg/types.ts";
 import { executeProcedure } from "../execution/runner.ts";
 import type { RevisionStore } from "../execution/revision-store.ts";
-import { canonicalSourceFile, readSource } from "../source-resources.ts";
+import { canonicalSourceFile, readSource } from "../source/source-resources.ts";
 
 const requestSchema = z.object({
 	source: z.string().max(1_000_000),
