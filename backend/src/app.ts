@@ -9,6 +9,8 @@ import cfgRoutes from "./routes/cfg.ts";
 import executeRoutes from "./routes/execute.ts";
 import { RevisionStore } from "./execution/revision-store.ts";
 import { loadSettings } from "./settings.ts";
+import eventsRoutes from "./routes/events.ts";
+import { SourceChangeWatcher } from "./source-change-watcher.ts";
 
 export type AppOptions = {
 	readonly now?: () => Date;
@@ -74,6 +76,7 @@ export async function createApp(
 	});
 	const filesFolder = options.filesFolder ?? loadSettings().filesFolder;
 	const revisionStore = new RevisionStore();
+	const sourceChangeWatcher = new SourceChangeWatcher(filesFolder);
 	await app.register(echoRoutes, { prefix: "/api/echo" });
 	await app.register(cfgRoutes, {
 		prefix: "/api/cfg",
@@ -92,6 +95,10 @@ export async function createApp(
 	await app.register(sourceRoutes, {
 		prefix: "/api",
 		filesFolder,
+	});
+	await app.register(eventsRoutes, {
+		prefix: "/api/events",
+		watcher: sourceChangeWatcher,
 	});
 
 	if (options.registerTestRoutes) {

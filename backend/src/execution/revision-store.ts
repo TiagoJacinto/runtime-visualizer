@@ -7,10 +7,25 @@ export type RevisionSnapshot = {
 	readonly procedure: ProcedureCfg;
 };
 
-export class RevisionStore {
-	private readonly snapshots = new Map<string, RevisionSnapshot>();
+type StoredSnapshot = {
+	readonly snapshot: RevisionSnapshot;
+	readonly createdAt: number;
+};
 
-	private key(filePath: string, functionName: string | undefined, revision: string): string {
+export class RevisionStore {
+	private readonly snapshots = new Map<string, StoredSnapshot>();
+
+	constructor(
+		private readonly maxEntries = 100,
+		private readonly maxAgeMs = 5 * 60 * 1000,
+		private readonly now = (): number => Date.now(),
+	) {}
+
+	private key(
+		filePath: string,
+		functionName: string | undefined,
+		revision: string,
+	): string {
 		return `${filePath}\u0000${functionName ?? ""}\u0000${revision}`;
 	}
 
@@ -20,7 +35,16 @@ export class RevisionStore {
 		revision: string,
 		snapshot: RevisionSnapshot,
 	): void {
-		this.snapshots.set(this.key(filePath, functionName, revision), snapshot);
+		this.removeExpired();
+		this.snapshots.set(this.key(filePath, functionName, revision), {
+			snapshot,
+			createdAt: this.now(),
+		});
+		while (this.snapshots.size > this.maxEntries) {
+			const oldest = this.snapshots.keys().next().value;
+			if (oldest === undefined) break;
+			this.snapshots.delete(oldest);
+		}
 	}
 
 	get(
@@ -28,6 +52,15 @@ export class RevisionStore {
 		functionName: string | undefined,
 		revision: string,
 	): RevisionSnapshot | undefined {
-		return this.snapshots.get(this.key(filePath, functionName, revision));
+		this.removeExpired();
+		return this.snapshots.get(this.key(filePath, functionName, revision))
+			?.snapshot;
+	}
+
+	private removeExpired(): void {
+		const cutoff = this.now() - this.maxAgeMs;
+		for (const [key, stored] of this.snapshots) {
+			if (stored.createdAt < cutoff) this.snapshots.delete(key);
+		}
 	}
 }

@@ -55,7 +55,7 @@ describe("backend-owned execution revisions", () => {
 		expect(cfgResponse.statusCode).toBe(200);
 		await fs.writeFile(
 			path.join(folder, "main.ts"),
-			"function prepare() { throw new Error(\"new revision\"); }\n",
+			'function prepare() { throw new Error("new revision"); }\n',
 		);
 
 		const response = await app.inject({
@@ -66,11 +66,17 @@ describe("backend-owned execution revisions", () => {
 		const events = response.body
 			.trim()
 			.split("\n")
-			.map((line: string) => JSON.parse(line) as { event: string; data?: { status?: string } });
+			.map(
+				(line: string) =>
+					JSON.parse(line) as { event: string; data?: { status?: string } },
+			);
 
 		// result verification
 		expect(response.statusCode).toBe(200);
-		expect(events.at(-1)).toEqual({ event: "result", data: { status: "Succeeded" } });
+		expect(events.at(-1)).toEqual({
+			event: "result",
+			data: { status: "Succeeded" },
+		});
 	});
 
 	it("starts concurrent executions from one displayed revision", async () => {
@@ -109,15 +115,17 @@ describe("backend-owned execution revisions", () => {
 		);
 
 		// result verification
-		expect(responses.every((response) => response.statusCode === 200)).toBe(true);
+		expect(responses.every((response) => response.statusCode === 200)).toBe(
+			true,
+		);
 		expect(streams).toHaveLength(2);
 		expect(
 			streams.every((stream) =>
 				stream.some((event: { event: string }) => event.event === "node"),
 			),
 		).toBe(true);
-		expect(
-			streams.every((stream) => stream.at(-1)?.event === "result"),
-		).toBe(true);
+		expect(streams.every((stream) => stream.at(-1)?.event === "result")).toBe(
+			true,
+		);
 	});
 });

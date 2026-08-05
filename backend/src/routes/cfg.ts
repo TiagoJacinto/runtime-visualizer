@@ -22,7 +22,10 @@ const resourceQuery = z.object({
 	file: z.string().min(1).optional(),
 	name: z
 		.string()
-		.regex(/^[A-Za-z_$][A-Za-z0-9_$]*$/, "Procedure name must be a valid identifier.")
+		.regex(
+			/^[A-Za-z_$][A-Za-z0-9_$]*$/,
+			"Procedure name must be a valid identifier.",
+		)
 		.optional(),
 	showImports: z.coerce.boolean().optional(),
 });
@@ -32,7 +35,10 @@ type CfgRoutesOptions = {
 	readonly revisionStore: RevisionStore;
 };
 
-const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (app, options) => {
+const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (
+	app,
+	options,
+) => {
 	app.get("/", async (req, reply) => {
 		const parsedQuery = resourceQuery.safeParse(req.query);
 		if (!parsedQuery.success || parsedQuery.data.file === undefined)
@@ -40,7 +46,10 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (app, options) => 
 				ok: true,
 				info: "POST { source: string, filePath?: string, functionName?: string, showImports?: boolean, files?: Record<string, string> } to build a control-flow graph.",
 			};
-		const resource = await readSource(options.filesFolder, parsedQuery.data.file);
+		const resource = await readSource(
+			options.filesFolder,
+			parsedQuery.data.file,
+		);
 		const analysis = analyseProject({
 			source: resource.source,
 			filePath: resource.file,
@@ -48,16 +57,23 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (app, options) => 
 			showImports: parsedQuery.data.showImports,
 		});
 		if (analysis.diagnostics.length > 0)
-			return reply.code(422).send({ ok: false, diagnostics: analysis.diagnostics });
+			return reply
+				.code(422)
+				.send({ ok: false, diagnostics: analysis.diagnostics });
 		const procedure = analysis.cfg?.procedures?.[0];
 		if (procedure === undefined)
 			return reply.code(422).send({ error: "No executable Procedure found." });
-		options.revisionStore.set(resource.file, parsedQuery.data.name, resource.revision, {
-			source: resource.source,
-			filePath: resource.file,
-			functionName: parsedQuery.data.name,
-			procedure,
-		});
+		options.revisionStore.set(
+			resource.file,
+			parsedQuery.data.name,
+			resource.revision,
+			{
+				source: resource.source,
+				filePath: resource.file,
+				functionName: parsedQuery.data.name,
+				procedure,
+			},
+		);
 		return {
 			ok: true,
 			file: resource.file,
