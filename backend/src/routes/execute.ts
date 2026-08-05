@@ -56,6 +56,7 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 		let functionName: string | undefined;
 		let files: Record<string, string> | undefined;
 		let snapshotProcedure: ProcedureCfg | undefined;
+		let releaseSnapshot: (() => void) | undefined;
 		const body = req.body ?? {};
 		if (typeof body === "object" && body !== null && "source" in body) {
 			const parsed = requestSchema.safeParse(body);
@@ -76,7 +77,7 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 					.send({ error: issue?.message ?? "Invalid request body." });
 			}
 			const resource = await readSource(options.filesFolder, parsed.data.file);
-			const snapshot = options.revisionStore.get(
+			const snapshot = options.revisionStore.acquire(
 				resource.file,
 				parsed.data.name,
 				parsed.data.revision,
@@ -88,16 +89,25 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 			functionName = snapshot.functionName;
 			files = snapshot.files;
 			snapshotProcedure = snapshot.procedure;
+			releaseSnapshot = () =>
+				options.revisionStore.release(
+					resource.file,
+					parsed.data.name,
+					parsed.data.revision,
+				);
 		}
 		const analysis = analyseProject({ source, filePath, functionName, files });
 		if (analysis.diagnostics.length > 0) {
+			releaseSnapshot?.();
 			return reply
 				.code(422)
 				.send({ ok: false, diagnostics: analysis.diagnostics });
 		}
 		const procedure = snapshotProcedure ?? analysis.cfg?.procedures?.[0];
-		if (procedure === undefined)
+		if (procedure === undefined) {
+			releaseSnapshot?.();
 			return reply.code(422).send({ error: "No executable Procedure found." });
+		}
 
 		const encoder = new TextEncoder();
 		const stream = new ReadableStream<Uint8Array>({
@@ -124,6 +134,7 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 									: { error: execution.error }),
 							},
 						});
+						releaseSnapshot?.();
 						controller.close();
 					})
 					.catch((cause: unknown) => {
@@ -134,6 +145,7 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 								error: cause instanceof Error ? cause.message : String(cause),
 							},
 						});
+						releaseSnapshot?.();
 						controller.close();
 					});
 			},

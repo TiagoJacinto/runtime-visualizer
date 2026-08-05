@@ -11,6 +11,7 @@ export type RevisionSnapshot = {
 type StoredSnapshot = {
 	readonly snapshot: RevisionSnapshot;
 	readonly createdAt: number;
+	refs: number;
 };
 
 export class RevisionStore {
@@ -37,9 +38,12 @@ export class RevisionStore {
 		snapshot: RevisionSnapshot,
 	): void {
 		this.removeExpired();
-		this.snapshots.set(this.key(filePath, functionName, revision), {
+		const key = this.key(filePath, functionName, revision);
+		const existing = this.snapshots.get(key);
+		this.snapshots.set(key, {
 			snapshot,
 			createdAt: this.now(),
+			refs: existing?.refs ?? 0,
 		});
 		while (this.snapshots.size > this.maxEntries) {
 			const oldest = this.snapshots.keys().next().value;
@@ -48,20 +52,32 @@ export class RevisionStore {
 		}
 	}
 
-	get(
+	acquire(
 		filePath: string,
 		functionName: string | undefined,
 		revision: string,
 	): RevisionSnapshot | undefined {
 		this.removeExpired();
-		return this.snapshots.get(this.key(filePath, functionName, revision))
-			?.snapshot;
+		const stored = this.snapshots.get(this.key(filePath, functionName, revision));
+		if (stored === undefined) return undefined;
+		stored.refs += 1;
+		return stored.snapshot;
+	}
+
+	release(
+		filePath: string,
+		functionName: string | undefined,
+		revision: string,
+	): void {
+		const stored = this.snapshots.get(this.key(filePath, functionName, revision));
+		if (stored !== undefined) stored.refs = Math.max(0, stored.refs - 1);
 	}
 
 	private removeExpired(): void {
 		const cutoff = this.now() - this.maxAgeMs;
 		for (const [key, stored] of this.snapshots) {
-			if (stored.createdAt < cutoff) this.snapshots.delete(key);
+			if (stored.refs === 0 && stored.createdAt < cutoff)
+				this.snapshots.delete(key);
 		}
 	}
 }
