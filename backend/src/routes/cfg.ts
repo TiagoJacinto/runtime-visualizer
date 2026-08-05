@@ -85,9 +85,12 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (
 			showImports: parsedQuery.data.showImports,
 		});
 		if (analysis.diagnostics.length > 0)
-			return reply
-				.code(422)
-				.send({ ok: false, diagnostics: analysis.diagnostics });
+			return reply.code(422).send({
+				ok: false,
+				file: resource.file,
+				revision: resource.revision,
+				diagnostics: analysis.diagnostics,
+			});
 		const procedure = analysis.cfg?.procedures?.[0];
 		if (procedure === undefined)
 			return reply.code(422).send({ error: "No executable Procedure found." });
