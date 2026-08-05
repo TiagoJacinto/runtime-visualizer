@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { analyseProject } from "../cfg/project-analyzer.ts";
 import { executeProcedure } from "../execution/runner.ts";
+import { readSource } from "../source-resources.ts";
 
 const requestSchema = z.object({
 	source: z.string().max(1_000_000),
@@ -16,6 +17,22 @@ const requestSchema = z.object({
 	files: z.record(z.string(), z.string()).optional(),
 });
 
+const revisionRequestSchema = z.object({
+	file: z.string().min(1),
+	name: z
+		.string()
+		.regex(
+			/^[A-Za-z_$][A-Za-z0-9_$]*$/,
+			"Procedure name must be a valid identifier.",
+		)
+		.optional(),
+	revision: z.string().min(1),
+});
+
+type ExecuteRoutesOptions = {
+	readonly filesFolder: string;
+};
+
 type StreamEvent =
 	| { readonly event: "node"; readonly data: { readonly nodeId: string } }
 	| {
@@ -26,18 +43,41 @@ type StreamEvent =
 			};
 	  };
 
-const executeRoutes: FastifyPluginAsync = async (app) => {
+const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
+	app,
+	options,
+) => {
 	app.post("/", async (req, reply) => {
-		const parsed = requestSchema.safeParse(req.body ?? {});
-		if (!parsed.success) {
-			const issue = parsed.error.issues[0];
-			const status = issue?.code === "too_big" ? 413 : 400;
-			return reply
-				.code(status)
-				.send({ error: issue?.message ?? "Invalid request body." });
+		let source: string;
+		let filePath: string;
+		let functionName: string | undefined;
+		let files: Record<string, string> | undefined;
+		const body = req.body ?? {};
+		if (typeof body === "object" && body !== null && "source" in body) {
+			const parsed = requestSchema.safeParse(body);
+			if (!parsed.success) {
+				const issue = parsed.error.issues[0];
+				const status = issue?.code === "too_big" ? 413 : 400;
+				return reply
+					.code(status)
+					.send({ error: issue?.message ?? "Invalid request body." });
+			}
+			({ source, filePath = "inline.ts", functionName, files } = parsed.data);
+		} else {
+			const parsed = revisionRequestSchema.safeParse(body);
+			if (!parsed.success) {
+				const issue = parsed.error.issues[0];
+				return reply
+					.code(400)
+					.send({ error: issue?.message ?? "Invalid request body." });
+			}
+			const resource = await readSource(options.filesFolder, parsed.data.file);
+			if (resource.revision !== parsed.data.revision)
+				return reply.code(409).send({ error: "Revision unavailable" });
+			source = resource.source;
+			filePath = resource.file;
+			functionName = parsed.data.name;
 		}
-
-		const { source, filePath = "inline.ts", functionName, files } = parsed.data;
 		const analysis = analyseProject({ source, filePath, functionName, files });
 		if (analysis.diagnostics.length > 0) {
 			return reply

@@ -71,10 +71,13 @@ export async function createApp(
 		prefix: "/api/runtime",
 		now: options.now,
 	});
+	const filesFolder = options.filesFolder ?? loadSettings().filesFolder;
 	await app.register(echoRoutes, { prefix: "/api/echo" });
 	await app.register(cfgRoutes, { prefix: "/api/cfg" });
-	await app.register(executeRoutes, { prefix: "/api/execute" });
-	const filesFolder = options.filesFolder ?? loadSettings().filesFolder;
+	await app.register(executeRoutes, {
+		prefix: "/api/execute",
+		filesFolder,
+	});
 	await app.register(filesRoutes, {
 		prefix: "/api/files",
 		filesFolder,
