@@ -7,7 +7,10 @@ import filesRoutes from "./routes/files.ts";
 import sourceRoutes from "./routes/source.ts";
 import cfgRoutes from "./routes/cfg.ts";
 import executeRoutes from "./routes/execute.ts";
+import { RevisionStore } from "./execution/revision-store.ts";
 import { loadSettings } from "./settings.ts";
+import eventsRoutes from "./routes/events.ts";
+import { SourceChangeWatcher } from "./source-change-watcher.ts";
 
 export type AppOptions = {
 	readonly now?: () => Date;
@@ -71,10 +74,23 @@ export async function createApp(
 		prefix: "/api/runtime",
 		now: options.now,
 	});
-	await app.register(echoRoutes, { prefix: "/api/echo" });
-	await app.register(cfgRoutes, { prefix: "/api/cfg" });
-	await app.register(executeRoutes, { prefix: "/api/execute" });
 	const filesFolder = options.filesFolder ?? loadSettings().filesFolder;
+	const revisionStore = new RevisionStore();
+	const sourceChangeWatcher = new SourceChangeWatcher(filesFolder);
+	app.addHook("onClose", async () => {
+		sourceChangeWatcher.close();
+	});
+	await app.register(echoRoutes, { prefix: "/api/echo" });
+	await app.register(cfgRoutes, {
+		prefix: "/api/cfg",
+		filesFolder,
+		revisionStore,
+	});
+	await app.register(executeRoutes, {
+		prefix: "/api/execute",
+		filesFolder,
+		revisionStore,
+	});
 	await app.register(filesRoutes, {
 		prefix: "/api/files",
 		filesFolder,
@@ -82,6 +98,10 @@ export async function createApp(
 	await app.register(sourceRoutes, {
 		prefix: "/api",
 		filesFolder,
+	});
+	await app.register(eventsRoutes, {
+		prefix: "/api/events",
+		watcher: sourceChangeWatcher,
 	});
 
 	if (options.registerTestRoutes) {

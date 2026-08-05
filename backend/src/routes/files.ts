@@ -61,13 +61,21 @@ async function walk(abs: string, rel: string): Promise<string[]> {
 	return out.sort((left, right) => left.localeCompare(right));
 }
 
+export function isSourceFile(file: string): boolean {
+	return /\.(?:ts|tsx)$/i.test(file);
+}
+
+export async function listSourceFiles(folder: string): Promise<string[]> {
+	return walk(folder, "");
+}
+
 const filesRoutes: FastifyPluginAsync<FilesRoutesOptions> = async (
 	app,
 	options,
 ) => {
 	const folder = options.filesFolder;
 
-	app.get("/", async (): Promise<string[]> => walk(folder, ""));
+	app.get("/", async (): Promise<string[]> => listSourceFiles(folder));
 };
 
 export default filesRoutes;
