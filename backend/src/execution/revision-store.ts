@@ -60,7 +60,9 @@ export class RevisionStore {
 		revision: string,
 	): RevisionSnapshot | undefined {
 		this.removeExpired();
-		const stored = this.snapshots.get(this.key(filePath, functionName, revision));
+		const stored = this.snapshots.get(
+			this.key(filePath, functionName, revision),
+		);
 		if (stored === undefined) return undefined;
 		stored.refs += 1;
 		return stored.snapshot;
@@ -71,7 +73,9 @@ export class RevisionStore {
 		functionName: string | undefined,
 		revision: string,
 	): void {
-		const stored = this.snapshots.get(this.key(filePath, functionName, revision));
+		const stored = this.snapshots.get(
+			this.key(filePath, functionName, revision),
+		);
 		if (stored !== undefined) stored.refs = Math.max(0, stored.refs - 1);
 	}
 
