@@ -16,7 +16,8 @@ describe("backend-owned source and Procedure resources", () => {
 
 	afterEach(async () => {
 		await app?.close();
-		if (folder !== undefined) await fs.rm(folder, { recursive: true, force: true });
+		if (folder !== undefined)
+			await fs.rm(folder, { recursive: true, force: true });
 		app = undefined;
 		folder = undefined;
 	});
@@ -59,9 +60,24 @@ describe("backend-owned source and Procedure resources", () => {
 
 		expect(response.statusCode).toBe(200);
 		expect(response.json().procedures).toEqual([
-			{ id: "top-level", kind: "TopLevel", name: null, label: "Top level (main.ts)" },
-			{ id: "function:first", kind: "Function", name: "first", label: "first()" },
-			{ id: "function:second", kind: "Function", name: "second", label: "second()" },
+			{
+				id: "top-level",
+				kind: "TopLevel",
+				name: null,
+				label: "Top level (main.ts)",
+			},
+			{
+				id: "function:first",
+				kind: "Function",
+				name: "first",
+				label: "first()",
+			},
+			{
+				id: "function:second",
+				kind: "Function",
+				name: "second",
+				label: "second()",
+			},
 		]);
 	});
 
@@ -70,11 +86,21 @@ describe("backend-owned source and Procedure resources", () => {
 		await fs.writeFile(path.join(folder, "main.ts"), source);
 		app = await createApp({ filesFolder: folder });
 
-		const first = await app.inject({ method: "GET", url: "/api/source?file=main.ts" });
-		const second = await app.inject({ method: "GET", url: "/api/source?file=main.ts" });
+		const first = await app.inject({
+			method: "GET",
+			url: "/api/source?file=main.ts",
+		});
+		const second = await app.inject({
+			method: "GET",
+			url: "/api/source?file=main.ts",
+		});
 
 		expect(first.statusCode).toBe(200);
-		expect(first.json()).toEqual({ file: "main.ts", source, revision: expect.any(String) });
+		expect(first.json()).toEqual({
+			file: "main.ts",
+			source,
+			revision: expect.any(String),
+		});
 		expect(second.json().revision).toBe(first.json().revision);
 	});
 
@@ -82,10 +108,15 @@ describe("backend-owned source and Procedure resources", () => {
 		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
 		app = await createApp({ filesFolder: folder });
 
-		const response = await app.inject({ method: "GET", url: "/api/source?file=../outside.ts" });
+		const response = await app.inject({
+			method: "GET",
+			url: "/api/source?file=../outside.ts",
+		});
 
 		expect(response.statusCode).toBe(400);
-		expect(response.json()).toEqual({ error: "Source path must stay inside the configured files folder." });
+		expect(response.json()).toEqual({
+			error: "Source path must stay inside the configured files folder.",
+		});
 	});
 
 	it("preserves a missing function as an explicit diagnostic with available procedures", async () => {
@@ -102,17 +133,21 @@ describe("backend-owned source and Procedure resources", () => {
 		expect(response.json().diagnostics).toEqual([
 			{ procedure: "missing", reason: "Procedure was not found" },
 		]);
-		expect(response.json().procedures.map((procedure: { name: string | null }) => procedure.name)).toEqual([
-			null,
-			"prepare",
-		]);
+		expect(
+			response
+				.json()
+				.procedures.map((procedure: { name: string | null }) => procedure.name),
+		).toEqual([null, "prepare"]);
 	});
 
 	it("reports a missing source file without exposing an arbitrary filesystem path", async () => {
 		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
 		app = await createApp({ filesFolder: folder });
 
-		const response = await app.inject({ method: "GET", url: "/api/procedures?file=missing.ts" });
+		const response = await app.inject({
+			method: "GET",
+			url: "/api/procedures?file=missing.ts",
+		});
 
 		expect(response.statusCode).toBe(404);
 		expect(response.json()).toEqual({ error: "Source file not found." });

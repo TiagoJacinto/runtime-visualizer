@@ -22,7 +22,10 @@ export function sourceRevision(source: string): string {
 }
 
 /** Resolve an API file name while keeping it inside the configured folder. */
-export function resolveSourcePath(filesFolder: string, requestedFile: string): string {
+export function resolveSourcePath(
+	filesFolder: string,
+	requestedFile: string,
+): string {
 	const file = requestedFile.split("\\").join("/");
 	const segments = file.split("/");
 	if (
@@ -31,24 +34,44 @@ export function resolveSourcePath(filesFolder: string, requestedFile: string): s
 		/^[A-Za-z]:\//.test(file) ||
 		segments.some((segment: string) => segment === "..")
 	) {
-		throw new HttpError(400, "Source path must stay inside the configured files folder.");
+		throw new HttpError(
+			400,
+			"Source path must stay inside the configured files folder.",
+		);
 	}
 
 	const root = path.resolve(filesFolder);
 	const candidate = path.resolve(root, file);
 	const relative = path.relative(root, candidate);
-	if (relative === "" || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-		throw new HttpError(400, "Source path must stay inside the configured files folder.");
+	if (
+		relative === "" ||
+		relative === ".." ||
+		relative.startsWith(`..${path.sep}`) ||
+		path.isAbsolute(relative)
+	) {
+		throw new HttpError(
+			400,
+			"Source path must stay inside the configured files folder.",
+		);
 	}
 	return candidate;
 }
 
-export function canonicalSourceFile(filesFolder: string, requestedFile: string): string {
+export function canonicalSourceFile(
+	filesFolder: string,
+	requestedFile: string,
+): string {
 	const candidate = resolveSourcePath(filesFolder, requestedFile);
-	return path.relative(path.resolve(filesFolder), candidate).split(path.sep).join("/");
+	return path
+		.relative(path.resolve(filesFolder), candidate)
+		.split(path.sep)
+		.join("/");
 }
 
-export async function readSource(filesFolder: string, requestedFile: string): Promise<SourceResource> {
+export async function readSource(
+	filesFolder: string,
+	requestedFile: string,
+): Promise<SourceResource> {
 	const file = canonicalSourceFile(filesFolder, requestedFile);
 	const absolute = resolveSourcePath(filesFolder, file);
 	const root = await fs.realpath(filesFolder).catch((error: unknown) => {
@@ -71,7 +94,10 @@ export async function readSource(filesFolder: string, requestedFile: string): Pr
 		relativeRealFile.startsWith(`..${path.sep}`) ||
 		path.isAbsolute(relativeRealFile)
 	) {
-		throw new HttpError(400, "Source path must stay inside the configured files folder.");
+		throw new HttpError(
+			400,
+			"Source path must stay inside the configured files folder.",
+		);
 	}
 	const entry = await fs.lstat(absolute);
 	if (!entry.isFile() || entry.isSymbolicLink()) {
@@ -81,16 +107,37 @@ export async function readSource(filesFolder: string, requestedFile: string): Pr
 	return { file, source, revision: sourceRevision(source) };
 }
 
-export function discoverProcedures(source: string, file: string): ProcedureResource[] {
-	const scriptKind = file.toLowerCase().endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
-	const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.ESNext, true, scriptKind);
+export function discoverProcedures(
+	source: string,
+	file: string,
+): ProcedureResource[] {
+	const scriptKind = file.toLowerCase().endsWith(".tsx")
+		? ts.ScriptKind.TSX
+		: ts.ScriptKind.TS;
+	const sourceFile = ts.createSourceFile(
+		file,
+		source,
+		ts.ScriptTarget.ESNext,
+		true,
+		scriptKind,
+	);
 	const procedures: ProcedureResource[] = [
-		{ id: "top-level", kind: "TopLevel", name: null, label: `Top level (${file})` },
+		{
+			id: "top-level",
+			kind: "TopLevel",
+			name: null,
+			label: `Top level (${file})`,
+		},
 	];
 	const counts = new Map<string, number>();
 	const functions: ts.FunctionDeclaration[] = [];
 	const visit = (node: ts.Node): void => {
-		if (ts.isFunctionDeclaration(node) && node.name !== undefined) functions.push(node);
+		if (
+			ts.isFunctionDeclaration(node) &&
+			node.name !== undefined &&
+			node.body !== undefined
+		)
+			functions.push(node);
 		ts.forEachChild(node, visit);
 	};
 	visit(sourceFile);
@@ -101,7 +148,12 @@ export function discoverProcedures(source: string, file: string): ProcedureResou
 		const count = (counts.get(name) ?? 0) + 1;
 		counts.set(name, count);
 		const suffix = count === 1 ? "" : `:${declaration.getStart(sourceFile)}`;
-		procedures.push({ id: `function:${name}${suffix}`, kind: "Function", name, label: `${name}()` });
+		procedures.push({
+			id: `function:${name}${suffix}`,
+			kind: "Function",
+			name,
+			label: `${name}()`,
+		});
 	}
 	return procedures;
 }

@@ -20,7 +20,10 @@ function sourceQuery(query: unknown): SourceQuery {
 	return parsed.data;
 }
 
-const sourceRoutes: FastifyPluginAsync<SourceRoutesOptions> = async (app, options) => {
+const sourceRoutes: FastifyPluginAsync<SourceRoutesOptions> = async (
+	app,
+	options,
+) => {
 	app.get("/source", async (request) => {
 		const { file } = sourceQuery(request.query);
 		return readSource(options.filesFolder, file);
