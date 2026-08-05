@@ -122,4 +122,24 @@ describe("source change SSE", () => {
 			change: "deleted",
 		});
 	});
+
+	it("publishes supported descendant paths with forward slashes", async () => {
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
+		await fs.mkdir(path.join(folder, "nested"));
+		app = await createApp({ filesFolder: folder });
+		const address = await app.listen({ port: 0, host: "127.0.0.1" });
+		const response = await fetch(`${address}/api/events`);
+		await new Promise((resolve) => setTimeout(resolve, 250));
+		await fs.writeFile(path.join(folder, "nested", "new.ts"), "export const value = 1;\n");
+
+		const change = await nextEvent(response);
+
+		// result verification
+		expect(change).toMatchObject({
+			type: "file-changed",
+			file: "nested/new.ts",
+			change: "added",
+		});
+		expect(change.revision).toEqual(expect.any(String));
+	});
 });
