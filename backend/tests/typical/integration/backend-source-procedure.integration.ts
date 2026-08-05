@@ -35,14 +35,16 @@ describe("backend-owned source and Procedure resources", () => {
 		const response = await app.inject({ method: "GET", url: "/api/files" });
 
 		expect(response.statusCode).toBe(200);
-		expect(response.json()).toEqual(["nested/a.ts", "z.ts"]);
+		expect(response.json()).toEqual([".private.ts", "nested/a.ts", "z.ts"]);
 	});
 
 	it("returns an empty catalog when the configured folder is missing", async () => {
 		folder = path.join(os.tmpdir(), `runtime-visualizer-missing-${Date.now()}`);
 		app = await createApp({ filesFolder: folder });
 
-		expect((await app.inject({ method: "GET", url: "/api/files" })).json()).toEqual([]);
+		expect(
+			(await app.inject({ method: "GET", url: "/api/files" })).json(),
+		).toEqual([]);
 	});
 
 	it("discovers the top level and named functions in source order", async () => {

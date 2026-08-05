@@ -50,7 +50,7 @@ async function walk(abs: string, rel: string): Promise<string[]> {
 	const out: string[] = [];
 	for (const entry of entries) {
 		if (entry.isSymbolicLink()) continue;
-		if (entry.name.startsWith(".")) continue;
+		if (entry.isDirectory() && entry.name.startsWith(".")) continue;
 		const childRel = rel === "" ? entry.name : `${rel}/${entry.name}`;
 		if (entry.isDirectory()) {
 			out.push(...(await walk(path.join(abs, entry.name), childRel)));
