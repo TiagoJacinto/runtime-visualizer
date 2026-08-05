@@ -86,6 +86,7 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 			source = snapshot.source;
 			filePath = snapshot.filePath;
 			functionName = snapshot.functionName;
+			files = snapshot.files;
 			snapshotProcedure = snapshot.procedure;
 		}
 		const analysis = analyseProject({ source, filePath, functionName, files });

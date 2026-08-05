@@ -4,6 +4,7 @@ export type RevisionSnapshot = {
 	readonly source: string;
 	readonly filePath: string;
 	readonly functionName: string | undefined;
+	readonly files: Record<string, string>;
 	readonly procedure: ProcedureCfg;
 };
 
