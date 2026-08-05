@@ -28,7 +28,9 @@ const resourceQuery = z.object({
 			"Procedure name must be a valid identifier.",
 		)
 		.optional(),
-	showImports: z.coerce.boolean().optional(),
+	showImports: z
+		.stringbool({ truthy: ["true", "1"], falsy: ["false", "0"] })
+		.optional(),
 });
 
 type CfgRoutesOptions = {
@@ -42,7 +44,11 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (
 ) => {
 	app.get("/", async (req, reply) => {
 		const parsedQuery = resourceQuery.safeParse(req.query);
-		if (!parsedQuery.success || parsedQuery.data.file === undefined)
+		if (!parsedQuery.success)
+			return reply.code(400).send({
+				error: parsedQuery.error.issues[0]?.message ?? "Invalid request query.",
+			});
+		if (parsedQuery.data.file === undefined)
 			return {
 				ok: true,
 				info: "POST { source: string, filePath?: string, functionName?: string, showImports?: boolean, files?: Record<string, string> } to build a control-flow graph.",
@@ -53,10 +59,13 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (
 		);
 		const files = Object.fromEntries(
 			await Promise.all(
-				(await listSourceFiles(options.filesFolder)).map(async (file) => [
-					file,
-					(await readSource(options.filesFolder, file)).source,
-				] as const),
+				(await listSourceFiles(options.filesFolder)).map(
+					async (file) =>
+						[
+							file,
+							(await readSource(options.filesFolder, file)).source,
+						] as const,
+				),
 			),
 		);
 		const analysis = analyseProject({
