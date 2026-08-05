@@ -46,9 +46,11 @@ export class RevisionStore {
 			refs: existing?.refs ?? 0,
 		});
 		while (this.snapshots.size > this.maxEntries) {
-			const oldest = this.snapshots.keys().next().value;
-			if (oldest === undefined) break;
-			this.snapshots.delete(oldest);
+			const evictable = [...this.snapshots].find(
+				([, stored]) => stored.refs === 0,
+			);
+			if (evictable === undefined) break;
+			this.snapshots.delete(evictable[0]);
 		}
 	}
 
