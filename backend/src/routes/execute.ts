@@ -121,9 +121,16 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 		}
 
 		const encoder = new TextEncoder();
+		let snapshotReleased = false;
+		const release = (): void => {
+			if (snapshotReleased) return;
+			snapshotReleased = true;
+			releaseSnapshot?.();
+		};
 		const stream = new ReadableStream<Uint8Array>({
 			start(controller) {
 				const send = (event: StreamEvent): void => {
+					if (controller.desiredSize === null) return;
 					controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 				};
 				void executeProcedure(
@@ -145,8 +152,8 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 									: { error: execution.error }),
 							},
 						});
-						releaseSnapshot?.();
-						controller.close();
+						release();
+						if (controller.desiredSize !== null) controller.close();
 					})
 					.catch((cause: unknown) => {
 						send({
@@ -156,8 +163,8 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 								error: cause instanceof Error ? cause.message : String(cause),
 							},
 						});
-						releaseSnapshot?.();
-						controller.close();
+						release();
+						if (controller.desiredSize !== null) controller.close();
 					});
 			},
 		});
