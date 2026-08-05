@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { createApp } from "../../../src/app.js";
 
 type FileChange = {
+	type: "file-changed";
 	file: string;
 	change: "added" | "modified" | "deleted";
 	revision?: string;
@@ -80,10 +81,22 @@ describe("source change SSE", () => {
 		const deleted = await nextEvent(deletedResponse);
 
 		// result verification
-		expect(added).toMatchObject({ file: "new.ts", change: "added" });
+		expect(added).toMatchObject({
+			type: "file-changed",
+			file: "new.ts",
+			change: "added",
+		});
 		expect(added.revision).toEqual(expect.any(String));
-		expect(modified).toMatchObject({ file: "main.ts", change: "modified" });
+		expect(modified).toMatchObject({
+			type: "file-changed",
+			file: "main.ts",
+			change: "modified",
+		});
 		expect(modified.revision).toEqual(expect.any(String));
-		expect(deleted).toEqual({ file: "main.ts", change: "deleted" });
+		expect(deleted).toEqual({
+			type: "file-changed",
+			file: "main.ts",
+			change: "deleted",
+		});
 	});
 });

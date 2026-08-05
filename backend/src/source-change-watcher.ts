@@ -3,10 +3,12 @@ import { readSource } from "./source-resources.ts";
 
 type FileState = { readonly revision: string };
 export type SourceChange = {
+	readonly type: "file-changed";
 	readonly file: string;
 	readonly change: "added" | "modified" | "deleted";
 	readonly revision?: string;
 };
+type SourceChangePayload = Omit<SourceChange, "type">;
 type Subscriber = (change: SourceChange) => void;
 
 export class SourceChangeWatcher {
@@ -73,7 +75,8 @@ export class SourceChangeWatcher {
 		}
 	}
 
-	private publish(change: SourceChange): void {
-		for (const subscriber of this.subscribers) subscriber(change);
+	private publish(change: SourceChangePayload): void {
+		const event: SourceChange = { type: "file-changed", ...change };
+		for (const subscriber of this.subscribers) subscriber(event);
 	}
 }
