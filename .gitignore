@@ -29,3 +29,4 @@ dist-ssr
 # Agents
 .pi-subagents
 .pi/npm/
+.impeccable/
