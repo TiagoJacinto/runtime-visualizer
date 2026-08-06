@@ -8,6 +8,7 @@
     "start": "bun run src/index.ts",
     "dev": "bun --hot run src/index.ts",
     "typecheck": "tsc --noEmit",
+    "check:boundaries": "bun run scripts/check-import-boundaries.ts",
     
     "test:typical": "vitest run --config vitest.config.ts --project backend-unit --project backend-integration --project backend-e2e --passWithNoTests",
     "test:unit": "vitest run --config vitest.config.ts --project backend-unit --passWithNoTests",

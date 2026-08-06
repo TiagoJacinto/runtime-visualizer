@@ -1,5 +1,5 @@
 import { Worker } from "node:worker_threads";
-import type { ProcedureCfg } from "../../../cfg/types.ts";
+import type { ProcedureCfg } from "../../../cfg/index.ts";
 
 export type ExecutionResult = {
 	readonly status: "Succeeded" | "Failed";

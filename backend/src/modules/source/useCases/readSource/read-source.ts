@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { HttpError } from "../../../../shared/core/errors.ts";
+import { HttpError } from "../../../../shared/index.ts";
 import type { SourceResource } from "../../types.ts";
 
 export function sourceRevision(source: string): string {

@@ -1,4 +1,4 @@
-import { createApp } from "./shared/infra/http/app.ts";
+import { createApp } from "./shared/infra/http/index.ts";
 
 const PORT = Number.parseInt(process.env.PORT ?? "3000", 10);
 const HOST = process.env.HOST ?? "0.0.0.0";

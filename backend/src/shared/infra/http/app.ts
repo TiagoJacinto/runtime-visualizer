@@ -1,16 +1,17 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import { HttpError } from "../../core/errors.ts";
+import { HttpError, loadSettings } from "../../index.ts";
+import { cfgRoutes } from "../../../modules/cfg/http.ts";
+import { RevisionStore } from "../../../modules/execution/index.ts";
+import { executeRoutes } from "../../../modules/execution/http.ts";
+import {
+	eventsRoutes,
+	filesRoutes,
+	sourceRoutes,
+	SourceChangeWatcher,
+} from "../../../modules/source/http.ts";
 import healthRoutes from "./routes/health.ts";
 import runtimeRoutes from "./routes/runtime.ts";
 import echoRoutes from "./routes/echo.ts";
-import filesRoutes from "../../../modules/source/useCases/listFiles/files.ts";
-import sourceRoutes from "../../../modules/source/useCases/readSource/source.ts";
-import cfgRoutes from "../../../modules/cfg/useCases/analyseProject/cfg.ts";
-import executeRoutes from "../../../modules/execution/useCases/executeProcedure/execute.ts";
-import { RevisionStore } from "../../../modules/execution/infra/revision-store.ts";
-import { loadSettings } from "../config/settings.ts";
-import eventsRoutes from "../../../modules/source/useCases/observeChanges/events.ts";
-import { SourceChangeWatcher } from "../../../modules/source/useCases/observeChanges/change-watcher.ts";
 
 export type AppOptions = {
 	readonly now?: () => Date;

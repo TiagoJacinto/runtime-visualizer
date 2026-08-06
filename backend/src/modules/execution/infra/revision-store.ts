@@ -1,4 +1,4 @@
-import type { ProcedureCfg } from "../../cfg/types.ts";
+import type { ProcedureCfg } from "../../cfg/index.ts";
 
 export type RevisionSnapshot = {
 	readonly source: string;
