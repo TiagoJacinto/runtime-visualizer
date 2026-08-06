@@ -1,9 +1,12 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { analyseProject } from "../cfg/project-analyzer.ts";
-import type { RevisionStore } from "../execution/revision-store.ts";
-import { isSourceFile, listSourceFiles } from "./files.ts";
-import { readSource } from "../source-resources.ts";
+import { analyseProject } from "./project-analyzer.ts";
+import type { RevisionStore } from "../../../execution/infra/revision-store.ts";
+import {
+	isSourceFile,
+	listSourceFiles,
+} from "../../../source/useCases/listFiles/list-files.ts";
+import { readSource } from "../../../source/useCases/readSource/read-source.ts";
 
 const requestSchema = z.object({
 	source: z.string().max(1_000_000),

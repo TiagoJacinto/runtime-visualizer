@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createApp } from "../../../src/app.js";
+import { createApp } from "../../../src/shared/infra/http/app.js";
 
 type FileChange = {
 	type: "file-changed";
@@ -130,7 +130,10 @@ describe("source change SSE", () => {
 		const address = await app.listen({ port: 0, host: "127.0.0.1" });
 		const response = await fetch(`${address}/api/events`);
 		await new Promise((resolve) => setTimeout(resolve, 250));
-		await fs.writeFile(path.join(folder, "nested", "new.ts"), "export const value = 1;\n");
+		await fs.writeFile(
+			path.join(folder, "nested", "new.ts"),
+			"export const value = 1;\n",
+		);
 
 		const change = await nextEvent(response);
 

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createApp } from "../../../src/app.ts";
+import { createApp } from "../../../src/shared/infra/http/app.ts";
 
 const source = `import { helper } from "./helper";
 

@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { parseBody } from "../validation.ts";
+import { parseBody } from "../../../core/validation.ts";
 
 const echoRequestSchema = z.object({
 	message: z.string().optional(),

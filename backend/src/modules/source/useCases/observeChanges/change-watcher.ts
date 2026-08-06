@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { isSourceFile, listSourceFiles } from "./routes/files.ts";
-import { readSource } from "./source-resources.ts";
+import { isSourceFile, listSourceFiles } from "../listFiles/list-files.ts";
+import { readSource } from "../readSource/read-source.ts";
 
 type FileState = {
 	readonly revision: string;
