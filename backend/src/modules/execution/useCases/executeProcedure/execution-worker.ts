@@ -1,7 +1,7 @@
 import vm from "node:vm";
 import { parentPort, workerData } from "node:worker_threads";
 import ts from "typescript";
-import type { CfgNode, ProcedureCfg } from "../cfg/types.ts";
+import type { CfgNode, ProcedureCfg } from "../../../cfg/types.ts";
 
 type ExecutionRequest = {
 	readonly source: string;

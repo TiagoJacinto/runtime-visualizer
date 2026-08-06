@@ -1,35 +1,17 @@
 import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
-import type { FastifyPluginAsync } from "fastify";
 import * as path from "node:path";
-
-export type FilesRoutesOptions = {
-	/**
-	 * Absolute path to the folder whose files should be listed.
-	 * Resolved by the caller (settings loader or test override).
-	 */
-	readonly filesFolder: string;
-};
 
 /**
  * Recursively walks `abs` and returns every regular file as a
- * forward-slash path relative to `rel`. Symlinks and any
- * dot-prefixed directory are skipped — symlinks to keep the
- * listing predictable (and to prevent walking out of the
- * configured folder), dot-dirs because they conventionally hold
- * tool output that shouldn't be exposed as user-editable
- * source files.
+ * forward-slash path relative to `rel`. Symlinks and any dot-prefixed
+ * directory are skipped — symlinks to keep the listing predictable
+ * (and to prevent walking out of the configured folder), dot-dirs because
+ * they conventionally hold tool output that shouldn't be exposed as
+ * user-editable source files.
  *
  * Results are sorted by their relative forward-slash path so callers
  * receive one stable order independent of filesystem directory order.
- *
- * ponytail: O(n) syscalls via `readdir({ withFileTypes: true })`.
- * Adequate for project-sized folders; switch to a streaming
- * walker or memoised glob if folders exceed ~10k entries.
- *
- * ponytail: `isSymbolicLink() continue` — earlier prototype
- * followed links with a visited-set; skipping is cheaper and
- * removes the only path-traversal vector via this endpoint.
  */
 async function walk(abs: string, rel: string): Promise<string[]> {
 	let entries: Dirent[];
@@ -68,14 +50,3 @@ export function isSourceFile(file: string): boolean {
 export async function listSourceFiles(folder: string): Promise<string[]> {
 	return walk(folder, "");
 }
-
-const filesRoutes: FastifyPluginAsync<FilesRoutesOptions> = async (
-	app,
-	options,
-) => {
-	const folder = options.filesFolder;
-
-	app.get("/", async (): Promise<string[]> => listSourceFiles(folder));
-};
-
-export default filesRoutes;

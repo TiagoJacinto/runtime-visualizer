@@ -1,21 +1,8 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import * as ts from "typescript";
-import { HttpError } from "./errors.ts";
-
-export type ProcedureResource = {
-	readonly id: string;
-	readonly kind: "TopLevel" | "Function";
-	readonly name: string | null;
-	readonly label: string;
-};
-
-export type SourceResource = {
-	readonly file: string;
-	readonly source: string;
-	readonly revision: string;
-};
+import { HttpError } from "../../../../shared/core/errors.ts";
+import type { SourceResource } from "../../types.ts";
 
 export function sourceRevision(source: string): string {
 	return createHash("sha256").update(source).digest("hex");
@@ -105,55 +92,4 @@ export async function readSource(
 	}
 	const source = await fs.readFile(absolute, "utf8");
 	return { file, source, revision: sourceRevision(source) };
-}
-
-export function discoverProcedures(
-	source: string,
-	file: string,
-): ProcedureResource[] {
-	const scriptKind = file.toLowerCase().endsWith(".tsx")
-		? ts.ScriptKind.TSX
-		: ts.ScriptKind.TS;
-	const sourceFile = ts.createSourceFile(
-		file,
-		source,
-		ts.ScriptTarget.ESNext,
-		true,
-		scriptKind,
-	);
-	const procedures: ProcedureResource[] = [
-		{
-			id: "top-level",
-			kind: "TopLevel",
-			name: null,
-			label: `Top level (${file})`,
-		},
-	];
-	const counts = new Map<string, number>();
-	const functions: ts.FunctionDeclaration[] = [];
-	const visit = (node: ts.Node): void => {
-		if (
-			ts.isFunctionDeclaration(node) &&
-			node.name !== undefined &&
-			node.body !== undefined
-		)
-			functions.push(node);
-		ts.forEachChild(node, visit);
-	};
-	visit(sourceFile);
-	functions.sort((a, b) => a.getStart(sourceFile) - b.getStart(sourceFile));
-	for (const declaration of functions) {
-		const name = declaration.name?.text;
-		if (name === undefined) continue;
-		const count = (counts.get(name) ?? 0) + 1;
-		counts.set(name, count);
-		const suffix = count === 1 ? "" : `:${declaration.getStart(sourceFile)}`;
-		procedures.push({
-			id: `function:${name}${suffix}`,
-			kind: "Function",
-			name,
-			label: `${name}()`,
-		});
-	}
-	return procedures;
 }

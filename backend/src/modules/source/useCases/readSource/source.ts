@@ -1,7 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { discoverProcedures, readSource } from "../source-resources.ts";
-import { HttpError } from "../errors.ts";
+import { discoverProcedures } from "../discoverProcedures/discover-procedures.ts";
+import { readSource } from "./read-source.ts";
+import { HttpError } from "../../../../shared/core/errors.ts";
 
 export type SourceRoutesOptions = {
 	readonly filesFolder: string;

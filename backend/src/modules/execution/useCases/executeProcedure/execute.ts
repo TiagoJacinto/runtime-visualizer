@@ -1,11 +1,14 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { analyseProject } from "../cfg/project-analyzer.ts";
-import { HttpError } from "../errors.ts";
-import type { ProcedureCfg } from "../cfg/types.ts";
-import { executeProcedure } from "../execution/runner.ts";
-import type { RevisionStore } from "../execution/revision-store.ts";
-import { canonicalSourceFile, readSource } from "../source-resources.ts";
+import { analyseProject } from "../../../cfg/useCases/analyseProject/project-analyzer.ts";
+import { HttpError } from "../../../../shared/core/errors.ts";
+import type { ProcedureCfg } from "../../../cfg/types.ts";
+import { executeProcedure } from "./runner.ts";
+import type { RevisionStore } from "../../infra/revision-store.ts";
+import {
+	canonicalSourceFile,
+	readSource,
+} from "../../../source/useCases/readSource/read-source.ts";
 
 const requestSchema = z.object({
 	source: z.string().max(1_000_000),

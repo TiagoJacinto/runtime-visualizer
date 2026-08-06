@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import type { SourceChangeWatcher } from "../source-change-watcher.ts";
+import type { SourceChangeWatcher } from "./change-watcher.ts";
 
 type EventsRoutesOptions = {
 	readonly watcher: SourceChangeWatcher;

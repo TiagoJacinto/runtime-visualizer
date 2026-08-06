@@ -6,7 +6,7 @@ import type {
 	ControlFlowGraph,
 	ProcedureCfg,
 	SourceLocation,
-} from "./types.ts";
+} from "../../types.ts";
 
 type AbruptKind = "return" | "throw" | "break" | "continue";
 type AbruptFlow = { from: string; kind: AbruptKind; label?: string };

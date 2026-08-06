@@ -1,6 +1,6 @@
-import { diagnoseProject, type SourceProject } from "./diagnostics.ts";
-import { analyseFileProcedure } from "./file-analyzer.ts";
-import type { ControlFlowGraph, GraphDiagnostic } from "./types.ts";
+import { diagnoseProject, type SourceProject } from "../../diagnostics.ts";
+import { analyseFileProcedure } from "../analyseFile/file-analyzer.ts";
+import type { ControlFlowGraph, GraphDiagnostic } from "../../types.ts";
 
 export type ProjectAnalysis = {
 	readonly cfg?: ControlFlowGraph;

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { createApp } from "../../../src/app.ts";
+import { createApp } from "../../../src/shared/infra/http/app.ts";
 
 const source = `function main() { work(); }
 work();
