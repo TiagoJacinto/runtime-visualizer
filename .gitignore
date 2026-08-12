@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
+artifacts
 .features-gen
 test-results
 playwright-report

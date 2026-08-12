@@ -1,0 +1,15 @@
+{
+  "minLines": 5,
+  "minTokens": 50,
+  "ignore": [
+    "**/*.d.ts",
+    "**/*.css",
+    "browser/src/components/generated/**",
+    "browser/src/assets/**",
+    "browser/src/_tmp_*",
+    "browser/src/_tmp_*/**",
+    "artifacts/**"
+  ],
+  "reporters": ["console", "json"],
+  "output": "artifacts/jscpd"
+}

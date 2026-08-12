@@ -37,12 +37,16 @@
     "frontend:test:acceptance": "bun run --filter runtime-visualizer-browser test:acceptance",
     "frontend:test:hvut": "bun run --filter runtime-visualizer-browser test:hvut",
     "frontend:test:hvit": "bun run --filter runtime-visualizer-browser test:hvit",
-    "frontend:test:hve2e": "bun run --filter runtime-visualizer-browser test:hve2e"
+    "frontend:test:hve2e": "bun run --filter runtime-visualizer-browser test:hve2e",
+
+    "clone-check": "jscpd backend/src browser/src",
+    "clone-instances": "bun run scripts/clone-instances.ts"
   },
   "dependencies": {
 
   },
   "devDependencies": {
-
+    "fallow": "3.15.0",
+    "jscpd": "5.0.14"
   }
 }

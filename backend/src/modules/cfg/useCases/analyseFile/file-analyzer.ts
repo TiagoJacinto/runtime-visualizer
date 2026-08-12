@@ -432,30 +432,16 @@ function buildWhile(
 		statement.expression,
 	);
 	const loop: Loop = { kind: "loop", label, breaks: [], continueTarget: head };
-	context.breakables.push(loop);
-	context.loops.push(loop);
-	const body = buildStatement(file, builder, statement.statement, context);
-	context.loops.pop();
-	context.breakables.pop();
+	const body = buildLoopBody(file, builder, statement.statement, context, loop);
 	if (body.entry !== undefined) builder.link(head, body.entry, "true");
 	else builder.link(head, head, "true");
 	connectNormal(builder, body, head);
-	for (const jump of body.abrupt) {
-		if (jump.kind === "continue" && matchesTarget(jump.label, loop.label))
-			builder.link(jump.from, head);
-		else if (jump.kind === "break" && matchesTarget(jump.label, loop.label))
-			loop.breaks.push(jump.from);
-	}
-	const handled = body.abrupt.filter(
-		(jump) =>
-			(jump.kind === "continue" || jump.kind === "break") &&
-			matchesTarget(jump.label, loop.label),
-	);
+	const abrupt = resolveLoopJumps(builder, body.abrupt, loop, head);
 	return {
 		entry: head,
 		normal: [head, ...loop.breaks],
 		normalLabels: new Map([[head, "false"]]),
-		abrupt: body.abrupt.filter((jump) => !handled.includes(jump)),
+		abrupt,
 	};
 }
 
@@ -472,31 +458,17 @@ function buildDoWhile(
 		statement.expression,
 	);
 	const loop: Loop = { kind: "loop", label, breaks: [], continueTarget: head };
-	context.breakables.push(loop);
-	context.loops.push(loop);
-	const body = buildStatement(file, builder, statement.statement, context);
-	context.loops.pop();
-	context.breakables.pop();
+	const body = buildLoopBody(file, builder, statement.statement, context, loop);
 	if (body.entry !== undefined) {
 		connectNormal(builder, body, head);
 		builder.link(head, body.entry, "true");
 	} else builder.link(head, head, "true");
-	for (const jump of body.abrupt) {
-		if (jump.kind === "continue" && matchesTarget(jump.label, loop.label))
-			builder.link(jump.from, head);
-		else if (jump.kind === "break" && matchesTarget(jump.label, loop.label))
-			loop.breaks.push(jump.from);
-	}
-	const handled = body.abrupt.filter(
-		(jump) =>
-			(jump.kind === "continue" || jump.kind === "break") &&
-			matchesTarget(jump.label, loop.label),
-	);
+	const abrupt = resolveLoopJumps(builder, body.abrupt, loop, head);
 	return {
 		entry: body.entry ?? head,
 		normal: [head, ...loop.breaks],
 		normalLabels: new Map([[head, "false"]]),
-		abrupt: body.abrupt.filter((jump) => !handled.includes(jump)),
+		abrupt,
 	};
 }
 
@@ -534,11 +506,7 @@ function buildFor(
 		breaks: [],
 		continueTarget: update?.entry ?? head,
 	};
-	context.breakables.push(loop);
-	context.loops.push(loop);
-	const body = buildStatement(file, builder, statement.statement, context);
-	context.loops.pop();
-	context.breakables.pop();
+	const body = buildLoopBody(file, builder, statement.statement, context, loop);
 	if (initializer?.entry !== undefined) builder.link(initializer.entry, head);
 	if (body.entry !== undefined) builder.link(head, body.entry, "true");
 	else if (statement.condition === undefined)
@@ -546,16 +514,11 @@ function buildFor(
 	else builder.link(head, head, "true");
 	connectNormal(builder, body, update?.entry ?? head);
 	if (update?.entry !== undefined) builder.link(update.entry, head);
-	for (const jump of body.abrupt) {
-		if (jump.kind === "continue" && matchesTarget(jump.label, loop.label))
-			builder.link(jump.from, loop.continueTarget);
-		else if (jump.kind === "break" && matchesTarget(jump.label, loop.label))
-			loop.breaks.push(jump.from);
-	}
-	const handled = body.abrupt.filter(
-		(jump) =>
-			(jump.kind === "continue" || jump.kind === "break") &&
-			matchesTarget(jump.label, loop.label),
+	const abrupt = resolveLoopJumps(
+		builder,
+		body.abrupt,
+		loop,
+		loop.continueTarget,
 	);
 	const normal =
 		statement.condition === undefined ? loop.breaks : [head, ...loop.breaks];
@@ -566,7 +529,7 @@ function buildFor(
 			statement.condition === undefined
 				? undefined
 				: new Map([[head, "false"]]),
-		abrupt: body.abrupt.filter((jump) => !handled.includes(jump)),
+		abrupt,
 	};
 }
 
@@ -585,30 +548,16 @@ function buildForInOf(
 		statement.expression,
 	);
 	const loop: Loop = { kind: "loop", label, breaks: [], continueTarget: head };
-	context.breakables.push(loop);
-	context.loops.push(loop);
-	const body = buildStatement(file, builder, statement.statement, context);
-	context.loops.pop();
-	context.breakables.pop();
+	const body = buildLoopBody(file, builder, statement.statement, context, loop);
 	if (body.entry !== undefined) builder.link(head, body.entry, "next item");
 	else builder.link(head, head, "next item");
 	connectNormal(builder, body, head);
-	for (const jump of body.abrupt) {
-		if (jump.kind === "continue" && matchesTarget(jump.label, loop.label))
-			builder.link(jump.from, head);
-		else if (jump.kind === "break" && matchesTarget(jump.label, loop.label))
-			loop.breaks.push(jump.from);
-	}
-	const handled = body.abrupt.filter(
-		(jump) =>
-			(jump.kind === "continue" || jump.kind === "break") &&
-			matchesTarget(jump.label, loop.label),
-	);
+	const abrupt = resolveLoopJumps(builder, body.abrupt, loop, head);
 	return {
 		entry: head,
 		normal: [head, ...loop.breaks],
 		normalLabels: new Map([[head, "iteration end"]]),
-		abrupt: body.abrupt.filter((jump) => !handled.includes(jump)),
+		abrupt,
 	};
 }
 
@@ -972,6 +921,39 @@ function matchesTarget(
 ): boolean {
 	return actual === undefined || actual === expected;
 }
+function buildLoopBody(
+	file: ts.SourceFile,
+	builder: GraphBuilder,
+	statement: ts.Statement,
+	context: BuildContext,
+	loop: Loop,
+): Flow {
+	context.breakables.push(loop);
+	context.loops.push(loop);
+	const body = buildStatement(file, builder, statement, context);
+	context.loops.pop();
+	context.breakables.pop();
+	return body;
+}
+
+function resolveLoopJumps(
+	builder: GraphBuilder,
+	abrupt: AbruptFlow[],
+	loop: Loop,
+	continueTarget: string,
+): AbruptFlow[] {
+	const handled = abrupt.filter(
+		(jump) =>
+			(jump.kind === "continue" || jump.kind === "break") &&
+			matchesTarget(jump.label, loop.label),
+	);
+	for (const jump of handled) {
+		if (jump.kind === "continue") builder.link(jump.from, continueTarget);
+		else loop.breaks.push(jump.from);
+	}
+	return abrupt.filter((jump) => !handled.includes(jump));
+}
+
 function isDeclare(node: ts.Node): boolean {
 	return (
 		ts.canHaveModifiers(node) &&

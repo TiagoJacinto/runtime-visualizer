@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "ignorePatterns": [
+    "**/tests/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/*.hve2e.ts",
+    "**/*.hvut.ts",
+    "**/*.hvit.ts",
+    "**/*.integration.ts",
+    "**/*.d.ts",
+    "**/*.css",
+    "browser/src/components/generated/**",
+    "browser/src/_tmp_*",
+    "browser/src/_tmp_*/**",
+    "browser/src/assets/**",
+    "artifacts/**"
+  ],
+  "duplicates": {
+    "mode": "mild",
+    "minTokens": 50,
+    "minLines": 5,
+    "minOccurrences": 2
+  }
+}
