@@ -8,45 +8,52 @@
     "browser"
   ],
   "scripts": {
+    "bootstrap": "bun install --frozen-lockfile",
+    "setup": "bun run bootstrap",
+    "update": "bun run bootstrap",
+    "server": "bun run dev",
+    "test": "bun run lint && bun run backend:typecheck && bun run backend:test:typical && bun run frontend:test:typical && bun run backend:test:acceptance && bun run frontend:test:acceptance",
+    "lint": "oxlint browser/src backend/src",
+    "coverage": "bun run backend:test:coverage && bun run frontend:test:coverage",
+    "check:maintainability": "bun run lint && bun run coverage",
+    "clone-check": "jscpd backend/src browser/src",
+    "clone-instances": "bun run scripts/clone-instances.ts",
+    "cibuild": "bun run test && bun run coverage",
+    "prepare": "lefthook install",
     "dev": "bun run --parallel backend:dev frontend:dev",
-
     "backend:start": "bun run --filter runtime-visualizer-backend start",
     "backend:dev": "bun run --filter runtime-visualizer-backend dev",
     "backend:typecheck": "bun run --filter runtime-visualizer-backend typecheck",
-
     "backend:test:typical": "bun run --filter runtime-visualizer-backend test:typical",
     "backend:test:unit": "bun run --filter runtime-visualizer-backend test:unit",
     "backend:test:integration": "bun run --filter runtime-visualizer-backend test:integration",
     "backend:test:e2e": "bun run --filter runtime-visualizer-backend test:e2e",
-
+    "backend:test:coverage": "bun run --filter runtime-visualizer-backend test:coverage",
     "backend:test:acceptance": "bun run --filter runtime-visualizer-backend test:acceptance",
     "backend:test:hvut": "bun run --filter runtime-visualizer-backend test:hvut",
     "backend:test:hvit": "bun run --filter runtime-visualizer-backend test:hvit",
     "backend:test:hve2e": "bun run --filter runtime-visualizer-backend test:hve2e",
-
     "frontend:dev": "bun run --filter runtime-visualizer-browser dev",
     "frontend:build": "bun run --filter runtime-visualizer-browser build",
     "frontend:lint": "bun run --filter runtime-visualizer-browser lint",
     "frontend:preview": "bun run --filter runtime-visualizer-browser preview",
-
     "frontend:test:typical": "bun run --filter runtime-visualizer-browser test:typical",
     "frontend:test:unit": "bun run --filter runtime-visualizer-browser test:unit",
     "frontend:test:integration": "bun run --filter runtime-visualizer-browser test:integration",
     "frontend:test:e2e": "bun run --filter runtime-visualizer-browser test:e2e",
-    
+    "frontend:test:coverage": "bun run --filter runtime-visualizer-browser test:coverage",
     "frontend:test:acceptance": "bun run --filter runtime-visualizer-browser test:acceptance",
     "frontend:test:hvut": "bun run --filter runtime-visualizer-browser test:hvut",
     "frontend:test:hvit": "bun run --filter runtime-visualizer-browser test:hvit",
-    "frontend:test:hve2e": "bun run --filter runtime-visualizer-browser test:hve2e",
-
-    "clone-check": "jscpd backend/src browser/src",
-    "clone-instances": "bun run scripts/clone-instances.ts"
+    "frontend:test:hve2e": "bun run --filter runtime-visualizer-browser test:hve2e"
   },
-  "dependencies": {
-
-  },
+  "dependencies": {},
   "devDependencies": {
+    "eslint-plugin-sonarjs": "^3.0.7",
     "fallow": "3.15.0",
-    "jscpd": "5.0.14"
+    "jscpd": "5.0.14",
+    "lefthook": "2.1.9",
+    "oxlint": "^1.71.0",
+    "ts-api-utils": "^2.5.0"
   }
 }
