@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
 	Activity,
 	AlertCircle,
@@ -110,38 +110,62 @@ const GraphNode = ({
 	detail: string;
 	markers?: Run[];
 	active?: boolean;
-}) => (
-	<div
-		className={`relative w-full max-w-[250px] rounded-xl border px-4 py-3.5 shadow-xl shadow-black/20 transition ${active ? "border-emerald-300/45 bg-[#122A21]" : "border-white/10 bg-[#0E1D18]"}`}
-	>
-		<div className="flex items-center gap-2">
-			<span
-				className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-300" : "bg-slate-600"}`}
-			/>
-			<span className="font-mono text-[11px] font-medium text-slate-100">
-				{label}
-			</span>
-		</div>
-		<p className="mt-1.5 pl-3.5 text-[10px] text-slate-500">{detail}</p>
-		{markers.length > 0 && (
-			<div className="absolute -right-3 -top-2 flex -space-x-1">
-				{markers.map((run) => (
-					<span
-						key={run.id}
-						title={`Run ${String(run.id).padStart(2, "0")}`}
-						aria-label={`Run ${String(run.id).padStart(2, "0")} active here`}
-						className="grid h-5 w-5 place-items-center rounded-full border-2 border-[#07110E] font-mono text-[7px] font-semibold text-[#07110E]"
-						style={{
-							background: run.color,
-						}}
-					>
-						{run.id}
-					</span>
-				))}
+}) => {
+	const [markerLimit, setMarkerLimit] = useState(() =>
+		typeof window !== "undefined" && window.innerWidth < 640 ? 2 : 4,
+	);
+	useEffect(() => {
+		const updateMarkerLimit = () => {
+			setMarkerLimit(window.innerWidth < 640 ? 2 : 4);
+		};
+		window.addEventListener("resize", updateMarkerLimit);
+		return () => window.removeEventListener("resize", updateMarkerLimit);
+	}, []);
+	const visibleMarkers = markers.slice(0, markerLimit);
+	const hiddenMarkerCount = markers.length - visibleMarkers.length;
+
+	return (
+		<div
+			className={`relative w-full max-w-[250px] rounded-xl border px-4 py-3.5 shadow-xl shadow-black/20 transition ${active ? "border-emerald-300/45 bg-[#122A21]" : "border-white/10 bg-[#0E1D18]"}`}
+		>
+			<div className="flex items-center gap-2">
+				<span
+					className={`h-1.5 w-1.5 rounded-full ${active ? "bg-emerald-300" : "bg-slate-600"}`}
+				/>
+				<span className="font-mono text-[11px] font-medium text-slate-100">
+					{label}
+				</span>
 			</div>
-		)}
-	</div>
-);
+			<p className="mt-1.5 pl-3.5 text-[10px] text-slate-500">{detail}</p>
+			{markers.length > 0 && (
+				<div className="absolute -right-3 -top-2 flex -space-x-1">
+					{visibleMarkers.map((run) => (
+						<span
+							key={run.id}
+							title={`Run ${String(run.id).padStart(2, "0")}`}
+							aria-label={`Run ${String(run.id).padStart(2, "0")} active here`}
+							className="grid h-5 w-5 place-items-center rounded-full border-2 border-[#07110E] font-mono text-[7px] font-semibold text-[#07110E]"
+							style={{
+								background: run.color,
+							}}
+						>
+							{run.id}
+						</span>
+					))}
+					{hiddenMarkerCount > 0 && (
+						<span
+							title={`${hiddenMarkerCount} more active runs`}
+							aria-label={`${hiddenMarkerCount} more active runs at ${label}`}
+							className="ml-[0.3125rem] grid h-5 min-w-5 place-items-center rounded-full border-2 border-[#07110E] bg-emerald-300 px-1 font-mono text-[7px] font-bold text-[#06100D] shadow-[0_0_0_2px_rgba(110,231,183,0.22)]"
+						>
+							+{hiddenMarkerCount}
+						</span>
+					)}
+				</div>
+			)}
+		</div>
+	);
+};
 export const LiveProcedureWorkspace = () => {
 	const [view, setView] = useState<View>("graph");
 	const [file, setFile] = useState("main.ts");
@@ -153,11 +177,23 @@ export const LiveProcedureWorkspace = () => {
 	const [queueUpdate, setQueueUpdate] = useState(true);
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [showImports, setShowImports] = useState(true);
+	const [liveLegendLimit, setLiveLegendLimit] = useState(() =>
+		typeof window !== "undefined" && window.innerWidth < 640 ? 2 : 4,
+	);
 	const runningRuns = runs.filter((run) => run.status === "running");
+	const visibleLiveRuns = runningRuns.slice(0, liveLegendLimit);
+	const hiddenLiveRunCount = runningRuns.length - visibleLiveRuns.length;
 	const currentRun = runs.find((run) => run.id === selectedRun) ?? null;
 	const visibleSourceLines = showImports
 		? sourceLines
 		: sourceLines.filter(([, code]) => !code.startsWith("import "));
+	useEffect(() => {
+		const updateLiveLegendLimit = () => {
+			setLiveLegendLimit(window.innerWidth < 640 ? 2 : 4);
+		};
+		window.addEventListener("resize", updateLiveLegendLimit);
+		return () => window.removeEventListener("resize", updateLiveLegendLimit);
+	}, []);
 	const startRun = () => {
 		const id = Math.max(...runs.map((run) => run.id), 0) + 1;
 		const next: Run = {
@@ -180,9 +216,9 @@ export const LiveProcedureWorkspace = () => {
 		setSelectedRun(null);
 	};
 	return (
-		<div className="min-h-screen w-full bg-[#07110E] text-slate-100">
-			<div className="flex min-h-screen w-full flex-col">
-				<header className="flex h-14 shrink-0 items-center gap-3 border-b border-white/10 bg-[#091510] px-3 sm:px-5">
+		<div className="h-screen w-full overflow-hidden bg-[#07110E] text-slate-100">
+			<div className="flex h-full w-full flex-col">
+				<header className="relative flex h-14 shrink-0 items-center gap-3 border-b border-white/10 bg-[#091510] px-3 sm:px-5">
 					<button
 						onClick={() => setSidebarOpen((value) => !value)}
 						aria-label="Toggle navigation"
@@ -203,7 +239,7 @@ export const LiveProcedureWorkspace = () => {
 							</p>
 						</div>
 					</div>
-					<div className="mx-auto hidden items-center gap-2 rounded-lg border border-white/10 bg-[#07110E] px-3 py-1.5 md:flex">
+					<div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-2 rounded-lg border border-white/10 bg-[#07110E] px-3 py-1.5 md:flex">
 						<FileCode2 className="h-3.5 w-3.5 text-slate-500" />
 						<span className="font-mono text-[10px] text-slate-300">{file}</span>
 						<ChevronRight className="h-3 w-3 text-slate-700" />
@@ -289,7 +325,7 @@ export const LiveProcedureWorkspace = () => {
 							</button>
 						</div>
 
-						<div className="flex min-h-0 flex-1 flex-col p-3">
+						<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3">
 							<button
 								onClick={() => setRunsOpen((value) => !value)}
 								aria-expanded={runsOpen}
@@ -530,10 +566,15 @@ export const LiveProcedureWorkspace = () => {
 										<div className="h-3 w-px bg-emerald-300/25" />
 										<GraphNode label="complete" detail="202 Accepted" />
 									</div>
-									<div className="absolute bottom-3 left-3 flex items-center gap-3 rounded-lg border border-white/10 bg-[#07110E]/90 px-3 py-2 text-[9px] text-slate-500 backdrop-blur">
-										<span className="text-slate-300">Live markers</span>
-										{runningRuns.map((run) => (
-											<span key={run.id} className="flex items-center gap-1">
+									<div className="absolute bottom-3 left-3 right-3 flex max-w-[calc(100%-1.5rem)] items-center gap-3 overflow-hidden rounded-lg border border-white/10 bg-[#07110E]/90 px-3 py-2 text-[9px] text-slate-500 backdrop-blur">
+										<span className="shrink-0 text-slate-300">
+											Live markers
+										</span>
+										{visibleLiveRuns.map((run) => (
+											<span
+												key={run.id}
+												className="flex shrink-0 items-center gap-1"
+											>
 												<span
 													className="h-2 w-2 rounded-full"
 													style={{
@@ -543,6 +584,11 @@ export const LiveProcedureWorkspace = () => {
 												Run {run.id}
 											</span>
 										))}
+										{hiddenLiveRunCount > 0 && (
+											<span className="shrink-0 font-semibold text-emerald-300">
+												+{hiddenLiveRunCount}
+											</span>
+										)}
 									</div>
 								</section>
 							</div>
