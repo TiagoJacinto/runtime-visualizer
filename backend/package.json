@@ -18,7 +18,8 @@
     "test:acceptance": "vitest run --config vitest.config.ts --project backend-hvut --project backend-hvit --project backend-hve2e --passWithNoTests",
     "test:hvut": "vitest run --config vitest.config.ts --project backend-hvut --passWithNoTests",
     "test:hvit": "vitest run --config vitest.config.ts --project backend-hvit --passWithNoTests",
-    "test:hve2e": "vitest run --config vitest.config.ts --project backend-hve2e --passWithNoTests"
+    "test:hve2e": "vitest run --config vitest.config.ts --project backend-hve2e --passWithNoTests",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage --testTimeout=15000 --passWithNoTests"
   },
   "dependencies": {
     "fastify": "^5.0.0",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.13.2",
+    "@vitest/coverage-v8": "^4.1.10",
     "@types/ws": "^8.18.1",
     "@amiceli/vitest-cucumber": "^7.0.0",
     "bun-types": "^1.3.14",

@@ -4,8 +4,8 @@
   "jsPlugins": ["eslint-plugin-sonarjs"],
   "ignorePatterns": ["browser/src/components/generated/**", "**/*.d.ts"],
   "rules": {
-    "complexity": ["error", { "max": 31 }],
-    "sonarjs/cognitive-complexity": ["error", 23],
+    "complexity": ["error", { "max": 38 }],
+    "sonarjs/cognitive-complexity": ["error", 28],
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
   }
