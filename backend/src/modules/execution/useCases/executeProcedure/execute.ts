@@ -120,6 +120,7 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 			return reply.code(422).send({ error: "No executable Procedure found." });
 		}
 
+		const executionId = crypto.randomUUID();
 		const encoder = new TextEncoder();
 		let snapshotReleased = false;
 		const release = (): void => {
@@ -171,6 +172,7 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 		return reply
 			.header("content-type", "application/x-ndjson")
 			.header("cache-control", "no-store")
+			.header("X-Execution-Id", executionId)
 			.send(stream);
 	});
 };
