@@ -31,3 +31,6 @@ dist-ssr
 .pi-subagents
 .pi/npm/
 .impeccable/
+
+# Test coverage output
+**/coverage/
