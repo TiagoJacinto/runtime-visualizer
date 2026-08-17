@@ -1,0 +1,32 @@
+reviews:
+  path_filters:
+    # Application source and tests
+    - "backend/src/**"
+    - "backend/tests/**"
+    - "browser/src/**"
+    - "browser/tests/**"
+    - "packages/contracts/src/**"
+
+    # Project automation and executable tooling
+    - "scripts/**"
+    - ".github/workflows/**"
+    - "package.json"
+    - "bun.lock"
+    - "lefthook.yml"
+    - "*.config.ts"
+    - "tsconfig*.json"
+
+    # Do not review generated UI output
+    - "!browser/src/components/generated/**"
+
+    # Do not review documentation or generated/build artifacts
+    - "!**/*.md"
+    - "!**/*.mdx"
+    - "!docs/**"
+    - "!features/**"
+    - "!artifacts/**"
+    - "!target/**"
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/test-results/**"
+    - "!**/.features-gen/**"
