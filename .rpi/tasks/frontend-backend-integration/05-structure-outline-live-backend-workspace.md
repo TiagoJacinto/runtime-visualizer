@@ -168,7 +168,7 @@ Complete the migration from the form-oriented browser test contract to the conne
 
 ```bash
 bun run test
-bun run coverage
+bun run coverage       # [ ] — global thresholds remain below 58%; gap documented, no threshold reduction
 bun run frontend:build
 ```
 
@@ -180,3 +180,4 @@ bun run frontend:build
 
 - The initial dependency-free vertical CFG layout is intentionally limited. Validate real saved-project graphs before adding layout, routing, or graph-navigation features.
 - Keep `POST /api/cfg` unchanged in this work. Remove that inline-source compatibility route only after a separate repository-wide consumer audit.
+- Coverage remains below the global 58% threshold because worker-thread and React HVE2E paths are not counted by the current unit-coverage runs. Keep the threshold unchanged until a separate coverage-design decision.
