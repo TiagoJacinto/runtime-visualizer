@@ -70,7 +70,7 @@ Replace the fixed workspace data with the smallest usable live Operator flow: st
 bun run frontend:build         # [x]
 bun run frontend:test:typical  # [x]
 bun run frontend:test:hvut     # [x]
-bun run frontend:test:hve2e # [ ] — live selector works; rewritten scenarios still fail on fixed-fixture graph assertions and Phase 3 execution behavior
+bun run frontend:test:hve2e    # [ ] — live selector works; rewritten scenarios still fail on fixed-fixture graph assertions and Phase 3 execution behavior
 ```
 
 #### Manual Verification
