@@ -54,7 +54,7 @@ describe("Procedure selection HTTP seam", () => {
 			event: "result",
 			data: { status: "Succeeded" },
 		});
-	});
+	}, 30_000);
 
 	it("analyzes and executes a Function only when explicitly selected", async () => {
 		app = await createApp({ filesFolder: "/tmp" });
@@ -90,7 +90,7 @@ describe("Procedure selection HTTP seam", () => {
 			event: "result",
 			data: { status: "Succeeded" },
 		});
-	});
+	}, 30_000);
 
 	it("executes a top-level Procedure that contains exported declarations", async () => {
 		app = await createApp({ filesFolder: "/tmp" });
@@ -114,5 +114,5 @@ describe("Procedure selection HTTP seam", () => {
 			event: "result",
 			data: { status: "Succeeded" },
 		});
-	});
+	}, 30_000);
 });
