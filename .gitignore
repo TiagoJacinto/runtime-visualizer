@@ -31,3 +31,11 @@ dist-ssr
 .pi-subagents
 .pi/npm/
 .impeccable/
+
+# sssf runtime
+adws/
+adws/adw_data/sessions/
+adws/adw_data/runs/
+adws/adw_data/sssf.db*
+.pi/skills/sssf/
+.env
