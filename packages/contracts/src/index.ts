@@ -6,6 +6,7 @@ export {
 } from "./analysis.ts";
 
 export {
+  ExecutionIdSchema,
   ExecutionNodeEventSchema,
   ExecutionResultEventSchema,
   ExecutionEventSchema,

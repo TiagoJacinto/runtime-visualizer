@@ -91,4 +91,28 @@ describe("Procedure selection HTTP seam", () => {
 			data: { status: "Succeeded" },
 		});
 	});
+
+	it("executes a top-level Procedure that contains exported declarations", async () => {
+		app = await createApp({ filesFolder: "/tmp" });
+		const exportedSource = `export function run() { console.log("ok"); }\nrun();`;
+		const executionResponse = await app.inject({
+			method: "POST",
+			url: "/api/execute",
+			payload: { source: exportedSource, filePath: "main.ts" },
+		});
+		const events = executionResponse.body
+			.trim()
+			.split("\n")
+			.map(
+				(line) =>
+					JSON.parse(line) as {
+						event: string;
+						data: { status?: string; error?: string };
+					},
+			);
+		expect(events.at(-1)).toEqual({
+			event: "result",
+			data: { status: "Succeeded" },
+		});
+	});
 });
