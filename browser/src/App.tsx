@@ -1,5 +1,5 @@
 import { Theme } from './settings/types';
-import { LiveProcedureWorkspace } from './components/generated/LiveProcedureWorkspace';
+import { LiveWorkspacePage } from './pages/liveWorkspace/liveWorkspace.page';
 
 let theme: Theme = 'light';
 
@@ -16,7 +16,7 @@ function App() {
 
   return (
     <>
-      <LiveProcedureWorkspace />
+      <LiveWorkspacePage />
     </>);
   // %EXPORT_STATEMENT%
 }
