@@ -4,8 +4,8 @@
 
 - [x] Phase 1: Deliver a revision-consistent saved-Procedure API
 - [ ] Phase 2: Display live files, source, diagnostics, and graphs (HVE2E bindings pending Phase 5 rewrite)
-- [ ] Phase 3: Run and observe revision-bound Executions
-- [ ] Phase 4: Keep live work stable through file changes and reconnects
+- [x] Phase 3: Run and observe revision-bound Executions
+- [x] Phase 4: Keep live work stable through file changes and reconnects
 - [ ] Phase 5: Replace the obsolete browser acceptance contract
 
 ## ✅ Phase 1: Deliver a revision-consistent saved-Procedure API
@@ -111,7 +111,7 @@ bun run backend:test:integration
 
 - Start two Executions for the same displayed Procedure and confirm both markers remain visible until their own terminal Result.
 
-## Phase 4: Keep live work stable through file changes and reconnects
+## ✅ Phase 4: Keep live work stable through file changes and reconnects
 
 ### Overview
 

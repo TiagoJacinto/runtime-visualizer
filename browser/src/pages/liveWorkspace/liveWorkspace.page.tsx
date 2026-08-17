@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { createAnalysisGateway } from "../../shared/api/analysisGateway";
 import { createExecutionGateway } from "../../shared/api/executionGateway";
+import { createFileEventsGateway } from "../../shared/api/fileEventsGateway";
+import { createRetryScheduler } from "../../shared/retry/retryScheduler";
 import { createLiveWorkspaceController } from "./useCases/createLiveWorkspaceController";
 import type { WorkspaceController } from "./useCases/liveWorkspace.ports";
 import type { LiveWorkspaceState } from "./useCases/liveWorkspace.types";
@@ -18,6 +20,8 @@ export function LiveWorkspacePage({
       createLiveWorkspaceController({
         analysis: createAnalysisGateway(),
         execution: createExecutionGateway(),
+        fileEvents: createFileEventsGateway(),
+        retry: createRetryScheduler(),
       }),
   );
   const [state, setState] = useState<LiveWorkspaceState>(controller.getState());
@@ -50,6 +54,15 @@ export function LiveWorkspacePage({
       {state.status === "empty" && (
         <p role="status">No supported TypeScript files found.</p>
       )}
+      {state.connection === "reconnecting" && (
+        <p role="status" className="mb-4 text-amber-300">Reconnecting…</p>
+      )}
+      {state.queuedRevision !== null && (
+        <p role="status" className="mb-4 text-amber-300">Update queued</p>
+      )}
+      {state.fileDeleted && (
+        <p role="alert" className="mb-4 text-rose-300">File deleted</p>
+      )}
       {state.status === "error" && (
         <div role="alert">
           <p>Backend unavailable: {state.error}</p>
@@ -65,7 +78,7 @@ export function LiveWorkspacePage({
             <select
               aria-label="File"
               value={state.selectedFile ?? ""}
-              disabled={state.files.length === 0}
+              disabled={state.files.length === 0 || state.connection === "reconnecting"}
               onChange={(event) => controller.selectFile(event.target.value)}
               className="mt-1 block w-full bg-slate-900 p-2"
             >
@@ -82,7 +95,7 @@ export function LiveWorkspacePage({
             <select
               aria-label="Procedure"
               value={state.selectedProcedure ?? ""}
-              disabled={!analysis}
+              disabled={!analysis || state.connection === "reconnecting"}
               onChange={(event) =>
                 controller.selectProcedure(event.target.value)
               }
@@ -142,7 +155,7 @@ export function LiveWorkspacePage({
           )}
           <button
             type="button"
-            disabled={!analysis?.cfg || state.status !== "ready"}
+            disabled={!analysis?.cfg || state.status !== "ready" || state.connection === "reconnecting" || state.fileDeleted}
             onClick={controller.runProcedure}
           >
             Run Procedure
