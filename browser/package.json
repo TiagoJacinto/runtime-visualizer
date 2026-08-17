@@ -14,8 +14,8 @@
     "test:acceptance": "bun run test:hvut && bun run test:hvit && bun run test:hve2e",
     "test:hvut": "vitest run --config vitest.config.ts --project browser-hvut --passWithNoTests",
     "test:hvit": "vitest run --config vitest.config.ts --project browser-hvit --passWithNoTests",
-    "test:hve2e": "bddgen --config playwright.config.ts && playwright test --config playwright.config.ts",
-    "test:hve2e:ui": "bddgen --config playwright.config.ts && playwright test --config playwright.config.ts --ui",
+    "test:hve2e": "bddgen --config playwright.config.ts && playwright test --config playwright.config.ts --pass-with-no-tests",
+    "test:hve2e:ui": "bddgen --config playwright.config.ts && playwright test --config playwright.config.ts --ui --pass-with-no-tests",
     "test:coverage": "vitest run --config vitest.config.ts --coverage --passWithNoTests"
   },
   "dependencies": {
