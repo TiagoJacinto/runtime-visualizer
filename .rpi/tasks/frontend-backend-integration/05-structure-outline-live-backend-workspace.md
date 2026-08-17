@@ -77,7 +77,7 @@ bun run frontend:test:hve2e    # [x] — obsolete UI scenarios are quarantined; 
 
 - Start `bun run dev`, select two saved files and Procedures, and confirm the source, revision, and graph change together.
 
-## Phase 3: Run and observe revision-bound Executions
+## ✅ Phase 3: Run and observe revision-bound Executions
 
 ### Overview
 
