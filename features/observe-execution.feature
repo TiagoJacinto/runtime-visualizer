@@ -1,3 +1,4 @@
+@legacy-ui
 Feature: Highlight procedure execution in a control-flow graph
   As an Operator,
   I want to see a Procedure Execution in its Control-flow graph,

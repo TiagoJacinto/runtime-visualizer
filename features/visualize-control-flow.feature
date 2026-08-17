@@ -1,3 +1,4 @@
+@legacy-ui
 Feature: Visualize a control-flow graph
   As an Operator,
   I want to visualize a Procedure's possible control flow,

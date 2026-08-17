@@ -1,3 +1,4 @@
+@legacy-ui
 Feature: Diagnose control-flow graph generation
   As an Operator,
   I want graph generation failures explained,

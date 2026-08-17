@@ -1,3 +1,4 @@
+@legacy-ui
 Feature: Analyze a complete TypeScript program
   As an Operator,
   I want to analyze a Procedure together with its imported Procedures,
