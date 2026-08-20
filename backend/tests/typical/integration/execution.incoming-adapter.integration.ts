@@ -115,6 +115,24 @@ describe("execution incoming adapter", () => {
 		expect(new Set(ids).size).toBe(3);
 	});
 
+	it("executes the stored workspace snapshot after its file is deleted", async () => {
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
+		await fs.writeFile(path.join(folder, "main.ts"), "function run() { return 1; }\n");
+		app = await createApp({ filesFolder: folder });
+		const analysis = await app.inject({ method: "GET", url: "/api/cfg?file=main.ts&name=run" });
+		const revision = (analysis.json() as { revision: string }).revision;
+		await fs.rm(path.join(folder, "main.ts"));
+
+		const response = await app.inject({
+			method: "POST",
+			url: "/api/execute",
+			payload: { file: "main.ts", name: "run", revision },
+		});
+
+		expect(response.statusCode).toBe(200);
+		expect(response.body).toContain('"status":"Succeeded"');
+	});
+
 	it("returns 409 when revision is unavailable", async () => {
 		folder = await fs.mkdtemp(
 			path.join(os.tmpdir(), "runtime-visualizer-"),

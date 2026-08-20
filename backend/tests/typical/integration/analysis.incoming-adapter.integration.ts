@@ -122,6 +122,26 @@ describe("analysis incoming adapter", () => {
 		expect(body).toHaveProperty("error");
 	});
 
+	it("uses the transitive dependency manifest as the revision boundary", async () => {
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
+		await fs.writeFile(path.join(folder, "main.ts"), "import { value } from './dependency'; function run() { return value; }\n");
+		await fs.writeFile(path.join(folder, "dependency.ts"), "export const value = 1;\n");
+		await fs.writeFile(path.join(folder, "unrelated.ts"), "export const unrelated = 1;\n");
+		app = await createApp({ filesFolder: folder });
+
+		const first = await app.inject({ method: "GET", url: "/api/analysis?file=main.ts&name=run" });
+		await fs.writeFile(path.join(folder, "unrelated.ts"), "export const unrelated = 2;\n");
+		const afterUnrelatedChange = await app.inject({ method: "GET", url: "/api/analysis?file=main.ts&name=run" });
+		await fs.writeFile(path.join(folder, "dependency.ts"), "export const value = 2;\n");
+		const afterDependencyChange = await app.inject({ method: "GET", url: "/api/analysis?file=main.ts&name=run" });
+
+		expect(first.statusCode).toBe(200);
+		expect(afterUnrelatedChange.statusCode).toBe(200);
+		expect(afterDependencyChange.statusCode).toBe(200);
+		expect(afterUnrelatedChange.json().revision).toBe(first.json().revision);
+		expect(afterDependencyChange.json().revision).not.toBe(first.json().revision);
+	}, 30_000);
+
 	it("returns a consistent revision when queried twice", async () => {
 		folder = await fs.mkdtemp(
 			path.join(os.tmpdir(), "runtime-visualizer-"),

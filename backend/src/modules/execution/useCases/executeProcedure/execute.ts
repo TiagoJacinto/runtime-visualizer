@@ -1,11 +1,10 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { analyseProject } from "../../../cfg/index.ts";
-import { HttpError } from "../../../../shared/index.ts";
 import type { ProcedureCfg } from "../../../cfg/index.ts";
 import { executeProcedure } from "./runner.ts";
 import type { RevisionStore } from "../../infra/revision-store.ts";
-import { canonicalSourceFile, readSource } from "../../../source/index.ts";
+import { canonicalSourceFile } from "../../../source/index.ts";
 
 const requestSchema = z.object({
 	source: z.string().max(1_000_000),
@@ -78,13 +77,6 @@ const executeRoutes: FastifyPluginAsync<ExecuteRoutesOptions> = async (
 					.send({ error: issue?.message ?? "Invalid request body." });
 			}
 			const file = canonicalSourceFile(options.filesFolder, parsed.data.file);
-			try {
-				await readSource(options.filesFolder, file);
-			} catch (error) {
-				if (error instanceof HttpError && error.status === 404)
-					return reply.code(409).send({ error: "Revision unavailable" });
-				throw error;
-			}
 			const snapshot = options.revisionStore.acquire(
 				file,
 				parsed.data.name,

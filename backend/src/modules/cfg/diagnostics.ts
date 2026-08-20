@@ -8,33 +8,66 @@ export type SourceProject = {
 	readonly files?: Readonly<Record<string, string>>;
 };
 
+/** Compiler inputs that form part of an analysis workspace manifest. */
+export const analysisCompilerOptions: Readonly<ts.CompilerOptions> = {
+	allowJs: false,
+	jsx: ts.JsxEmit.Preserve,
+	module: ts.ModuleKind.ESNext,
+	moduleResolution: ts.ModuleResolutionKind.Bundler,
+	noEmit: true,
+	target: ts.ScriptTarget.ESNext,
+};
+
+/** Returns the saved source files loaded by the selected file's TypeScript Program. */
+export function projectDependencyFiles({ source, filePath, files = {} }: SourceProject): readonly string[] {
+	const { program, sources, selectedPath } = createProjectProgram({ source, filePath, files });
+	const paths = new Set(program.getSourceFiles().map((file) => path.normalize(file.fileName)));
+	return [...sources.keys()]
+		.filter((name) => paths.has(name))
+		.map((name) => name === selectedPath ? filePath : name.replace(/^\/runtime-visualizer\//, ""))
+		.sort();
+}
+
 /** Diagnose only the selected Procedure and the dependencies it imports. */
-export function diagnoseProject({ source, filePath, files = {} }: SourceProject): GraphDiagnostic[] {
+export function diagnoseProject(project: SourceProject): GraphDiagnostic[] {
+	const { program, sources, selectedPath } = createProjectProgram(project);
+	const diagnostics: GraphDiagnostic[] = [];
+	for (const file of program.getSourceFiles()) {
+		const candidatePath = path.normalize(file.fileName);
+		if (!sources.has(candidatePath)) continue;
+		const dependency = candidatePath === selectedPath ? undefined : displayPath(candidatePath);
+		for (const diagnostic of program.getSyntacticDiagnostics(file)) {
+			if (diagnostic.category === ts.DiagnosticCategory.Error) addDiagnostic(diagnostics, diagnostic, project.filePath, dependency, "Syntax is invalid");
+		}
+		for (const diagnostic of program.getSemanticDiagnostics(file)) {
+			if (diagnostic.category !== ts.DiagnosticCategory.Error || ignorableDiagnostic(diagnostic)) continue;
+			const reason = diagnostic.code === 2307 ? "Required dependency could not be resolved" : "Type checking failed";
+			addDiagnostic(diagnostics, diagnostic, project.filePath, dependency, reason);
+		}
+		collectWithDiagnostics(file, project.filePath, dependency, diagnostics);
+	}
+	return diagnostics;
+}
+
+function createProjectProgram({ source, filePath, files = {} }: SourceProject): {
+	readonly program: ts.Program;
+	readonly sources: Map<string, string>;
+	readonly selectedPath: string;
+} {
 	const selectedPath = virtualPath(filePath);
 	const sources = new Map<string, string>();
 	for (const [name, contents] of Object.entries(files)) sources.set(virtualPath(name), contents);
-	// The request's selected source is authoritative if `files` repeats its path.
 	sources.set(selectedPath, source);
-
-	const compilerOptions: ts.CompilerOptions = {
-		allowJs: false,
-		jsx: ts.JsxEmit.Preserve,
-		module: ts.ModuleKind.ESNext,
-		moduleResolution: ts.ModuleResolutionKind.Bundler,
-		noEmit: true,
-		target: ts.ScriptTarget.ESNext,
-	};
+	const compilerOptions = analysisCompilerOptions;
 	const host = ts.createCompilerHost(compilerOptions);
 	const defaultLib = path.normalize(ts.getDefaultLibFilePath(compilerOptions));
 	const defaultReadFile = host.readFile.bind(host);
 	const readDefaultLib = (fileName: string): string | undefined =>
 		fileName === defaultLib || path.basename(fileName).startsWith("lib.") ? defaultReadFile(fileName) : undefined;
-
 	host.readFile = (fileName) => sources.get(path.normalize(fileName)) ?? readDefaultLib(fileName);
 	host.fileExists = (fileName) => sources.has(path.normalize(fileName)) || readDefaultLib(fileName) !== undefined;
 	host.resolveModuleNames = (moduleNames, containingFile) => moduleNames.map((moduleName) => {
 		if (moduleName.startsWith(".")) {
-			// Check the exact specifier first so explicit .ts/.tsx extensions resolve.
 			const exact = path.normalize(`${path.dirname(containingFile)}/${moduleName}`);
 			if (sources.has(exact)) return { resolvedFileName: exact, extension: scriptKindFor(exact) === ts.ScriptKind.TSX ? ts.Extension.Tsx : ts.Extension.Ts, isExternalLibraryImport: false };
 			for (const extension of [".ts", ".tsx", ".d.ts"]) {
@@ -48,26 +81,8 @@ export function diagnoseProject({ source, filePath, files = {} }: SourceProject)
 		const contents = host.readFile(fileName);
 		return contents === undefined ? undefined : ts.createSourceFile(fileName, contents, languageVersion, true, scriptKindFor(fileName));
 	};
-
-	const program = ts.createProgram([selectedPath], compilerOptions, host);
-	const diagnostics: GraphDiagnostic[] = [];
-	for (const file of program.getSourceFiles()) {
-		const candidatePath = path.normalize(file.fileName);
-		if (!sources.has(candidatePath)) continue;
-		const dependency = candidatePath === selectedPath ? undefined : displayPath(candidatePath);
-		for (const diagnostic of program.getSyntacticDiagnostics(file)) {
-			if (diagnostic.category === ts.DiagnosticCategory.Error) addDiagnostic(diagnostics, diagnostic, filePath, dependency, "Syntax is invalid");
-		}
-		for (const diagnostic of program.getSemanticDiagnostics(file)) {
-			if (diagnostic.category !== ts.DiagnosticCategory.Error || ignorableDiagnostic(diagnostic)) continue;
-			const reason = diagnostic.code === 2307 ? "Required dependency could not be resolved" : "Type checking failed";
-			addDiagnostic(diagnostics, diagnostic, filePath, dependency, reason);
-		}
-		collectWithDiagnostics(file, filePath, dependency, diagnostics);
-	}
-	return diagnostics;
+	return { program: ts.createProgram([selectedPath], compilerOptions, host), sources, selectedPath };
 }
-
 function ignorableDiagnostic(diagnostic: ts.Diagnostic): boolean {
 	// Source snippets commonly call project-provided globals that are not part of the upload.
 	// Keep unknown types and values visible: only an unresolved function callee is contextual.

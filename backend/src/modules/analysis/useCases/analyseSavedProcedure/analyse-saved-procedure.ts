@@ -1,4 +1,5 @@
-import { analyseProject } from "../../../cfg/index.ts";
+import { createHash } from "node:crypto";
+import { analysisCompilerOptions, analyseProject, projectDependencyFiles } from "../../../cfg/index.ts";
 import type { ControlFlowGraph, GraphDiagnostic } from "../../../cfg/index.ts";
 import {
 	discoverProcedures,
@@ -63,6 +64,13 @@ export async function analyseSavedProcedure(
 	);
 	const files = Object.fromEntries(entries);
 
+	const revision = workspaceManifestRevision({
+		source: resource.source,
+		file: resource.file,
+		files,
+		showImports: input.showImports,
+	});
+
 	const analysis = analyseProject({
 		source: resource.source,
 		filePath: resource.file,
@@ -77,7 +85,7 @@ export async function analyseSavedProcedure(
 			error: {
 				error: "Analysis failed",
 				file: resource.file,
-				revision: resource.revision,
+				revision,
 				source: resource.source,
 				procedures,
 				diagnostics: analysis.diagnostics,
@@ -92,7 +100,7 @@ export async function analyseSavedProcedure(
 			error: {
 				error: "No executable Procedure found",
 				file: resource.file,
-				revision: resource.revision,
+				revision,
 				source: resource.source,
 				procedures,
 				diagnostics: [],
@@ -100,7 +108,7 @@ export async function analyseSavedProcedure(
 		};
 	}
 
-	revisionStore.set(resource.file, input.name, resource.revision, {
+	revisionStore.set(resource.file, input.name, revision, {
 		source: resource.source,
 		filePath: resource.file,
 		functionName: input.name,
@@ -113,7 +121,7 @@ export async function analyseSavedProcedure(
 		snapshot: {
 			file: resource.file,
 			procedure: selectedProcedure,
-			revision: resource.revision,
+			revision,
 			source: resource.source,
 			procedures,
 			cfg: analysis.cfg ?? null,
@@ -130,4 +138,26 @@ function findProcedure(
 	return (
 		procedures.find((p) => p.name === name) ?? (procedures[0] as ProcedureResource)
 	);
+}
+
+
+/** Content-addressed immutable TypeScript Program inputs for one analysis. */
+function workspaceManifestRevision({
+	source,
+	file,
+	files,
+	showImports,
+}: {
+	readonly source: string;
+	readonly file: string;
+	readonly files: Readonly<Record<string, string>>;
+	readonly showImports: boolean | undefined;
+}): string {
+	const dependencyFiles = projectDependencyFiles({ source, filePath: file, files });
+	const manifest = {
+		compilerOptions: analysisCompilerOptions,
+		files: dependencyFiles.map((path) => [path, path === file ? source : files[path]]),
+		showImports: showImports ?? false,
+	};
+	return createHash("sha256").update(JSON.stringify(manifest)).digest("hex");
 }
