@@ -6,7 +6,7 @@ The content-addressed identifier for one immutable workspace manifest. It identi
 
 ## Workspace manifest
 
-The selected source file, every transitively resolved source file loaded by its TypeScript `Program`, and every compiler or analysis configuration value that can affect diagnostics, CFG construction, or execution. Input paths are sorted and paired with their content hashes before deriving the manifest identity.
+The selected source file, every transitively resolved source file loaded by its TypeScript `Program`, and every compiler or analysis configuration value that can affect diagnostics, CFG construction, or execution. Input paths are sorted and paired with their contents before deriving the content-addressed manifest identity.
 
 A source change creates a new manifest. It cannot change the diagnostics, CFG, or execution already pinned to an earlier revision.
 
