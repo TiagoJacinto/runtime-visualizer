@@ -20,8 +20,6 @@
   "managed_links": [
     ".agents/skills/docs-impact-review",
     ".agents/skills/verify-workspace",
-    ".claude/skills/docs-impact-review",
-    ".claude/skills/verify-workspace",
     ".harness/resolved/conventions/documentation.md",
     ".harness/resolved/conventions/validation.md",
     ".harness/resolved/skills/docs-impact-review",
