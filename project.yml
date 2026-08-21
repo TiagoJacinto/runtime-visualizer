@@ -3,9 +3,9 @@ name: Runtime Visualizer
 kind: bun-application-workspace
 
 commands:
-  install: bun install --frozen-lockfile
-  check: bun run check
-  test: bun test
+  install: bun run bootstrap
+  check: bun run lint
+  test: bun run test
 
 documentation:
   instructions: AGENTS.md
