@@ -1,0 +1,17 @@
+id: runtime-visualizer
+name: Runtime Visualizer
+kind: bun-application-workspace
+
+commands:
+  install: bun install --frozen-lockfile
+  check: bun run check
+  test: bun test
+
+documentation:
+  instructions: AGENTS.md
+  architecture: CONTEXT.md
+  product: PRODUCT.md
+
+factory:
+  isolated: true
+  cross_project_imports: forbidden
