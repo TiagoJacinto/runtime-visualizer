@@ -1,5 +1,7 @@
 import type { AnalysisGateway } from "../../../shared/api/analysisGateway";
 import type { ExecutionGateway } from "../../../shared/api/executionGateway";
+import type { FileEventsGateway } from "../../../shared/api/fileEventsGateway";
+import type { RetryScheduler } from "../../../shared/retry/retryScheduler";
 import type { LiveWorkspaceState } from "./liveWorkspace.types";
 export type WorkspaceController = {
   getState(): LiveWorkspaceState;
@@ -16,4 +18,6 @@ export type WorkspaceController = {
 export type LiveWorkspacePorts = {
   analysis: AnalysisGateway;
   execution: ExecutionGateway;
+  fileEvents?: FileEventsGateway;
+  retry?: RetryScheduler;
 };

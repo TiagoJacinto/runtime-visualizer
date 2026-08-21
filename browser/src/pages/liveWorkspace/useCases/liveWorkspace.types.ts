@@ -1,5 +1,6 @@
 import type { AnalysisResponse } from "@runtime-visualizer/contracts";
 export type WorkspaceStatus = "loading" | "ready" | "empty" | "error";
+export type ConnectionStatus = "connected" | "reconnecting";
 export type ExecutionStatus = "running" | "succeeded" | "failed" | "interrupted";
 export type ExecutionRecord = {
   executionId: string;
@@ -20,6 +21,9 @@ export type LiveWorkspaceState = {
   executions: readonly ExecutionRecord[];
   selectedExecutionId: string | null;
   error: string | null;
+  connection: ConnectionStatus;
+  queuedRevision: string | null;
+  fileDeleted: boolean;
 };
 export const initialLiveWorkspaceState: LiveWorkspaceState = {
   status: "loading",
@@ -31,6 +35,9 @@ export const initialLiveWorkspaceState: LiveWorkspaceState = {
   executions: [],
   selectedExecutionId: null,
   error: null,
+  connection: "connected",
+  queuedRevision: null,
+  fileDeleted: false,
 };
 
 export function snapshotKey(analysis: AnalysisResponse): string {
