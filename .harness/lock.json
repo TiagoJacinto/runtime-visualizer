@@ -1,0 +1,32 @@
+{
+  "dependencies": [
+    {
+      "id": "convention/documentation",
+      "sha256": "16bfd49f0b82971942ae7e1e1879932cc4e234c63fe81f99dd0baa203381c313"
+    },
+    {
+      "id": "convention/validation",
+      "sha256": "5b5d35b35256365ec4588e5f00306e55dbd706f2647307e2f647c44609796d66"
+    },
+    {
+      "id": "skill/docs-impact-review",
+      "sha256": "f65bc1fb29ae8bb53a7fd5b8c533d2be2fd8727a628c213fbc814076e2ae074d"
+    },
+    {
+      "id": "skill/verify-workspace",
+      "sha256": "0a9561a44609cc674f18ecff6e6ded89481e11842beb386a46d76fb08e9a720a"
+    }
+  ],
+  "managed_links": [
+    ".agents/skills/docs-impact-review",
+    ".agents/skills/verify-workspace",
+    ".claude/skills/docs-impact-review",
+    ".claude/skills/verify-workspace",
+    ".harness/resolved/conventions/documentation.md",
+    ".harness/resolved/conventions/validation.md",
+    ".harness/resolved/skills/docs-impact-review",
+    ".harness/resolved/skills/verify-workspace"
+  ],
+  "version": 1,
+  "workspace": "runtime-visualizer"
+}
