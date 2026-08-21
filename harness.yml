@@ -1,0 +1,7 @@
+uses:
+  conventions:
+    - documentation
+    - validation
+  skills:
+    - docs-impact-review
+    - verify-workspace

@@ -1,6 +1,6 @@
 ## Shared harness
 
-Read `HARNESS.md` and `.harness/resolved/CONTEXT.md` before changing this workspace. Shared skills are materialized into the agent-specific skill directories; do not edit those generated links.
+Read `harness.yml` and `.harness/resolved/CONTEXT.md` before changing this workspace. Shared skills are materialized into the agent-specific skill directories; do not edit those generated links.
 
 ## Agent skills
 
