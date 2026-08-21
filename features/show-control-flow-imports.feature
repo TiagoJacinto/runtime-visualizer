@@ -1,3 +1,4 @@
+@legacy-ui
 Feature: Show imports with a control-flow graph
   As an Operator,
   I want to choose whether a file Procedure's imports accompany its graph,

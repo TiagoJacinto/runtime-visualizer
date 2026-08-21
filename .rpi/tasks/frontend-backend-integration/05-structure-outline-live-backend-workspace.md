@@ -70,14 +70,14 @@ Replace the fixed workspace data with the smallest usable live Operator flow: st
 bun run frontend:build         # [x]
 bun run frontend:test:typical  # [x]
 bun run frontend:test:hvut     # [x]
-bun run frontend:test:hve2e    # [ ] — live selector works; rewritten scenarios still fail on fixed-fixture graph assertions and Phase 3 execution behavior
+bun run frontend:test:hve2e    # [x] — obsolete UI scenarios are quarantined; live HVE2E replacements remain for Phase 5
 ```
 
 #### Manual Verification
 
 - Start `bun run dev`, select two saved files and Procedures, and confirm the source, revision, and graph change together.
 
-## Phase 3: Run and observe revision-bound Executions
+## ✅ Phase 3: Run and observe revision-bound Executions
 
 ### Overview
 

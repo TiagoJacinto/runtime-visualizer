@@ -33,7 +33,7 @@ try {
 	const request = workerData as ExecutionRequest;
 	const events: string[] = [];
 	const instrumented = instrument(
-		stripModuleMarker(request.source),
+		stripModuleSyntax(request.source),
 		request.filePath,
 		request.procedure,
 	);
@@ -132,8 +132,18 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
 	);
 }
 
-function stripModuleMarker(source: string): string {
-	return source.replace(/^\s*export\s*\{\s*\};?\s*$/gm, "");
+function stripModuleSyntax(source: string): string {
+	return source
+		.replace(/^\s*export\s*\{[^}]*\}\s*;?\s*$/gm, "")
+		.replace(
+			/^\s*export\s+\*\s+from\s+["'][^"']+["']\s*;?\s*$/gm,
+			"",
+		)
+		.replace(
+			/\bexport\s+(?=(?:default\s+)?(?:async\s+)?(?:abstract\s+)?(?:function|class|const|let|var|type|interface|namespace|enum)\b)/g,
+			"",
+		)
+		.replace(/\bexport\s+default\s+/g, "");
 }
 
 function instrument(

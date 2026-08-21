@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const ExecutionIdSchema = z.string().min(1);
+
 export const ExecutionNodeEventSchema = z.object({
   event: z.literal("node"),
   data: z.object({ nodeId: z.string() }),
