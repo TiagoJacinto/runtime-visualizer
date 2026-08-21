@@ -40,3 +40,6 @@ adws/adw_data/sssf.db*
 .pi/skills/sssf/
 .env
 coverage
+
+# Test coverage output
+**/coverage/
