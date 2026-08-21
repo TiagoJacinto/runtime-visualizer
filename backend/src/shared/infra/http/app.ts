@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { HttpError, loadSettings } from "../../index.ts";
+import { analysisRoutes } from "../../../modules/analysis/http.ts";
 import { cfgRoutes } from "../../../modules/cfg/http.ts";
 import { RevisionStore } from "../../../modules/execution/index.ts";
 import { executeRoutes } from "../../../modules/execution/http.ts";
@@ -82,6 +83,11 @@ export async function createApp(
 		sourceChangeWatcher.close();
 	});
 	await app.register(echoRoutes, { prefix: "/api/echo" });
+	await app.register(analysisRoutes, {
+		prefix: "/api/analysis",
+		filesFolder,
+		revisionStore,
+	});
 	await app.register(cfgRoutes, {
 		prefix: "/api/cfg",
 		filesFolder,

@@ -1,4 +1,4 @@
-export { diagnoseProject } from "./diagnostics.ts";
+export { analysisCompilerOptions, diagnoseProject, projectDependencyFiles } from "./diagnostics.ts";
 export { analyseFileProcedure } from "./useCases/analyseFile/file-analyzer.ts";
 export { analyseProject } from "./useCases/analyseProject/project-analyzer.ts";
 

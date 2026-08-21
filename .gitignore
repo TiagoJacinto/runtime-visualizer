@@ -39,3 +39,4 @@ adws/adw_data/runs/
 adws/adw_data/sssf.db*
 .pi/skills/sssf/
 .env
+coverage
