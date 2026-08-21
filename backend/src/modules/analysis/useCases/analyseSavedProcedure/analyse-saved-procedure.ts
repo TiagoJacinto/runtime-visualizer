@@ -146,18 +146,18 @@ function workspaceManifestRevision({
 	source,
 	file,
 	files,
-	showImports,
+	showImports = false,
 }: {
 	readonly source: string;
 	readonly file: string;
 	readonly files: Readonly<Record<string, string>>;
-	readonly showImports: boolean | undefined;
+	readonly showImports?: boolean;
 }): string {
 	const dependencyFiles = projectDependencyFiles({ source, filePath: file, files });
 	const manifest = {
 		compilerOptions: analysisCompilerOptions,
 		files: dependencyFiles.map((path) => [path, path === file ? source : files[path]]),
-		showImports: showImports ?? false,
+		showImports,
 	};
 	return createHash("sha256").update(JSON.stringify(manifest)).digest("hex");
 }
