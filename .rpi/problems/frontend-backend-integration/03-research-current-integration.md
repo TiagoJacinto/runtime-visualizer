@@ -2,7 +2,7 @@
 
 **Research date:** 2026-08-12  
 **Scope:** Current frontend, backend, HTTP contracts, revision behavior, streams, tests, and design system  
-**Source questions:** `01-research-questions-integration-plan.md`
+**Source questions:** `02-research-questions-integration-plan.md`
 
 ## Executive summary
 

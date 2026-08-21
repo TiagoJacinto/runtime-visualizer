@@ -4,9 +4,9 @@ import { defineBddConfig } from "playwright-bdd";
 const testDir = defineBddConfig({
 	featuresRoot: "../features",
 	features: "../features/**/*.feature",
-	// The old browser bindings are retained as domain contracts until live replacements exist.
+	// The old domain feature contracts stay available to backend acceptance suites.
 	tags: "not @legacy-ui",
-	steps: "tests/acceptance/e2e/*.hve2e.ts",
+	steps: "tests/acceptance/e2e/live-workspace.hve2e.ts",
 	outputDir: ".features-gen",
 	missingSteps: "fail-on-gen",
 });

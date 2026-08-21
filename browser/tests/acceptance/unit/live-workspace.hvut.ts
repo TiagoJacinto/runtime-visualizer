@@ -41,21 +41,29 @@ const analysis: AnalysisResponse = {
 };
 
 class FileEventsSpy {
-  readonly waiters: Array<(result: IteratorResult<FileChangeEvent>) => void> = [];
+  readonly waiters: Array<(result: IteratorResult<FileChangeEvent>) => void> =
+    [];
   closed = false;
   push(event: FileChangeEvent): void {
     this.waiters.shift()?.({ done: false, value: event });
   }
   close(): void {
     this.closed = true;
-    for (const waiter of this.waiters.splice(0)) waiter({ done: true, value: undefined });
+    for (const waiter of this.waiters.splice(0))
+      waiter({ done: true, value: undefined });
   }
   async *iterate(signal: AbortSignal): AsyncGenerator<FileChangeEvent> {
     while (!this.closed && !signal.aborted) {
-      const result = await new Promise<IteratorResult<FileChangeEvent>>((resolve) => {
-        this.waiters.push(resolve);
-        signal.addEventListener("abort", () => resolve({ done: true, value: undefined }), { once: true });
-      });
+      const result = await new Promise<IteratorResult<FileChangeEvent>>(
+        (resolve) => {
+          this.waiters.push(resolve);
+          signal.addEventListener(
+            "abort",
+            () => resolve({ done: true, value: undefined }),
+            { once: true },
+          );
+        },
+      );
       if (result.done) return;
       yield result.value;
     }
@@ -207,10 +215,17 @@ describe("live workspace execution observation", () => {
     await settle();
     controller.runProcedure();
     await settle();
-    events.push({ type: "file-changed", file: "main.ts", change: "modified", revision: "revision-2" });
+    events.push({
+      type: "file-changed",
+      file: "main.ts",
+      change: "modified",
+      revision: "revision-2",
+    });
     await settle();
     expect(controller.getState().queuedRevision).toBe("revision-2");
-    streams.get("execution-1")?.push({ event: "result", data: { status: "Succeeded" } });
+    streams
+      .get("execution-1")
+      ?.push({ event: "result", data: { status: "Succeeded" } });
     await settle();
     expect(controller.getState().queuedRevision).toBeNull();
     expect(controller.getState().analysis?.revision).toBe("revision-2");
@@ -240,9 +255,16 @@ describe("live workspace execution observation", () => {
     await settle();
     controller.runProcedure();
     await settle();
-    events.push({ type: "file-changed", file: "main.ts", change: "modified", revision: "revision-2" });
+    events.push({
+      type: "file-changed",
+      file: "main.ts",
+      change: "modified",
+      revision: "revision-2",
+    });
     await settle();
-    streams.get("execution-1")?.push({ event: "result", data: { status: "Succeeded" } });
+    streams
+      .get("execution-1")
+      ?.push({ event: "result", data: { status: "Succeeded" } });
     await settle();
     expect(procedures).toEqual([undefined, undefined]);
     expect(controller.getState().analysis?.revision).toBe("revision-2");
@@ -268,7 +290,12 @@ describe("live workspace execution observation", () => {
     const events = new FileEventsSpy();
     const scheduled: Array<() => void> = [];
     ports.fileEvents = { subscribe: (signal) => events.iterate(signal) };
-    ports.retry = { schedule: (_delay, task) => { scheduled.push(task); return () => undefined; } };
+    ports.retry = {
+      schedule: (_delay, task) => {
+        scheduled.push(task);
+        return () => undefined;
+      },
+    };
     const controller = createLiveWorkspaceController(ports);
     controller.start();
     await settle();

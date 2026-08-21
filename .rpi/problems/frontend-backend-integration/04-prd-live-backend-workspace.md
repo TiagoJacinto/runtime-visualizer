@@ -92,7 +92,7 @@ Selecting an active Execution in the run inspector opens its pinned file, Proced
 ### Active Executions keep the displayed revision stable
 
 ```task-artifact
-.rpi/tasks/frontend-backend-integration/show-me-revision-pinning-state.html
+.rpi/problems/frontend-backend-integration/show-me-revision-pinning-state.html
 ```
 
 When the selected file changes and no active Execution matches the displayed file, Procedure, and revision, the workspace automatically loads the newest source and Control-flow graph. The displayed revision and the latest filesystem revision remain the same.
