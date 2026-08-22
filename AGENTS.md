@@ -17,3 +17,5 @@ Use the default Matt Pocock triage labels. See `docs/agents/triage-labels.md`.
 This repository uses a single-context layout. See `docs/agents/domain.md`.
 
 Feature documentation is in `./features/`.
+
+When this project is mounted under personal-factory, the parent generates private AI context in .personal-factory/. A standalone clone does not require that overlay.
