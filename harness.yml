@@ -1,7 +1,15 @@
-uses:
+version: 1
+
+sources:
+  personal:
+    type: git
+    url: git@github.com:TiagoJacinto/personal-agent-knowledge.git
+    commit: eef4c301c663ef609752cb7d46506a7635111eb1
+
+dependencies:
   conventions:
-    - documentation
-    - validation
+    - personal/documentation
+    - personal/validation
   skills:
-    - docs-impact-review
-    - verify-workspace
+    - personal/docs-impact-review
+    - personal/verify-workspace
