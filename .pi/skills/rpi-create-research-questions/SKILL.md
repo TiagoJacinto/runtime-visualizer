@@ -11,6 +11,7 @@ Your job is to work with the user to create a comprehensive set of research ques
 
 These questions will be used by another agent to research the codebase.
 
+
 ## Steps to follow after receiving the user's request
 
 1. **Read all @-mentioned files immediately and FULLY**:
