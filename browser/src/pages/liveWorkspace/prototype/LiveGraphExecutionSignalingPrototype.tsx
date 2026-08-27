@@ -61,7 +61,10 @@ const states: Record<StateKey, PrototypeState> = {
     label: "Branch selection",
     detail: "The true outcome is chosen; the false route stays visible.",
     current: "approve",
-    activeRuns: [{ id: "run-04", node: "approve", color: "sky" }, { id: "run-07", node: "fetch", color: "amber" }],
+    activeRuns: [
+      { id: "run-04", node: "approve", color: "sky" },
+      { id: "run-07", node: "fetch", color: "amber" },
+    ],
     visited: ["entry", "validate", "decision", "approve"],
     pulse: "decision-approve",
     outcome: "true",
@@ -71,7 +74,11 @@ const states: Record<StateKey, PrototypeState> = {
     detail:
       "Validate request has been visited three times without making the graph ambiguous.",
     current: "validate",
-    activeRuns: [{ id: "run-02", node: "validate", color: "sky" }, { id: "run-05", node: "validate", color: "violet" }, { id: "run-07", node: "fetch", color: "amber" }],
+    activeRuns: [
+      { id: "run-02", node: "validate", color: "sky" },
+      { id: "run-05", node: "validate", color: "violet" },
+      { id: "run-07", node: "fetch", color: "amber" },
+    ],
     visited: [
       "entry",
       "validate",
@@ -254,7 +261,10 @@ function ControlFlowDiagram({
       {(Object.keys(nodes) as NodeId[]).map((id) => {
         const node = nodes[id];
         const current = candidate === "B" && state.current === id;
-        const markers = candidate === "A" ? state.activeRuns.filter((run) => run.node === id) : [];
+        const markers =
+          candidate === "A"
+            ? state.activeRuns.filter((run) => run.node === id)
+            : [];
         const fill = current ? "#164e63" : "#0f172a";
         const stroke = current ? "#67e8f9" : "#64748b";
         return (
@@ -304,8 +314,24 @@ function ControlFlowDiagram({
             )}
             {markers.map((run, index) => (
               <g key={run.id} aria-label={`${run.id} executing ${node.label}`}>
-                <circle cx={node.x + 48 - index * 23} cy={node.y - 24} r="11" fill={runColors[run.color].fill} stroke="#0f172a" strokeWidth="3" />
-                <text x={node.x + 48 - index * 23} y={node.y - 20} fill="#0f172a" fontSize="9" fontWeight="700" textAnchor="middle">{run.id.replace("run-", "")}</text>
+                <circle
+                  cx={node.x + 48 - index * 23}
+                  cy={node.y - 24}
+                  r="11"
+                  fill={runColors[run.color].fill}
+                  stroke="#0f172a"
+                  strokeWidth="3"
+                />
+                <text
+                  x={node.x + 48 - index * 23}
+                  y={node.y - 20}
+                  fill="#0f172a"
+                  fontSize="9"
+                  fontWeight="700"
+                  textAnchor="middle"
+                >
+                  {run.id.replace("run-", "")}
+                </text>
               </g>
             ))}
             <text
@@ -363,7 +389,7 @@ export function LiveGraphExecutionSignalingPrototype() {
 
   return (
     <main
-      className="min-h-screen bg-slate-950 p-6 pb-28 text-slate-100"
+      className="h-screen overflow-y-auto overscroll-contain bg-slate-950 p-6 pb-28 text-slate-100"
       data-testid="live-graph-execution-prototype"
     >
       <header className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-slate-800 pb-5">
@@ -445,8 +471,23 @@ export function LiveGraphExecutionSignalingPrototype() {
                     ? "Cyan line is the transient transition pulse; only the current node is live."
                     : "Terminal state: no node or edge remains live."}
                 {candidate === "A" && state.activeRuns.length > 0 && (
-                  <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs" aria-label="Active runs by graph node">
-                    {state.activeRuns.map((run) => <li key={run.id} className="flex items-center gap-1.5"><span className={`h-2.5 w-2.5 rounded-full ${runColors[run.color].className}`} /><span className="font-mono text-slate-200">{run.id}</span><span className="text-slate-400">{nodes[run.node].label}</span></li>)}
+                  <ul
+                    className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs"
+                    aria-label="Active runs by graph node"
+                  >
+                    {state.activeRuns.map((run) => (
+                      <li key={run.id} className="flex items-center gap-1.5">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${runColors[run.color].className}`}
+                        />
+                        <span className="font-mono text-slate-200">
+                          {run.id}
+                        </span>
+                        <span className="text-slate-400">
+                          {nodes[run.node].label}
+                        </span>
+                      </li>
+                    ))}
                   </ul>
                 )}
               </div>
