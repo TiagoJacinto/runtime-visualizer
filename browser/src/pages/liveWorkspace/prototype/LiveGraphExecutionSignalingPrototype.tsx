@@ -3,8 +3,8 @@ import { useState } from "react";
 /**
  * PROTOTYPE ONLY — issue #48. Development host: ?prototype=execution-signaling.
  *
- * UI contract: compare graph history (A) with one live graph signal plus an
- * inspector trace (B). Both use the same source, Procedure scope, directed
+ * UI contract: compare active-run node markers (A) with one live graph signal
+ * plus an inspector trace (B). Both use the same source, Procedure scope, directed
  * control-flow diagram, inspector data, dark design system, and viewport.
  */
 type CandidateKey = "A" | "B";
@@ -32,10 +32,24 @@ type EdgeId =
   | "retry-validate"
   | "approve-exit";
 
+type RunColor = "sky" | "violet" | "amber";
+type PrototypeRun = {
+  id: string;
+  node: NodeId;
+  color: RunColor;
+};
+
+const runColors: Record<RunColor, { fill: string; className: string }> = {
+  sky: { fill: "#38bdf8", className: "bg-sky-400" },
+  violet: { fill: "#c4b5fd", className: "bg-violet-300" },
+  amber: { fill: "#fbbf24", className: "bg-amber-400" },
+};
+
 type PrototypeState = {
   label: string;
   detail: string;
   current: NodeId | null;
+  activeRuns: PrototypeRun[];
   visited: NodeId[];
   pulse: EdgeId | null;
   outcome: string;
@@ -47,6 +61,7 @@ const states: Record<StateKey, PrototypeState> = {
     label: "Branch selection",
     detail: "The true outcome is chosen; the false route stays visible.",
     current: "approve",
+    activeRuns: [{ id: "run-04", node: "approve", color: "sky" }, { id: "run-07", node: "fetch", color: "amber" }],
     visited: ["entry", "validate", "decision", "approve"],
     pulse: "decision-approve",
     outcome: "true",
@@ -56,6 +71,7 @@ const states: Record<StateKey, PrototypeState> = {
     detail:
       "Validate request has been visited three times without making the graph ambiguous.",
     current: "validate",
+    activeRuns: [{ id: "run-02", node: "validate", color: "sky" }, { id: "run-05", node: "validate", color: "violet" }, { id: "run-07", node: "fetch", color: "amber" }],
     visited: [
       "entry",
       "validate",
@@ -75,6 +91,7 @@ const states: Record<StateKey, PrototypeState> = {
     label: "Slow node",
     detail: "The active statement has exceeded its 800 ms expected duration.",
     current: "fetch",
+    activeRuns: [{ id: "run-07", node: "fetch", color: "amber" }],
     visited: ["entry", "validate", "decision", "fetch"],
     pulse: "decision-fetch",
     outcome: "1.8 s elapsed",
@@ -84,6 +101,7 @@ const states: Record<StateKey, PrototypeState> = {
     detail:
       "Terminal result is retained in the inspector; no graph path remains live.",
     current: null,
+    activeRuns: [],
     visited: ["entry", "validate", "decision", "approve", "exit"],
     pulse: null,
     outcome: "return approved",
@@ -94,6 +112,7 @@ const states: Record<StateKey, PrototypeState> = {
     detail:
       "The error and terminal source range remain inspectable after the graph signal clears.",
     current: null,
+    activeRuns: [],
     visited: ["entry", "validate", "decision", "fetch"],
     pulse: null,
     outcome: "NetworkError: policy service unavailable",
@@ -104,6 +123,7 @@ const states: Record<StateKey, PrototypeState> = {
     detail:
       "A With statement prevents graph generation; source and Procedure scope remain available.",
     current: null,
+    activeRuns: [],
     visited: [],
     pulse: null,
     outcome: "Unsupported With statement",
@@ -139,13 +159,6 @@ const edges: Record<EdgeId, { path: string; label?: string }> = {
   "approve-exit": { path: "M195 400 L195 558" },
 };
 
-function pairs(visited: readonly NodeId[]): EdgeId[] {
-  return visited.slice(1).flatMap((node, index) => {
-    const pair = `${visited[index]}-${node}` as EdgeId;
-    return pair in edges ? [pair] : [];
-  });
-}
-
 function readInitial(): { candidate: CandidateKey; state: StateKey } {
   const params = new URLSearchParams(window.location.search);
   return {
@@ -157,11 +170,15 @@ function readInitial(): { candidate: CandidateKey; state: StateKey } {
 }
 
 function updateUrl(candidate: CandidateKey, state: StateKey) {
-  const url = new URL(window.location.href);
-  url.searchParams.set("prototype", "execution-signaling");
-  url.searchParams.set("candidate", candidate);
-  url.searchParams.set("state", state);
-  window.history.replaceState(null, "", url);
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set("prototype", "execution-signaling");
+    url.searchParams.set("candidate", candidate);
+    url.searchParams.set("state", state);
+    window.history.replaceState(null, "", url);
+  } catch {
+    // The prototype stays interactive even when its host URL is unavailable.
+  }
 }
 
 function ControlFlowDiagram({
@@ -173,7 +190,6 @@ function ControlFlowDiagram({
   stateKey: StateKey;
   state: PrototypeState;
 }) {
-  const historicalEdges = new Set(pairs(state.visited));
   return (
     <svg
       viewBox="0 0 760 640"
@@ -191,16 +207,6 @@ function ControlFlowDiagram({
           orient="auto"
         >
           <path d="M0,0 L8,4 L0,8 z" fill="#64748b" />
-        </marker>
-        <marker
-          id="history-arrow"
-          markerWidth="8"
-          markerHeight="8"
-          refX="7"
-          refY="4"
-          orient="auto"
-        >
-          <path d="M0,0 L8,4 L0,8 z" fill="#c4b5fd" />
         </marker>
         <marker
           id="pulse-arrow"
@@ -222,15 +228,6 @@ function ControlFlowDiagram({
             strokeWidth="2"
             markerEnd="url(#arrow)"
           />
-          {candidate === "A" && historicalEdges.has(id as EdgeId) && (
-            <path
-              d={edge.path}
-              fill="none"
-              stroke="#c4b5fd"
-              strokeWidth="5"
-              markerEnd="url(#history-arrow)"
-            />
-          )}
           {candidate === "B" && state.pulse === id && (
             <path
               d={edge.path}
@@ -256,11 +253,10 @@ function ControlFlowDiagram({
       ))}
       {(Object.keys(nodes) as NodeId[]).map((id) => {
         const node = nodes[id];
-        const visits = state.visited.filter((visit) => visit === id).length;
         const current = candidate === "B" && state.current === id;
-        const historical = candidate === "A" && visits > 0;
-        const fill = current ? "#164e63" : historical ? "#3b2768" : "#0f172a";
-        const stroke = current ? "#67e8f9" : historical ? "#c4b5fd" : "#64748b";
+        const markers = candidate === "A" ? state.activeRuns.filter((run) => run.node === id) : [];
+        const fill = current ? "#164e63" : "#0f172a";
+        const stroke = current ? "#67e8f9" : "#64748b";
         return (
           <g key={id}>
             {current && (
@@ -306,26 +302,12 @@ function ControlFlowDiagram({
                 NOW
               </text>
             )}
-            {historical && (
-              <g>
-                <circle
-                  cx={node.x + 62}
-                  cy={node.y - 23}
-                  r="13"
-                  fill="#c4b5fd"
-                />
-                <text
-                  x={node.x + 62}
-                  y={node.y - 18}
-                  fill="#0f172a"
-                  fontSize="12"
-                  fontWeight="700"
-                  textAnchor="middle"
-                >
-                  {visits}×
-                </text>
+            {markers.map((run, index) => (
+              <g key={run.id} aria-label={`${run.id} executing ${node.label}`}>
+                <circle cx={node.x + 48 - index * 23} cy={node.y - 24} r="11" fill={runColors[run.color].fill} stroke="#0f172a" strokeWidth="3" />
+                <text x={node.x + 48 - index * 23} y={node.y - 20} fill="#0f172a" fontSize="9" fontWeight="700" textAnchor="middle">{run.id.replace("run-", "")}</text>
               </g>
-            )}
+            ))}
             <text
               x={node.x}
               y={node.y - 2}
@@ -458,10 +440,15 @@ export function LiveGraphExecutionSignalingPrototype() {
               />
               <div className="mt-3 rounded border border-slate-800 bg-slate-900/50 p-3 text-sm text-slate-300">
                 {candidate === "A"
-                  ? "Persistent violet overlays and visit badges represent history on the diagram."
+                  ? "Coloured markers identify every active run at its current graph node; the graph itself stays static."
                   : state.pulse
                     ? "Cyan line is the transient transition pulse; only the current node is live."
                     : "Terminal state: no node or edge remains live."}
+                {candidate === "A" && state.activeRuns.length > 0 && (
+                  <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs" aria-label="Active runs by graph node">
+                    {state.activeRuns.map((run) => <li key={run.id} className="flex items-center gap-1.5"><span className={`h-2.5 w-2.5 rounded-full ${runColors[run.color].className}`} /><span className="font-mono text-slate-200">{run.id}</span><span className="text-slate-400">{nodes[run.node].label}</span></li>)}
+                  </ul>
+                )}
               </div>
             </>
           )}
@@ -519,7 +506,7 @@ export function LiveGraphExecutionSignalingPrototype() {
             onClick={() => selectCandidate(key)}
             className={`rounded-full px-3 py-1.5 text-sm ${candidate === key ? "bg-violet-300 font-semibold text-slate-950" : "text-slate-300 hover:bg-slate-800"}`}
           >
-            {key} · {key === "A" ? "Path overlay" : "Live node + trace"}
+            {key} · {key === "A" ? "Active run markers" : "Live node + trace"}
           </button>
         ))}
       </div>
