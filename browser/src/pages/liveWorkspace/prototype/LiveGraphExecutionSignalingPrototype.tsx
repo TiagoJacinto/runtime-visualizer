@@ -3,8 +3,8 @@ import { useState } from "react";
 /**
  * PROTOTYPE ONLY — issue #48. Development host: ?prototype=execution-signaling.
  *
- * UI contract: compare active-run node markers (A) with one live graph signal
- * plus an inspector trace (B). Both use the same source, Procedure scope, directed
+ * UI contract: compare a compact active-run summary plus selected-run signal (A)
+ * with individual active-run node markers (B). Both use the same source, Procedure scope, directed
  * control-flow diagram, inspector data, dark design system, and viewport.
  */
 type CandidateKey = "A" | "B";
@@ -215,16 +215,6 @@ function ControlFlowDiagram({
         >
           <path d="M0,0 L8,4 L0,8 z" fill="#64748b" />
         </marker>
-        <marker
-          id="pulse-arrow"
-          markerWidth="8"
-          markerHeight="8"
-          refX="7"
-          refY="4"
-          orient="auto"
-        >
-          <path d="M0,0 L8,4 L0,8 z" fill="#67e8f9" />
-        </marker>
       </defs>
       {Object.entries(edges).map(([id, edge]) => (
         <g key={id}>
@@ -235,16 +225,6 @@ function ControlFlowDiagram({
             strokeWidth="2"
             markerEnd="url(#arrow)"
           />
-          {candidate === "B" && state.pulse === id && (
-            <path
-              d={edge.path}
-              fill="none"
-              stroke="#67e8f9"
-              strokeWidth="5"
-              markerEnd="url(#pulse-arrow)"
-              className="animate-pulse"
-            />
-          )}
           {edge.label && (
             <text
               x={edge.label === "true" ? 272 : 480}
@@ -260,11 +240,9 @@ function ControlFlowDiagram({
       ))}
       {(Object.keys(nodes) as NodeId[]).map((id) => {
         const node = nodes[id];
-        const current = candidate === "B" && state.current === id;
-        const markers =
-          candidate === "A"
-            ? state.activeRuns.filter((run) => run.node === id)
-            : [];
+        const current = candidate === "A" && state.current === id;
+        const markers = candidate === "B" ? state.activeRuns.filter((run) => run.node === id) : [];
+        const activeRunCount = candidate === "A" ? state.activeRuns.filter((run) => run.node === id).length : 0;
         const fill = current ? "#164e63" : "#0f172a";
         const stroke = current ? "#67e8f9" : "#64748b";
         return (
@@ -312,26 +290,11 @@ function ControlFlowDiagram({
                 NOW
               </text>
             )}
+            {activeRunCount > 0 && <g aria-label={`${activeRunCount} active runs at ${node.label}`}><rect x={node.x + 36} y={node.y - 38} width="37" height="19" rx="9" fill="#334155" stroke="#94a3b8" /><text x={node.x + 54} y={node.y - 25} fill="#e2e8f0" fontSize="10" fontWeight="700" textAnchor="middle">{activeRunCount} run{activeRunCount === 1 ? "" : "s"}</text></g>}
             {markers.map((run, index) => (
               <g key={run.id} aria-label={`${run.id} executing ${node.label}`}>
-                <circle
-                  cx={node.x + 48 - index * 23}
-                  cy={node.y - 24}
-                  r="11"
-                  fill={runColors[run.color].fill}
-                  stroke="#0f172a"
-                  strokeWidth="3"
-                />
-                <text
-                  x={node.x + 48 - index * 23}
-                  y={node.y - 20}
-                  fill="#0f172a"
-                  fontSize="9"
-                  fontWeight="700"
-                  textAnchor="middle"
-                >
-                  {run.id.replace("run-", "")}
-                </text>
+                <circle cx={node.x + 48 - index * 23} cy={node.y - 24} r="11" fill={runColors[run.color].fill} stroke="#0f172a" strokeWidth="3" />
+                <text x={node.x + 48 - index * 23} y={node.y - 20} fill="#0f172a" fontSize="9" fontWeight="700" textAnchor="middle">{run.id.replace("run-", "")}</text>
               </g>
             ))}
             <text
@@ -466,11 +429,9 @@ export function LiveGraphExecutionSignalingPrototype() {
               />
               <div className="mt-3 rounded border border-slate-800 bg-slate-900/50 p-3 text-sm text-slate-300">
                 {candidate === "A"
-                  ? "Coloured markers identify every active run at its current graph node; the graph itself stays static."
-                  : state.pulse
-                    ? "Cyan line is the transient transition pulse; only the current node is live."
-                    : "Terminal state: no node or edge remains live."}
-                {candidate === "A" && state.activeRuns.length > 0 && (
+                  ? "A compact count identifies active runs at each node; the selected run keeps the current-node signal."
+                  : "Coloured, numbered markers identify every active run at its current graph node; the graph itself stays static."}
+                {candidate === "B" && state.activeRuns.length > 0 && (
                   <ul
                     className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs"
                     aria-label="Active runs by graph node"
@@ -547,7 +508,7 @@ export function LiveGraphExecutionSignalingPrototype() {
             onClick={() => selectCandidate(key)}
             className={`rounded-full px-3 py-1.5 text-sm ${candidate === key ? "bg-violet-300 font-semibold text-slate-950" : "text-slate-300 hover:bg-slate-800"}`}
           >
-            {key} · {key === "A" ? "Active run markers" : "Live node + trace"}
+            {key} · {key === "A" ? "Hybrid run summary" : "Active run markers"}
           </button>
         ))}
       </div>
