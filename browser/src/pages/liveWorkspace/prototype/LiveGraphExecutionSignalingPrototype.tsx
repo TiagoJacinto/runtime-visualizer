@@ -234,8 +234,12 @@ function ControlFlowDiagram({
       {(Object.keys(nodes) as NodeId[]).map((id) => {
         const node = nodes[id];
         const nodeRuns = state.activeRuns.filter((run) => run.node === id);
-        const markers = candidate === "A" || nodeRuns.length === 1 ? nodeRuns : [];
-        const clusteredRunIds = candidate === "B" && nodeRuns.length > 1 ? nodeRuns.map((run) => run.id.replace("run-", "")).join(" · ") : null;
+        const markers =
+          candidate === "A" || nodeRuns.length === 1 ? nodeRuns : [];
+        const clusteredRunIds =
+          candidate === "B" && nodeRuns.length > 1
+            ? nodeRuns.map((run) => run.id.replace("run-", "")).join(" · ")
+            : null;
         const fill = "#0f172a";
         const stroke = "#64748b";
         return (
@@ -259,7 +263,29 @@ function ControlFlowDiagram({
                 strokeWidth="2"
               />
             )}
-            {clusteredRunIds && <g aria-label={`${clusteredRunIds} executing ${node.label}`}><rect x={node.x + 14} y={node.y - 38} width="59" height="19" rx="9" fill="#334155" stroke="#94a3b8" /><text x={node.x + 44} y={node.y - 25} fill="#e2e8f0" fontSize="10" fontWeight="700" textAnchor="middle">{clusteredRunIds}</text></g>}
+            {clusteredRunIds && (
+              <g aria-label={`${clusteredRunIds} executing ${node.label}`}>
+                <rect
+                  x={node.x + 14}
+                  y={node.y - 38}
+                  width="59"
+                  height="19"
+                  rx="9"
+                  fill="#334155"
+                  stroke="#94a3b8"
+                />
+                <text
+                  x={node.x + 44}
+                  y={node.y - 25}
+                  fill="#e2e8f0"
+                  fontSize="10"
+                  fontWeight="700"
+                  textAnchor="middle"
+                >
+                  {clusteredRunIds}
+                </text>
+              </g>
+            )}
             {markers.map((run, index) => (
               <g key={run.id} aria-label={`${run.id} executing ${node.label}`}>
                 <circle
@@ -493,7 +519,8 @@ export function LiveGraphExecutionSignalingPrototype() {
             onClick={() => selectCandidate(key)}
             className={`rounded-full px-3 py-1.5 text-sm ${candidate === key ? "bg-violet-300 font-semibold text-slate-950" : "text-slate-300 hover:bg-slate-800"}`}
           >
-            {key} · {key === "A" ? "Individual run markers" : "Clustered run markers"}
+            {key} ·{" "}
+            {key === "A" ? "Individual run markers" : "Clustered run markers"}
           </button>
         ))}
       </div>
