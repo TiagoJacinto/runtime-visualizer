@@ -19,6 +19,7 @@
     "check:maintainability": "bun run lint && bun run coverage",
     "clone-check": "jscpd backend/src browser/src",
     "clone-instances": "bun run scripts/clone-instances.ts",
+    "prototype:execution-history": "bun run browser/src/pages/liveWorkspace/prototype/executionHistoryStatePrototype.ts",
     "cibuild": "bun run test && bun run coverage",
     "prepare": "lefthook install",
     "dev": "bun run --parallel backend:dev frontend:dev",

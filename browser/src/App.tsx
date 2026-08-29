@@ -1,6 +1,7 @@
 import { Theme } from './settings/types';
 import { LiveWorkspacePage } from './pages/liveWorkspace/liveWorkspace.page';
 import { LiveGraphExecutionSignalingPrototype } from './pages/liveWorkspace/prototype/LiveGraphExecutionSignalingPrototype';
+import { ExecutionHistoryMockup } from './pages/liveWorkspace/prototype/ExecutionHistoryMockup';
 
 let theme: Theme = 'light';
 
@@ -15,9 +16,9 @@ function App() {
 
   setTheme(theme);
 
-  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('prototype') === 'execution-signaling') {
-    return <LiveGraphExecutionSignalingPrototype />;
-  }
+  const prototype = new URLSearchParams(window.location.search).get('prototype');
+  if (import.meta.env.DEV && prototype === 'execution-signaling') return <LiveGraphExecutionSignalingPrototype />;
+  if (import.meta.env.DEV && prototype === 'execution-history') return <ExecutionHistoryMockup />;
 
   return <LiveWorkspacePage />;
   // %EXPORT_STATEMENT%
