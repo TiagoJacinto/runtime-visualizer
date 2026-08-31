@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { operatorEnv } from "./utils";
 
-const GIT_TIMEOUT_MS = 30_000;
+const GIT_TIMEOUT_MS = 180_000;
 
 function git(args: string[], cwd = process.cwd()) {
   const result = spawnSync("git", args, {
