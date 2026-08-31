@@ -11,6 +11,12 @@ Your job is to work with the user to create a comprehensive set of research ques
 
 These questions will be used by another agent to research the codebase.
 
+<!-- @if target=workflow -->
+
+## RPI problem folder
+
+Use `{{problemFolder}}` as the task artifact directory for this workflow run. Do not infer a different task directory.
+<!-- @endif -->
 
 ## Steps to follow after receiving the user's request
 

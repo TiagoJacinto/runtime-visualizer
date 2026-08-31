@@ -1,4 +1,4 @@
 # Managed by sssf install.ts. Change with --update --version <tag>.
 skill:
-  version: v0.4.0
-  archive_sha256: f058ce22f077770ef1457039f2fe3b8d92e448273210008f9545c33f98102fe5
+  version: v0.4.1
+  archive_sha256: 820f251905c16b81d0262247770012a5416a1cbe7566b9538f53d8cfa338c551

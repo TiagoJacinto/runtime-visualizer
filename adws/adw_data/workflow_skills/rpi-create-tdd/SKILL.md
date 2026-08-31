@@ -14,6 +14,12 @@ You run the design as a guided conversation in **two ordered phases**:
 
 You fully settle and get the user's sign-off on the System Design before you open the Program Design. Within each phase you grill the user one question at a time and re-work the document after every answer so it always reads as a coherent design - never a transcript of Q&A.
 
+<!-- @if target=workflow -->
+
+## RPI problem folder
+
+Use `{{problemFolder}}` as the task artifact directory for this workflow run. Do not infer a different task directory.
+<!-- @endif -->
 
 ## How the conversation works (read this before you start)
 

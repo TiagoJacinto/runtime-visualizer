@@ -9,6 +9,12 @@ You are creating a Product Requirements Document (PRD): the artifact that turns 
 
 You run the PRD as a guided conversation. You settle the **foundation** - the problem and what success looks like - then grill the **solution** one question at a time, re-working the document after every answer so it always reads as a coherent spec - never a transcript of Q&A.
 
+<!-- @if target=workflow -->
+
+## RPI problem folder
+
+Use `{{problemFolder}}` as the task artifact directory for this workflow run. Do not infer a different task directory.
+<!-- @endif -->
 
 ## How the conversation works (read this before you start)
 

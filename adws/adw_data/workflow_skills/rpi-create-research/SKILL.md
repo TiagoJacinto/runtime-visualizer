@@ -7,6 +7,12 @@ description: Only use when the user explicitly invokes this skill by name.
 
 You are tasked with conducting comprehensive research across the codebase to answer user questions by spawning parallel sub-agents and synthesizing their findings.
 
+<!-- @if target=workflow -->
+
+## RPI problem folder
+
+Use `{{problemFolder}}` as the task artifact directory for this workflow run. Do not infer a different task directory.
+<!-- @endif -->
 
 ## CRITICAL: YOUR ONLY JOB IS TO DOCUMENT AND EXPLAIN THE CODEBASE AS IT EXISTS TODAY
 
@@ -18,6 +24,7 @@ You are tasked with conducting comprehensive research across the codebase to ans
 - ONLY describe what exists, where it exists, how it works, and how components interact
 - You are creating a technical map/documentation of the existing system
 
+<!-- @if target=project -->
 
 ## Initial Setup
 
@@ -34,7 +41,14 @@ I'm ready to research the codebase. Please provide your research question or are
 **IMPORTANT**: You may NEVER read `problem.md` files or other files from the artifact directory which do not match the `research-questions` pattern above unless such a file is explicitly asked for by the user.
 
 Then wait for the user's research query.
+<!-- @endif -->
 
+<!-- @if target=workflow -->
+
+## Research Questions Artifact
+
+Read `{{researchQuestionsArtifact}}` in full before starting research. It is the complete, unambiguous research query for this workflow run.
+<!-- @endif -->
 
 ## Steps to follow after receiving the research query
 
