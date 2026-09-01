@@ -7,8 +7,7 @@ import { runProcess } from "./process";
 import { AgentRuntime } from "./agent_runtime";
 
 const PI_PATH = process.env.PI_PATH || "pi";
-const MODELS =
-  process.env.PI_MODELS_PATH || `${process.env.HOME}/.pi/agent/models.json`;
+const MODELS = process.env.PI_MODELS_PATH || `${process.env.HOME}/.pi/agent/models.json`;
 const CREDENTIALS: Record<string, string> = {
   google: "GEMINI_API_KEY",
   openrouter: "OPENROUTER_API_KEY",
@@ -18,11 +17,7 @@ const CREDENTIALS: Record<string, string> = {
 
 function count(v: string) {
   const s = v.slice(-1).toUpperCase();
-  return s === "K"
-    ? +v.slice(0, -1) * 1e3
-    : s === "M"
-      ? +v.slice(0, -1) * 1e6
-      : +v;
+  return s === "K" ? +v.slice(0, -1) * 1e3 : s === "M" ? +v.slice(0, -1) * 1e6 : +v;
 }
 
 let catalogCache: Array<[string, string, number]> | null = null;
@@ -34,9 +29,7 @@ export function credentialForProvider(provider: string) {
 export function assertCredential(provider: string) {
   const key = credentialForProvider(provider);
   if (key && !process.env[key]) {
-    throw new Error(
-      `provider ${provider} requires ${key} before an agent can run`,
-    );
+    throw new Error(`provider ${provider} requires ${key} before an agent can run`);
   }
 }
 
@@ -71,9 +64,7 @@ export function resolveModel(pattern: string) {
   }
   const all = catalog();
   const matches = all.filter((x) => pattern === x[1] || x[1].includes(pattern));
-  const exact = matches.filter(
-    (x) => x[1] === pattern || x[1].endsWith(`/${pattern}`),
-  );
+  const exact = matches.filter((x) => x[1] === pattern || x[1].endsWith(`/${pattern}`));
   const resolved = exact.length === 1 ? exact : exact.length ? exact : matches;
   if (resolved.length !== 1) {
     throw new Error(
@@ -103,16 +94,12 @@ const textOf = (x: any) =>
         .map((p: any) => p.text || "")
         .join("")
     : "";
-const clip = (x: string, n: number) =>
-  x.length <= n ? x : `${x.slice(0, n).trimEnd()}…`;
+const clip = (x: string, n: number) => (x.length <= n ? x : `${x.slice(0, n).trimEnd()}…`);
 
 function contextTokens(u: any) {
   return (
     u?.totalTokens ||
-    (u?.input || 0) +
-      (u?.output || 0) +
-      (u?.cacheRead || 0) +
-      (u?.cacheWrite || 0)
+    (u?.input || 0) + (u?.output || 0) + (u?.cacheRead || 0) + (u?.cacheWrite || 0)
   );
 }
 
@@ -199,10 +186,7 @@ export async function run(
       result.tokens += turn;
       addTurn(result.usage, usage, turn);
       result.cost += usage.cost?.total || 0;
-      if (
-        turn &&
-        !(["aborted", "error"] as string[]).includes(event.message.stopReason)
-      )
+      if (turn && !(["aborted", "error"] as string[]).includes(event.message.stopReason))
         result.context_tokens = turn;
     }
     onEvent?.(event);
@@ -224,9 +208,7 @@ export async function run(
   };
   const process = await runProcess(PI_PATH, args, {
     cwd: req.cwd,
-    allowedEnv: [...req.allowedEnv, CREDENTIALS[provider]].filter(
-      Boolean,
-    ) as string[],
+    allowedEnv: [...req.allowedEnv, CREDENTIALS[provider]].filter(Boolean) as string[],
     timeoutMs: req.timeoutMs,
     maxOutputBytes: req.maxOutputBytes,
     signal: processController.signal,
@@ -238,17 +220,12 @@ export async function run(
       buffer = lines.pop() || "";
       for (const line of lines) handleLine(line);
     },
-    onStderrChunk: (chunk) =>
-      appendCapped(req.stderrPath, chunk, stderrState, req.maxOutputBytes),
+    onStderrChunk: (chunk) => appendCapped(req.stderrPath, chunk, stderrState, req.maxOutputBytes),
   });
   if (buffer.trim()) handleLine(buffer);
   req.signal?.removeEventListener("abort", abortForSignal);
   if (terminalFailure) throw new Error(`pi provider error: ${terminalFailure}`);
-  if (
-    !stoppedForHandoff &&
-    !completed &&
-    (process.failure || process.exitCode !== 0)
-  ) {
+  if (!stoppedForHandoff && !completed && (process.failure || process.exitCode !== 0)) {
     const reason = process.failure || `exit ${process.exitCode}`;
     throw new Error(`pi ${reason}: ${clip(process.stderr, 2000)}`.trim());
   }
@@ -264,15 +241,11 @@ export const runtime: AgentRuntime = {
 };
 
 export class ToolCallTracker {
-  open = new Map<
-    string,
-    { tool: string; args: any; started: string; clock: number }
-  >();
+  open = new Map<string, { tool: string; args: any; started: string; clock: number }>();
   observe(e: any) {
     if (e.type === "message_end") {
       for (const block of e.message?.content || [])
-        if (block?.type === "toolCall")
-          this.announce(block.id, block.name, block.arguments);
+        if (block?.type === "toolCall") this.announce(block.id, block.name, block.arguments);
       return;
     }
     if (e.type === "tool_execution_start") {
@@ -283,9 +256,7 @@ export class ToolCallTracker {
     const old = this.open.get(String(e.toolCallId)) || ({} as any);
     this.open.delete(String(e.toolCallId));
     const args = e.args || old.args || {};
-    const value =
-      Object.values(args).find((x: any) => typeof x === "string" && x.trim()) ||
-      "";
+    const value = Object.values(args).find((x: any) => typeof x === "string" && x.trim()) || "";
     return {
       tool: e.toolName || old.tool || "tool",
       tool_call_id: String(e.toolCallId || ""),
