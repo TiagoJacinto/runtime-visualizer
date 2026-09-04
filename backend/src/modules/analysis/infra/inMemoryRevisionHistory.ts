@@ -11,8 +11,7 @@ export class InMemoryRevisionHistory implements RevisionHistory {
 
   async list(scope: ProcedureScope): Promise<readonly RevisionSummary[]> {
     return [...this.rows.values()]
-      .filter(({ snapshot }) => snapshot.file === scope.file && snapshot.procedure.id === scope.procedureId)
-      .map(({ snapshot }) => this.summary(snapshot))
+      .flatMap(({ snapshot }) => snapshot.file === scope.file && snapshot.procedure.id === scope.procedureId ? [this.summary(snapshot)] : [])
       .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt));
   }
 
