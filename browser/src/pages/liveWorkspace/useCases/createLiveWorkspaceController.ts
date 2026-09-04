@@ -531,6 +531,11 @@ export function createLiveWorkspaceController(
       analysisController = new AbortController();
       dispatch({ type: "select-scope", key, requestId: `${++requestSequence}` });
     },
+    setImportsVisible: (visible) => {
+      dispatch({ type: "set-imports-visible", visible });
+      savePreferences();
+    },
+    focus: (target) => dispatch({ type: "focus", target }),
     runProcedure: () => void runProcedure(),
     selectExecution: (executionId) => {
       const execution = state.executions.find((item) => item.executionId === executionId);
@@ -548,6 +553,15 @@ export function createLiveWorkspaceController(
         dispatch({ type: "view-analysis", key: execution.scope, value: analysis });
       }
       set({ ...state, selectedExecutionId: executionId });
+      if (execution.failedNodeId !== undefined)
+        dispatch({
+          type: "focus",
+          target: {
+            scope: execution.scope,
+            nodeId: execution.failedNodeId,
+            origin: "failure",
+          },
+        });
     },
     armCancel: (executionId) => dispatch({ type: "arm-cancel", executionId }),
     confirmCancel: (executionId) => dispatch({ type: "confirm-cancel", executionId }),

@@ -7,8 +7,13 @@ import { createRetryScheduler } from "../../shared/retry/retryScheduler";
 import { createLiveWorkspaceController } from "./useCases/createLiveWorkspaceController";
 import type { WorkspaceController } from "./useCases/liveWorkspace.ports";
 import type { LiveWorkspaceState } from "./useCases/liveWorkspace.types";
-import { ControlFlowGraph } from "./components/controlFlowGraph/ControlFlowGraph";
+import { GraphPane } from "./components/controlFlowGraph/GraphPane";
+import { SourcePane } from "./components/source/SourcePane";
 import { RunInspector } from "./components/runInspector/RunInspector";
+import {
+  selectRevisionBadge,
+  selectVisibleExecutions,
+} from "./useCases/liveWorkspace.selectors";
 
 export function LiveWorkspacePage({
   controller: provided,
@@ -36,14 +41,16 @@ export function LiveWorkspacePage({
     };
   }, [controller, provided]);
   const analysis = state.analysis;
-  const visibleExecutions = state.executions.filter(
-    (execution) =>
-      analysis !== null &&
-      execution.scope.file === analysis.file &&
-      execution.scope.revision === analysis.revision &&
-      execution.scope.procedureId === analysis.procedureId,
-  );
   const selectedScope = state.selectedScope;
+  const displayedScope = analysis
+    ? {
+        file: analysis.file,
+        procedureId: analysis.procedureId,
+        revision: analysis.revision,
+      }
+    : selectedScope;
+  const visibleExecutions = selectVisibleExecutions(state, displayedScope);
+  const revisionBadge = selectRevisionBadge(state, selectedScope);
   const revisions = selectedScope
     ? state.revisionsByScope[`${selectedScope.file}\0${selectedScope.procedureId}`] ?? []
     : [];
@@ -142,14 +149,15 @@ export function LiveWorkspacePage({
             <h2>{analysis?.file ?? "Workspace"}</h2>
             <span className="font-mono text-xs text-slate-400">
               revision {analysis?.revision ?? "—"}
+              {revisionBadge ? (
+                <span className="ml-2 text-emerald-300">
+                  {revisionBadge.runnable
+                    ? "runnable"
+                    : `${revisionBadge.diagnosticCount} diagnostics`}
+                </span>
+              ) : null}
             </span>
           </div>
-          <section aria-label="Source">
-            <h3 className="mb-2 font-medium">Source</h3>
-            <pre className="overflow-auto rounded bg-slate-900 p-4 text-sm">
-              {analysis?.source ?? "Source is unavailable."}
-            </pre>
-          </section>
           <section aria-label="Diagnostics">
             {analysis?.diagnostics.length ? (
               <div
@@ -165,19 +173,35 @@ export function LiveWorkspacePage({
               </div>
             ) : null}
           </section>
-          {analysis?.cfg ? (
-            <ControlFlowGraph
-              cfg={analysis.cfg}
-              executions={visibleExecutions}
-              selectedExecutionId={state.selectedExecutionId}
-            />
-          ) : (
-            analysis && (
-              <section role="alert" aria-label="Control-flow graph">
-                Control-flow graph unavailable because analysis has diagnostics.
-              </section>
-            )
-          )}
+          {analysis && displayedScope ? (
+            <div className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
+              {analysis.cfg ? (
+                <GraphPane
+                  cfg={analysis.cfg}
+                  scope={displayedScope}
+                  focus={state.focus}
+                  executions={visibleExecutions}
+                  selectedExecutionId={state.selectedExecutionId}
+                  importsVisible={state.importsVisible}
+                  onFocus={controller.focus}
+                  onImportsVisibleChange={controller.setImportsVisible}
+                />
+              ) : (
+                <section role="alert" aria-label="Control-flow graph">
+                  Control-flow graph unavailable because analysis has diagnostics.
+                </section>
+              )}
+              <SourcePane
+                source={analysis.source}
+                cfg={analysis.cfg}
+                scope={displayedScope}
+                focus={state.focus}
+                importsVisible={state.importsVisible}
+                diagnostics={analysis.diagnostics}
+                onFocus={controller.focus}
+              />
+            </div>
+          ) : null}
           <button
             type="button"
             disabled={!analysis?.cfg || state.status !== "ready" || state.connection === "reconnecting" || state.fileDeleted}

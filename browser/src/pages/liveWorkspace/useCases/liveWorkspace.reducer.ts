@@ -33,6 +33,7 @@ export type LiveWorkspaceEvent =
   | { type: "select-scope"; key: RevisionKey; requestId?: string }
   | { type: "set-tab"; tab: "scope" | "runs" }
   | { type: "focus"; target: LiveWorkspaceState["focus"] }
+  | { type: "set-imports-visible"; visible: boolean }
   | { type: "view-analysis"; key: RevisionKey; value: AnalysisResponse }
   | { type: "legacy-interrupted"; executionId: string; error: string }
   | { type: "clear-completed" };
@@ -528,6 +529,7 @@ export function reduceWorkspace(
     case "select-scope": return selectScope(state, event);
     case "set-tab": return transition(state, { contextTab: event.tab });
     case "focus": return transition(state, { focus: event.target });
+    case "set-imports-visible": return transition(state, { importsVisible: event.visible });
     case "view-analysis": return viewAnalysis(state, event);
     case "legacy-interrupted": return legacyInterrupted(state, event);
     case "clear-completed": return transition(state, {

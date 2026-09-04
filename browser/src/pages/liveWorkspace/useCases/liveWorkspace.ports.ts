@@ -34,6 +34,8 @@ export type WorkspaceController = {
   selectFile(file: string): void;
   selectProcedure(procedureId: string): void;
   selectRevision(key: LiveWorkspaceState["selectedScope"]): void;
+  setImportsVisible(visible: boolean): void;
+  focus(target: LiveWorkspaceState["focus"]): void;
   runProcedure(): void;
   selectExecution(executionId: string): void;
   armCancel(executionId: string): void;
