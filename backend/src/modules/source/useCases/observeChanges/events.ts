@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import type { SourceChangeWatcher, SourceChange } from "./change-watcher.ts";
 import type { WorkspaceEventHub } from "../../../workspace/eventHub.ts";
 
-type EventsRoutesOptions = { readonly watcher: SourceChangeWatcher; readonly hub?: WorkspaceEventHub; readonly onChange?: (change: SourceChange) => void };
+type EventsRoutesOptions = { readonly watcher: SourceChangeWatcher; readonly hub?: WorkspaceEventHub; readonly onChange?: (change: SourceChange) => void; readonly activeExecutions?: () => import("../../../../../../packages/contracts/src/index.ts").ActiveExecution[] | readonly import("../../../../../../packages/contracts/src/index.ts").ActiveExecution[] };
 const eventsRoutes: FastifyPluginAsync<EventsRoutesOptions> = async (app, options) => {
   app.get("/", async (request, reply) => {
     await options.watcher.refresh();
@@ -13,7 +13,7 @@ const eventsRoutes: FastifyPluginAsync<EventsRoutesOptions> = async (app, option
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(encoder.encode(": connected\n\n"));
-        const workspaceStream = options.hub !== undefined && request.query && (request.query as { workspace?: string }).workspace === "1";
+        const workspaceStream = options.hub !== undefined;
         if (workspaceStream && options.hub) {
           let sourceUnsubscribe: (() => void) | undefined;
           const subscription = options.hub.subscribe(cursor, (record) => {
@@ -25,6 +25,7 @@ const eventsRoutes: FastifyPluginAsync<EventsRoutesOptions> = async (app, option
             if (record.event.type === "source-change") controller.enqueue(encoder.encode(`event: file-change\ndata: ${JSON.stringify(record.event.change)}\n\n`));
             controller.enqueue(encoder.encode(`id: ${record.id}\nevent: ${record.event.type}\ndata: ${JSON.stringify(record.event)}\n\n`));
           }
+          options.hub.publish({ type: "active-executions", executions: [...(options.activeExecutions?.() ?? [])] });
           sourceUnsubscribe = options.watcher.subscribe((change) => {
             options.onChange?.(change);
             options.hub?.publish({ type: "source-change", change });
