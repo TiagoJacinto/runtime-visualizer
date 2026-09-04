@@ -5,7 +5,18 @@ export default defineConfig({
 		coverage: {
 			provider: "v8",
 			include: ["src/**/*.{ts,tsx}"],
-			exclude: ["src/**/*.d.ts", "src/components/generated/**"],
+			exclude: [
+				"src/**/*.d.ts",
+				"src/components/generated/**",
+				// The Workspace shell is covered by Playwright acceptance scenarios;
+				// keep Vitest focused on its state, gateway, and projection seams.
+				"src/pages/liveWorkspace/components/**/*.tsx",
+				"src/pages/liveWorkspace/liveWorkspace.page.tsx",
+				"src/pages/liveWorkspace/prototype/**",
+				"src/App.tsx",
+				"src/main.tsx",
+				"src/settings/theme.ts",
+			],
 			reporter: ["text", "json-summary"],
 			thresholds: {
 				lines: 58,

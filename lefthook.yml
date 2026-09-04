@@ -1,4 +1,4 @@
 pre-push:
   commands:
-    maintainability:
-      run: bun run check:maintainability
+    fast-checks:
+      run: bun run prepush

@@ -16,12 +16,17 @@
     "test:hvit": "vitest run --config vitest.config.ts --project browser-hvit --passWithNoTests",
     "test:hve2e": "bddgen --config playwright.config.ts && playwright test --config playwright.config.ts --pass-with-no-tests",
     "test:hve2e:ui": "bddgen --config playwright.config.ts && playwright test --config playwright.config.ts --ui --pass-with-no-tests",
-    "test:coverage": "vitest run --config vitest.config.ts --coverage --passWithNoTests"
+    "test:coverage": "vitest run --config vitest.config.ts --coverage --passWithNoTests",
+    "test:coverage:unit": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --project browser-unit --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests",
+    "test:coverage:integration": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --project browser-integration --project browser-e2e --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests",
+    "test:coverage:acceptance": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --project browser-hvut --project browser-hvit --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests"
   },
   "dependencies": {
     "@runtime-visualizer/contracts": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
+    "@xyflow/react": "^12.11.6",
     "dompurify": "^3.4.12",
+    "elkjs": "^0.12.0",
     "framer-motion": "^12.43.0",
     "lucide-react": "^1.28.0",
     "mermaid": "^11.16.0",

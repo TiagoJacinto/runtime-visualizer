@@ -13,37 +13,46 @@ type FileChange = {
 };
 
 const feature = await loadFeature(
-	new URL(
-		"../../../features/observe-procedure-changes.feature",
-		import.meta.url,
-	).pathname,
+	new URL("../../../features/observe-procedure-changes.feature", import.meta.url)
+		.pathname,
 );
 
 async function nextEvent(response: Response): Promise<FileChange> {
 	if (response.body === null) throw new Error("Expected an SSE response body");
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
-	let text = "";
+	let buffer = "";
 	const deadline = Date.now() + 2000;
-	while (!text.includes("data: ")) {
-		const remaining = deadline - Date.now();
-		if (remaining <= 0) throw new Error("Timed out waiting for file change");
-		const result = await Promise.race([
-			reader.read(),
-			new Promise<never>((_, reject) =>
-				setTimeout(
-					() => reject(new Error("Timed out waiting for file change")),
-					remaining,
+	try {
+		while (Date.now() < deadline) {
+			const result = await Promise.race([
+				reader.read(),
+				new Promise<never>((_, reject) =>
+					setTimeout(
+						() => reject(new Error("Timed out waiting for file change")),
+						deadline - Date.now(),
+					),
 				),
-			),
-		]);
-		if (result.done) throw new Error("SSE stream closed before file change");
-		text += decoder.decode(result.value, { stream: true });
+			]);
+			if (result.done) throw new Error("SSE stream closed before file change");
+			buffer += decoder.decode(result.value, { stream: true });
+			const records = buffer.split("\n\n");
+			buffer = records.pop() ?? "";
+			for (const record of records) {
+				if (!record.split("\n").includes("event: source-change")) continue;
+				const dataLine = record
+					.split("\n")
+					.find((line) => line.startsWith("data: "));
+				if (dataLine !== undefined) {
+					const payload = JSON.parse(dataLine.slice("data: ".length)) as { type: "source-change"; change: FileChange };
+					return payload.change;
+				}
+			}
+		}
+		throw new Error("Timed out waiting for file change");
+	} finally {
+		await reader.cancel();
 	}
-	await reader.cancel();
-	const dataLine = text.split("\n").find((line) => line.startsWith("data: "));
-	if (dataLine === undefined) throw new Error("Expected an SSE data line");
-	return JSON.parse(dataLine.slice("data: ".length)) as FileChange;
 }
 
 async function openEvents(
@@ -74,21 +83,15 @@ describeFeature(feature, ({ Rule }) => {
 					{ Given, When, Then },
 					example: Record<string, string | undefined>,
 				) => {
-					Given(
-						'Source folder{files: ["main.ts"], revision: "R1"}',
-						async () => {
-							folder = await fs.mkdtemp(
-								path.join(os.tmpdir(), "runtime-visualizer-"),
-							);
-							await fs.writeFile(
-								path.join(folder, "main.ts"),
-								"export const value = 1;\n",
-							);
-						},
-					);
+					Given('Source folder{files: ["main.ts"], revision: "R1"}', async () => {
+						folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
+						await fs.writeFile(
+							path.join(folder, "main.ts"),
+							"export const value = 1;\n",
+						);
+					});
 					When("I observeSourceChanges()", async () => {
-						if (folder === undefined)
-							throw new Error("Expected a source folder");
+						if (folder === undefined) throw new Error("Expected a source folder");
 						({ app, response } = await openEvents(folder));
 						await new Promise((resolve) => setTimeout(resolve, 300));
 						if (example.change === "Added")
@@ -106,8 +109,7 @@ describeFeature(feature, ({ Rule }) => {
 					Then(
 						"I view File change{file: <file>, change: <change>, revision: <revision>} in Source change stream: The source change is published",
 						async () => {
-							if (response === undefined)
-								throw new Error("Expected an SSE response");
+							if (response === undefined) throw new Error("Expected an SSE response");
 							const change = await nextEvent(response);
 							const expectedFile = example.file ?? "";
 							const expectedChange = example.change ?? "";
@@ -129,9 +131,7 @@ describeFeature(feature, ({ Rule }) => {
 					Given(
 						'Source file{path: "main.ts", revision: "R1", source: "function prepare() {}"}',
 						async () => {
-							folder = await fs.mkdtemp(
-								path.join(os.tmpdir(), "runtime-visualizer-"),
-							);
+							folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
 							await fs.writeFile(
 								path.join(folder, "main.ts"),
 								"function prepare() {}\n",
@@ -139,16 +139,14 @@ describeFeature(feature, ({ Rule }) => {
 						},
 					);
 					When("I observeSourceChanges()", async () => {
-						if (folder === undefined)
-							throw new Error("Expected a source folder");
+						if (folder === undefined) throw new Error("Expected a source folder");
 						({ app, response } = await openEvents(folder));
 						await new Promise((resolve) => setTimeout(resolve, 300));
 						await fs.writeFile(
 							path.join(folder, "main.ts"),
 							"function prepare() { return 1; }\n",
 						);
-						if (response === undefined)
-							throw new Error("Expected an SSE response");
+						if (response === undefined) throw new Error("Expected an SSE response");
 						change = await nextEvent(response);
 					});
 					Then(

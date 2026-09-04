@@ -13,6 +13,7 @@ export default defineConfig({
 		babel({ presets: [reactCompilerPreset()] }),
 	],
 	server: {
+		allowedHosts: ["thinkcentre.tail4aacd1.ts.net"],
 		// Proxy /api/* to the Fastify backend so the React UI can develop against a
 		// single origin. Default port is the Fastify server's default
 		// (3000); set VITE_API_PORT to override.
