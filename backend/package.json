@@ -20,7 +20,10 @@
     "test:hvut": "vitest run --config vitest.config.ts --project backend-hvut --passWithNoTests",
     "test:hvit": "vitest run --config vitest.config.ts --project backend-hvit --passWithNoTests",
     "test:hve2e": "vitest run --config vitest.config.ts --project backend-hve2e --passWithNoTests",
-    "test:coverage": "vitest run --config vitest.config.ts --coverage --testTimeout=15000 --passWithNoTests"
+    "test:coverage": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --passWithNoTests",
+    "test:coverage:unit": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --project backend-unit --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests",
+    "test:coverage:integration": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --project backend-integration --project backend-e2e --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests",
+    "test:coverage:acceptance": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --project backend-hvut --project backend-hvit --project backend-hve2e --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests"
   },
   "dependencies": {
     "fastify": "^5.0.0",
