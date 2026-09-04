@@ -34,3 +34,12 @@ export {
   FileChangeEventSchema,
   type FileChangeEvent,
 } from "./file-events.ts";
+
+export {
+  ActiveExecutionSchema,
+  ExecutionUpdateSchema,
+  WorkspaceEventSchema,
+  type ActiveExecution,
+  type ExecutionUpdate,
+  type WorkspaceEvent,
+} from "./workspace-events.ts";

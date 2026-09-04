@@ -3,6 +3,9 @@ import { HttpError, loadSettings } from "../../index.ts";
 import { analysisRoutes } from "../../../modules/analysis/http.ts";
 import { InMemoryRevisionHistory, type RevisionHistory } from "../../../modules/analysis/index.ts";
 import { join } from "node:path";
+import { WorkspaceEventHub } from "../../../modules/workspace/eventHub.ts";
+import { RevisionBuildQueue, createSavedAnalysisScheduler } from "../../../modules/analysis/index.ts";
+import { DefaultRevisionBuilderWorkerClient } from "../../../modules/analysis/infra/revisionBuilderWorkerClient.ts";
 import { cfgRoutes } from "../../../modules/cfg/http.ts";
 import { RevisionStore } from "../../../modules/execution/index.ts";
 import { executeRoutes } from "../../../modules/execution/http.ts";
@@ -85,9 +88,21 @@ export async function createApp(
 		const { SqliteRevisionHistory } = await import("../../../modules/analysis/infra/sqliteRevisionHistory.ts");
 		history = new SqliteRevisionHistory(join(process.cwd(), ".runtime-visualizer", "revisions.sqlite"), options.now);
 	}
+	const eventHub = new WorkspaceEventHub();
+	const revisionWorker = new DefaultRevisionBuilderWorkerClient();
+	const revisionQueue = new RevisionBuildQueue(filesFolder, history, {
+		workerClient: revisionWorker,
+		onReady: (snapshot) => eventHub.publish({ type: "revision-ready", revision: { file: snapshot.file, procedureId: snapshot.procedure.id, revision: snapshot.revision, analyzedAt: snapshot.analyzedAt, runnable: snapshot.cfg !== null && snapshot.diagnostics.length === 0, diagnosticCount: snapshot.diagnostics.length } }),
+		onFailure: (paths, error) => eventHub.publish({ type: "revision-build-failed", paths: [...paths], error: error.message }),
+	});
 	const sourceChangeWatcher = new SourceChangeWatcher(filesFolder);
+	const scheduler = createSavedAnalysisScheduler(filesFolder, history, { queue: revisionQueue });
+	// Baseline indexing is deliberately deferred so the server can accept Workspace connections first.
+	setTimeout(() => revisionQueue.enqueueAffected([], "baseline"), 250);
 	app.addHook("onClose", async () => {
 		sourceChangeWatcher.close();
+		scheduler.close();
+		eventHub.close();
 		history.close?.();
 	});
 	await app.register(echoRoutes, { prefix: "/api/echo" });
@@ -96,6 +111,7 @@ export async function createApp(
 		filesFolder,
 		history,
 		revisionStore,
+		scheduler,
 	});
 	await app.register(cfgRoutes, {
 		prefix: "/api/cfg",
@@ -118,6 +134,8 @@ export async function createApp(
 	await app.register(eventsRoutes, {
 		prefix: "/api/events",
 		watcher: sourceChangeWatcher,
+		hub: eventHub,
+		onChange: (change) => revisionQueue.enqueueAffected([change.file], "change"),
 	});
 
 	if (options.registerTestRoutes) {

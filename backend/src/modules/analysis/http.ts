@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { RevisionHistory } from "./revisionHistory.ts";
 import type { RevisionStore } from "../execution/infra/revision-store.ts";
 import { analyseSavedProcedure } from "./useCases/analyseSavedProcedure/analyse-saved-procedure.ts";
+import type { SavedAnalysisScheduler } from "./useCases/savedAnalysisScheduler.ts";
 
 const querySchema = z.object({
   file: z.string().min(1),
@@ -24,6 +25,7 @@ type AnalysisRoutesOptions = {
   readonly filesFolder: string;
   readonly history: RevisionHistory;
   readonly revisionStore?: RevisionStore;
+  readonly scheduler?: SavedAnalysisScheduler;
 };
 
 const analysisRoutes: FastifyPluginAsync<AnalysisRoutesOptions> = async (
@@ -48,11 +50,40 @@ const analysisRoutes: FastifyPluginAsync<AnalysisRoutesOptions> = async (
         .send({
           error: parsed.error.issues[0]?.message ?? "Invalid request query.",
         });
-    const result = await analyseSavedProcedure(
-      options.filesFolder,
-      options.history,
-      parsed.data,
-    );
+    let result;
+    if (
+      options.scheduler !== undefined &&
+      parsed.data.procedureId !== undefined &&
+      parsed.data.revision === undefined
+    ) {
+      const procedureId = parsed.data.procedureId;
+      try {
+        const snapshot = await options.scheduler.analyze(
+          { file: parsed.data.file, procedureId },
+          "interactive",
+        );
+        result = { ok: true as const, snapshot };
+      } catch (error) {
+        result = {
+          ok: false as const,
+          error: {
+            error: error instanceof Error ? error.message : "Analysis failed",
+            file: parsed.data.file,
+            procedureId,
+            revision: "",
+            source: "",
+            procedures: [],
+            diagnostics: [],
+          },
+        };
+      }
+    } else {
+      result = await analyseSavedProcedure(
+        options.filesFolder,
+        options.history,
+        parsed.data,
+      );
+    }
     if (!result.ok)
       return reply
         .code(result.error.error === "Revision unavailable" ? 404 : 422)
