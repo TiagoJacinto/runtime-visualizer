@@ -1,7 +1,9 @@
 import type { AnalysisResponse } from "@runtime-visualizer/contracts";
 
 type ControlFlowGraph = NonNullable<AnalysisResponse["cfg"]>;
-type CfgNode = NonNullable<ControlFlowGraph["procedures"]>[number]["nodes"][number];
+type CfgNode = NonNullable<
+  ControlFlowGraph["procedures"]
+>[number]["nodes"][number];
 
 export type SourceRange = {
   nodeId: string;
@@ -32,8 +34,9 @@ export function buildSourceRangeIndex(
   cfg: ControlFlowGraph | null | undefined,
   importsVisible = true,
 ): SourceRangeIndex {
-  const nodes = (cfg?.procedures?.flatMap((procedure) => procedure.nodes) ?? [])
-    .filter((node) => importsVisible || node.kind.toLowerCase() !== "import");
+  const nodes = (
+    cfg?.procedures?.flatMap((procedure) => procedure.nodes) ?? []
+  ).filter((node) => importsVisible || node.kind.toLowerCase() !== "import");
   const ranges = nodes
     .map(nodeRange)
     .filter((range): range is SourceRange => range !== null)
@@ -43,7 +46,10 @@ export function buildSourceRangeIndex(
       const bLength = b.endLine - b.startLine;
       return aLength - bLength || a.startColumn - b.startColumn;
     });
-  return { ranges, byNodeId: new Map(ranges.map((range) => [range.nodeId, range])) };
+  return {
+    ranges,
+    byNodeId: new Map(ranges.map((range) => [range.nodeId, range])),
+  };
 }
 
 function containsLine(range: SourceRange, line: number): boolean {
@@ -55,7 +61,9 @@ export function nodeIdAtSourceLine(
   index: SourceRangeIndex,
   line: number,
 ): string | null {
-  return index.ranges.find((range) => containsLine(range, line))?.nodeId ?? null;
+  return (
+    index.ranges.find((range) => containsLine(range, line))?.nodeId ?? null
+  );
 }
 
 export function sourceRangeForNode(
@@ -70,9 +78,7 @@ export function diagnosticLines(
 ): ReadonlySet<number> {
   return new Set(
     diagnostics.flatMap((diagnostic) =>
-      diagnostic.location === undefined
-        ? []
-        : [diagnostic.location.start.line],
+      diagnostic.location === undefined ? [] : [diagnostic.location.start.line],
     ),
   );
 }

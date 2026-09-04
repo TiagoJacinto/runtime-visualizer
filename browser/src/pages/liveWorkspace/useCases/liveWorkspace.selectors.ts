@@ -1,5 +1,11 @@
-import type { RevisionKey, RevisionSummary } from "@runtime-visualizer/contracts";
-import type { ExecutionRecord, LiveWorkspaceState } from "./liveWorkspace.types";
+import type {
+  RevisionKey,
+  RevisionSummary,
+} from "@runtime-visualizer/contracts";
+import type {
+  ExecutionRecord,
+  LiveWorkspaceState,
+} from "./liveWorkspace.types";
 
 export function selectVisibleExecutions(
   state: LiveWorkspaceState,

@@ -8,8 +8,14 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import type { AnalysisResponse, RevisionKey } from "@runtime-visualizer/contracts";
-import type { ExecutionRecord, FocusTarget } from "../../useCases/liveWorkspace.types";
+import type {
+  AnalysisResponse,
+  RevisionKey,
+} from "@runtime-visualizer/contracts";
+import type {
+  ExecutionRecord,
+  FocusTarget,
+} from "../../useCases/liveWorkspace.types";
 import { ControlFlowNode, type ControlFlowFlowNode } from "./ControlFlowNode";
 import {
   layoutGraph,
@@ -61,7 +67,13 @@ export function GraphPane({
   const layoutKey = useMemo(
     () =>
       `${scope.file}\0${scope.procedureId}\0${scope.revision}|${graphKey(visibleGraph, importsVisible)}`,
-    [importsVisible, scope.file, scope.procedureId, scope.revision, visibleGraph],
+    [
+      importsVisible,
+      scope.file,
+      scope.procedureId,
+      scope.revision,
+      visibleGraph,
+    ],
   );
   const fallback = useMemo(() => layoutGraph(visibleGraph), [visibleGraph]);
   const [elkLayout, setElkLayout] = useState<KeyedLayout | null>(null);
@@ -107,7 +119,14 @@ export function GraphPane({
         draggable: false,
         selectable: false,
       })),
-    [executions, focusedNodeId, layout.nodes, onFocus, scope, selectedExecutionId],
+    [
+      executions,
+      focusedNodeId,
+      layout.nodes,
+      onFocus,
+      scope,
+      selectedExecutionId,
+    ],
   );
   const flowEdges = useMemo<Edge[]>(
     () =>
@@ -133,7 +152,8 @@ export function GraphPane({
         <div>
           <h3 className="font-medium text-slate-100">Control flow</h3>
           <p className="font-mono text-xs text-slate-500">
-            {visibleGraph.nodes.length} nodes · {visibleGraph.edges.length} edges
+            {visibleGraph.nodes.length} nodes · {visibleGraph.edges.length}{" "}
+            edges
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs">
@@ -148,7 +168,9 @@ export function GraphPane({
           </label>
           <button
             type="button"
-            onClick={() => flowRef.current?.fitView({ padding: 0.2, duration: 180 })}
+            onClick={() =>
+              flowRef.current?.fitView({ padding: 0.2, duration: 180 })
+            }
             className="rounded border border-slate-700 px-2 py-1 text-slate-300 hover:border-emerald-400"
           >
             Fit graph

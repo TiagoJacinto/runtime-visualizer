@@ -94,7 +94,10 @@ export function LiveWorkspacePage({
           <main className="flex min-w-0 flex-1 flex-col overflow-auto bg-[#07110E]">
             <WorkspaceNotifications state={state} controller={controller} />
             {state.status === "empty" ? (
-              <p role="status" className="px-4 pt-6 text-xs text-slate-500 sm:px-6">
+              <p
+                role="status"
+                className="px-4 pt-6 text-xs text-slate-500 sm:px-6"
+              >
                 No supported TypeScript files found.
               </p>
             ) : null}

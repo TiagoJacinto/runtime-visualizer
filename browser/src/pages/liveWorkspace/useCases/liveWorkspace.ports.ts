@@ -1,30 +1,12 @@
 import type { AnalysisGateway } from "../../../shared/api/analysisGateway";
-import type {
-  ExecutionGateway,
-  ExecutionRequest,
-} from "../../../shared/api/executionGateway";
-import type { FileEventsGateway } from "../../../shared/api/fileEventsGateway";
+import type { ExecutionGateway } from "../../../shared/api/executionGateway";
 import type { WorkspaceEventsGateway } from "../../../shared/api/workspaceEventsGateway";
 import type { WorkspacePreferences } from "../../../shared/api/workspacePreferences";
 import type { RetryScheduler } from "../../../shared/retry/retryScheduler";
 import type { LiveWorkspaceEvent } from "./liveWorkspace.reducer";
 import type { LiveWorkspaceState } from "./liveWorkspace.types";
 
-/** Test-only legacy stream shape; production execution uses shared SSE. */
-export type LegacyExecutionStream = {
-  executionId: string;
-  events: AsyncIterable<unknown>;
-  cancel(): void;
-};
-
-export type ExecutionPort = {
-  start(
-    input: ExecutionRequest,
-    signal?: AbortSignal,
-  ): Promise<string | LegacyExecutionStream>;
-  list?: ExecutionGateway["list"];
-  cancel?: ExecutionGateway["cancel"];
-};
+export type ExecutionPort = ExecutionGateway;
 
 export type WorkspaceController = {
   getState(): LiveWorkspaceState;
@@ -48,8 +30,7 @@ export type WorkspaceController = {
 export type LiveWorkspacePorts = {
   analysis: AnalysisGateway;
   execution: ExecutionPort;
-  fileEvents?: FileEventsGateway;
-  workspaceEvents?: WorkspaceEventsGateway;
+  workspaceEvents: WorkspaceEventsGateway;
   preferences?: WorkspacePreferences;
   retry?: RetryScheduler;
 };

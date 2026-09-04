@@ -28,9 +28,7 @@ export function selectVisibleGraph(
   const edges = procedures.flatMap((procedure) => procedure.edges);
   if (importsVisible) return { nodes, edges };
 
-  const importIds = new Set(
-    nodes.filter(isImportNode).map((node) => node.id),
-  );
+  const importIds = new Set(nodes.filter(isImportNode).map((node) => node.id));
   return {
     nodes: nodes.filter((node) => !importIds.has(node.id)),
     edges: edges.filter(

@@ -14,7 +14,7 @@ type ActiveRunsProps = {
 function StatusIcon({ status }: { status: ExecutionRecord["status"] }) {
   if (status === "running")
     return <RefreshCw className="h-3.5 w-3.5 animate-spin" />;
-  if (status === "failed" || status === "interrupted")
+  if (status === "failed")
     return <AlertCircle className="h-3.5 w-3.5" />;
   return <Check className="h-3.5 w-3.5" />;
 }
@@ -25,7 +25,7 @@ function statusLabel(status: ExecutionRecord["status"]): string {
 
 function statusColor(status: ExecutionRecord["status"]): string {
   if (status === "running") return "text-sky-300";
-  if (status === "failed" || status === "interrupted") return "text-rose-300";
+  if (status === "failed") return "text-rose-300";
   return "text-emerald-300";
 }
 
@@ -54,7 +54,9 @@ export function ActiveRuns({
           type="button"
           aria-label="Clear completed runs"
           onClick={onClearCompleted}
-          disabled={!executions.some((execution) => execution.status !== "running")}
+          disabled={
+            !executions.some((execution) => execution.status !== "running")
+          }
           className="text-[10px] text-slate-500 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Clear
@@ -85,7 +87,9 @@ export function ActiveRuns({
                       {execution.file} · {execution.revision}
                     </p>
                   </div>
-                  <span className={`flex shrink-0 items-center gap-1 text-[9px] ${statusColor(execution.status)}`}>
+                  <span
+                    className={`flex shrink-0 items-center gap-1 text-[9px] ${statusColor(execution.status)}`}
+                  >
                     <StatusIcon status={execution.status} />
                     {statusLabel(execution.status)}
                   </span>
@@ -123,7 +127,11 @@ export function ActiveRuns({
                       className="inline-flex items-center gap-1 rounded border border-amber-300/20 px-2 py-1 text-[9px] text-amber-200 hover:bg-amber-300/10 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-amber-200"
                     >
                       <X className="h-3 w-3" />
-                      {pending ? "Cancelling…" : armed ? "Confirm cancel" : "Cancel"}
+                      {pending
+                        ? "Cancelling…"
+                        : armed
+                          ? "Confirm cancel"
+                          : "Cancel"}
                     </button>
                   ) : null}
                 </div>

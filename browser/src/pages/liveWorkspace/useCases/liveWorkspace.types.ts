@@ -43,7 +43,6 @@ export type ExecutionStatus =
   | "running"
   | "succeeded"
   | "failed"
-  | "interrupted"
   | "cancelled";
 
 /** Browser projection of a server-owned execution. `scope` is authoritative. */
@@ -120,7 +119,9 @@ export const initialLiveWorkspaceState: LiveWorkspaceState = {
   fileDeleted: false,
 };
 
-export function scopeKey(scope: Pick<RevisionKey, "file" | "procedureId">): string {
+export function scopeKey(
+  scope: Pick<RevisionKey, "file" | "procedureId">,
+): string {
   return `${scope.file}\0${scope.procedureId}`;
 }
 

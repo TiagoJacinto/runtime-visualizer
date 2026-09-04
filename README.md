@@ -1,78 +1,38 @@
-## Development commands
+# Runtime Visualizer
 
-The default development command starts the Vite frontend and Fastify server together:
+Runtime Visualizer is a graph-first workspace for inspecting and running saved TypeScript Procedures.
+
+## Development
 
 ```bash
 bun install
-bun run dev                 # frontend (:5173) + server (:3000)
+bun run dev                 # frontend (:5173) + backend (:3000)
 ```
 
-Run either side independently when needed:
+Run either side independently with `bun run frontend:dev` or `bun run backend:dev`.
+
+The backend observes the source workspace configured by `settings.json` (`filesFolder`, defaulting to `./target`). Durable analysis snapshots are stored in `.runtime-visualizer/revisions.sqlite` at the repository root. The directory is local state and is ignored by git. Set `databasePath` when constructing `createApp` to use an isolated database in tests or tooling.
+
+## Workspace API
+
+All Procedure and execution selections use the stable discovered `procedureId` and an immutable analysis `revision`.
+
+- `GET /api/files` — list supported saved source files.
+- `GET /api/analysis?file=<path>&procedureId=<id>` — analyze and persist the current snapshot.
+- `GET /api/analysis/revisions?file=<path>&procedureId=<id>` — list retained revision summaries, newest first.
+- `GET /api/analysis?file=<path>&procedureId=<id>&revision=<hash>` — load an exact historical snapshot.
+- `POST /api/execute` — start `{ file, procedureId, revision }`; returns `202 { executionId }`.
+- `GET /api/execute` — list workspace-wide active executions.
+- `DELETE /api/execute/<executionId>` — request cancellation; returns `202` or `404`.
+- `GET /api/events` — replay-aware SSE for source changes, revision readiness, active executions, execution updates, and resynchronization.
+- `GET /api/health` — liveness probe.
+
+Historical snapshots remain available after source changes or deletion, subject to the 30-day/newest-20 retention policy and active execution leases. Execution progress is server-owned and is not tied to a browser connection.
+
+## Validation
 
 ```bash
-bun run dev:frontend        # frontend only
-bun run dev:server          # server only
-bun run start:server        # server without hot reload
+bun run test
+bun run cibuild
+bun run clone-check
 ```
-
-Build, lint, typecheck, and test commands use explicit frontend/server suffixes:
-
-```bash
-bun run build               # frontend build + server typecheck
-bun run build:frontend
-bun run build:server
-bun run lint:frontend
-bun run test:frontend
-bun run test:browser:frontend
-bun run test:server
-bun run typecheck:server
-```
-
-A small Fastify server lives in `./server` (declared as a workspace).
-
-Endpoints:
-
-- `GET  /api/health` — liveness probe (`{ status, uptimeMs, timestamp }`).
-- `GET  /api/runtime` — node + bun version, platform, arch, pid, memory snapshot.
-- `GET  /api/runtime/memory` — rss / heap / external memory usage.
-- `GET  /api/runtime/uptime` — process uptime in milliseconds.
-- `POST /api/echo` — echoes the JSON body back, useful for round-trip checks.
-- `GET  /api/files` — list every file under the folder configured in `settings.json`
-  (`filesFolder`), returned as forward-slash paths relative to that folder.
-
-The server is built with TypeScript and exercised by `bun test` in `server/test/`.
-
-### `settings.json`
-
-A small JSON file at the project root configures server-wide options. Currently:
-
-```json
-{ "filesFolder": "./target" }
-```
-
-`filesFolder` is resolved relative to the directory holding `settings.json` (the
-server walks up from its own location to find it). Defaults to `./target` when the
-file is missing or has no `filesFolder` key. The endpoint `GET /api/files` returns
-a JSON array of every regular file under that folder, recursive, in deterministic
-order (subdirectory contents first, then sibling files, alphabetic within each
-group). Symbolic links are skipped. Missing configured folder → `[]`.
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.

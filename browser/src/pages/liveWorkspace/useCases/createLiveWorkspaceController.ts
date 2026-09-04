@@ -1,4 +1,7 @@
-import type { RevisionKey, WorkspaceEvent } from "@runtime-visualizer/contracts";
+import type {
+  RevisionKey,
+  WorkspaceEvent,
+} from "@runtime-visualizer/contracts";
 import {
   initialLiveWorkspaceState,
   snapshotKey,
@@ -6,7 +9,6 @@ import {
   type LiveWorkspaceState,
 } from "./liveWorkspace.types";
 import type {
-  LegacyExecutionStream,
   LiveWorkspacePorts,
   WorkspaceController,
 } from "./liveWorkspace.ports";
@@ -27,11 +29,6 @@ type WorkspaceStream = AsyncIterable<{
   id: number;
   event: WorkspaceEvent;
 }>;
-
-type LegacyExecutionEvent = {
-  event: "node" | "result";
-  data: { nodeId?: string; status?: "Succeeded" | "Failed"; error?: string };
-};
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Backend unavailable";
@@ -64,7 +61,7 @@ function executionUpdate(
   status: "Running" | "Succeeded" | "Failed" | "Cancelled",
   currentNodeId: string | null,
   error?: string,
-): Extract<WorkspaceEvent, { type: "execution-update" }>['update'] {
+): Extract<WorkspaceEvent, { type: "execution-update" }>["update"] {
   return {
     executionId: record.executionId,
     displayNumber: record.displayNumber ?? 1,
@@ -101,7 +98,6 @@ export function createLiveWorkspaceController(
   let started = false;
   let reconnectAttempt = 0;
   const retry = ports.retry ?? defaultRetryScheduler();
-  const legacyStreams = new Map<string, () => void>();
   const listeners = new Set<(state: LiveWorkspaceState) => void>();
 
   const set = (next: LiveWorkspaceState): void => {
@@ -133,18 +129,15 @@ export function createLiveWorkspaceController(
       event.event.update.status !== "Running"
     )
       void refreshQueued();
-    if (event.type === "legacy-interrupted") void refreshQueued();
-    if (before !== state && event.type === "workspace-event") eventSequence = Math.max(eventSequence, event.id);
+    if (before !== state && event.type === "workspace-event")
+      eventSequence = Math.max(eventSequence, event.id);
   };
 
   const loadExact = async (
     key: RevisionKey,
     requestId = `${++requestSequence}`,
   ): Promise<void> => {
-    if (
-      state.pane.status !== "loading" ||
-      state.pane.requestId !== requestId
-    )
+    if (state.pane.status !== "loading" || state.pane.requestId !== requestId)
       dispatch({ type: "analysis-loading", key, requestId });
     const signal = analysisController?.signal;
     try {
@@ -153,7 +146,11 @@ export function createLiveWorkspaceController(
       dispatch({ type: "analysis-loaded", key, requestId, value: analysis });
     } catch (error) {
       if (disposed || signal?.aborted) return;
-      dispatch({ type: "analysis-failed", requestId, error: errorMessage(error) });
+      dispatch({
+        type: "analysis-failed",
+        requestId,
+        error: errorMessage(error),
+      });
     }
   };
 
@@ -178,9 +175,14 @@ export function createLiveWorkspaceController(
         procedures: current.procedures,
       });
       const scope = { file: current.file, procedureId: current.procedureId };
-      let revisions = [] as Awaited<ReturnType<typeof ports.analysis.listRevisions>>;
+      let revisions = [] as Awaited<
+        ReturnType<typeof ports.analysis.listRevisions>
+      >;
       try {
-        revisions = await ports.analysis.listRevisions(scope, controller.signal);
+        revisions = await ports.analysis.listRevisions(
+          scope,
+          controller.signal,
+        );
       } catch {
         if (controller.signal.aborted) return;
         // A test double or a backend without persisted history can still show
@@ -188,16 +190,22 @@ export function createLiveWorkspaceController(
         revisions = [];
       }
       if (disposed || controller.signal.aborted) return;
-      const requested = preferredRevision !== undefined &&
+      const requested =
+        preferredRevision !== undefined &&
         revisions.some((revision) => revision.revision === preferredRevision)
-        ? preferredRevision
-        : revisions[0]?.revision ?? current.revision;
+          ? preferredRevision
+          : (revisions[0]?.revision ?? current.revision);
       const key: RevisionKey = { ...scope, revision: requested };
       const id = `${++requestSequence}`;
       dispatch({ type: "analysis-loading", key, requestId: id });
       dispatch({ type: "revisions-loaded", scope, revisions });
       if (requested === current.revision) {
-        dispatch({ type: "analysis-loaded", key, requestId: id, value: current });
+        dispatch({
+          type: "analysis-loaded",
+          key,
+          requestId: id,
+          value: current,
+        });
       } else {
         await loadExact(key, id);
       }
@@ -210,7 +218,11 @@ export function createLiveWorkspaceController(
         revision: preferredRevision ?? "unavailable",
       };
       dispatch({ type: "analysis-loading", key, requestId: id });
-      dispatch({ type: "analysis-failed", requestId: id, error: errorMessage(error) });
+      dispatch({
+        type: "analysis-failed",
+        requestId: id,
+        error: errorMessage(error),
+      });
     }
   };
 
@@ -219,8 +231,7 @@ export function createLiveWorkspaceController(
       const files = await ports.analysis.listFiles();
       if (!disposed) dispatch({ type: "files-loaded", files });
     } catch (error) {
-      if (!disposed)
-        set({ ...state, errorMessage: errorMessage(error) });
+      if (!disposed) set({ ...state, errorMessage: errorMessage(error) });
     }
   };
 
@@ -230,7 +241,11 @@ export function createLiveWorkspaceController(
       const executions = await ports.execution.list();
       if (disposed) return;
       const id = Math.max(eventSequence + 1, 1);
-      dispatch({ type: "workspace-event", id, event: { type: "active-executions", executions: [...executions] } });
+      dispatch({
+        type: "workspace-event",
+        id,
+        event: { type: "active-executions", executions: [...executions] },
+      });
     } catch (error) {
       if (!disposed) set({ ...state, errorMessage: errorMessage(error) });
     }
@@ -250,44 +265,7 @@ export function createLiveWorkspaceController(
     });
   };
 
-  const observeLegacyFileEvents = async (): Promise<void> => {
-    if (ports.fileEvents === undefined) return;
-    const events = new AbortController();
-    eventsController = events;
-    try {
-      set({
-        ...state,
-        connectionState: { ...state.connectionState, status: "connected" },
-        errorMessage: null,
-      });
-      for await (const change of ports.fileEvents.subscribe(events.signal)) {
-        if (disposed) return;
-        dispatch({
-          type: "workspace-event",
-          id: ++eventSequence,
-          event: { type: "source-change", change },
-        });
-      }
-      if (!disposed && !events.signal.aborted) throw new Error("File event stream ended");
-    } catch (error) {
-      if (!disposed && !events.signal.aborted) {
-        set({
-          ...state,
-          connectionState: { status: "reconnecting", cursor: state.connectionState.cursor },
-          errorMessage: errorMessage(error),
-        });
-        scheduleReconnect();
-      }
-    } finally {
-      if (eventsController === events) eventsController = undefined;
-    }
-  };
-
   const observeEvents = async (): Promise<void> => {
-    if (ports.workspaceEvents === undefined) {
-      await observeLegacyFileEvents();
-      return;
-    }
     eventsController?.abort();
     const events = new AbortController();
     eventsController = events;
@@ -304,7 +282,11 @@ export function createLiveWorkspaceController(
       ) as WorkspaceStream;
       for await (const record of stream) {
         if (disposed) return;
-        dispatch({ type: "workspace-event", id: record.id, event: record.event });
+        dispatch({
+          type: "workspace-event",
+          id: record.id,
+          event: record.event,
+        });
       }
       if (!disposed && !events.signal.aborted)
         throw new Error("Workspace event stream ended");
@@ -324,60 +306,6 @@ export function createLiveWorkspaceController(
     }
   };
 
-  const observeLegacyExecution = async (
-    record: ExecutionRecord,
-    stream: LegacyExecutionStream,
-  ): Promise<void> => {
-    let terminal = false;
-    try {
-      for await (const raw of stream.events) {
-        if (disposed) return;
-        const event = raw as LegacyExecutionEvent;
-        const current = state.activeExecutionsById[record.executionId] ?? record;
-        if (event.event === "node" && event.data.nodeId !== undefined) {
-          dispatch({
-            type: "workspace-event",
-            id: ++eventSequence,
-            event: {
-              type: "execution-update",
-              update: executionUpdate(current, "Running", event.data.nodeId),
-            },
-          });
-        } else if (event.event === "result" && event.data.status !== undefined) {
-          terminal = true;
-          dispatch({
-            type: "workspace-event",
-            id: ++eventSequence,
-            event: {
-              type: "execution-update",
-              update: executionUpdate(
-                current,
-                event.data.status,
-                null,
-                event.data.error,
-              ),
-            },
-          });
-        }
-      }
-      if (!terminal && !disposed)
-        dispatch({
-          type: "legacy-interrupted",
-          executionId: record.executionId,
-          error: "Execution stream ended before a result.",
-        });
-    } catch (error) {
-      if (!disposed)
-        dispatch({
-          type: "legacy-interrupted",
-          executionId: record.executionId,
-          error: errorMessage(error),
-        });
-    } finally {
-      legacyStreams.delete(record.executionId);
-    }
-  };
-
   const runProcedure = async (): Promise<void> => {
     const analysis = state.analysis;
     const scope = state.selectedScope;
@@ -392,11 +320,8 @@ export function createLiveWorkspaceController(
       return;
     try {
       const started = await ports.execution.start(scope);
-      if (disposed) {
-        if (typeof started !== "string") started.cancel();
-        return;
-      }
-      const executionId = typeof started === "string" ? started : started.executionId;
+      if (disposed) return;
+      const executionId = started;
       const record: ExecutionRecord = {
         executionId,
         scope,
@@ -415,10 +340,6 @@ export function createLiveWorkspaceController(
           update: executionUpdate(record, "Running", null),
         },
       });
-      if (typeof started !== "string") {
-        legacyStreams.set(executionId, started.cancel);
-        void observeLegacyExecution(record, started);
-      }
     } catch (error) {
       if (!disposed) set({ ...state, errorMessage: errorMessage(error) });
     }
@@ -464,7 +385,12 @@ export function createLiveWorkspaceController(
     if (effect.type === "load-revisions") {
       try {
         const revisions = await ports.analysis.listRevisions(effect.scope);
-        if (!disposed) dispatch({ type: "revisions-loaded", scope: effect.scope, revisions });
+        if (!disposed)
+          dispatch({
+            type: "revisions-loaded",
+            scope: effect.scope,
+            revisions,
+          });
       } catch (error) {
         if (!disposed) set({ ...state, errorMessage: errorMessage(error) });
       }
@@ -518,18 +444,24 @@ export function createLiveWorkspaceController(
       return () => listeners.delete(listener);
     },
     selectFile: (file) => {
-      if (state.connection === "reconnecting" || !state.files.includes(file)) return;
+      if (state.connection === "reconnecting" || !state.files.includes(file))
+        return;
       void bootstrapFile(file);
     },
     selectProcedure: (procedureId) => {
-      if (state.connection === "reconnecting" || state.selectedFile === null) return;
+      if (state.connection === "reconnecting" || state.selectedFile === null)
+        return;
       void bootstrapFile(state.selectedFile, procedureId);
     },
     selectRevision: (key) => {
       if (key === null || state.connection === "reconnecting") return;
       analysisController?.abort();
       analysisController = new AbortController();
-      dispatch({ type: "select-scope", key, requestId: `${++requestSequence}` });
+      dispatch({
+        type: "select-scope",
+        key,
+        requestId: `${++requestSequence}`,
+      });
     },
     setImportsVisible: (visible) => {
       dispatch({ type: "set-imports-visible", visible });
@@ -538,19 +470,32 @@ export function createLiveWorkspaceController(
     focus: (target) => dispatch({ type: "focus", target }),
     runProcedure: () => void runProcedure(),
     selectExecution: (executionId) => {
-      const execution = state.executions.find((item) => item.executionId === executionId);
+      const execution = state.executions.find(
+        (item) => item.executionId === executionId,
+      );
       if (execution === undefined) return;
-      const analysis = state.snapshots[snapshotKey({
-        file: execution.scope.file,
-        procedureId: execution.scope.procedureId,
-        revision: execution.scope.revision,
-      })];
+      const analysis =
+        state.snapshots[
+          snapshotKey({
+            file: execution.scope.file,
+            procedureId: execution.scope.procedureId,
+            revision: execution.scope.revision,
+          })
+        ];
       if (analysis === undefined) {
         analysisController?.abort();
         analysisController = new AbortController();
-        dispatch({ type: "select-scope", key: execution.scope, requestId: `${++requestSequence}` });
+        dispatch({
+          type: "select-scope",
+          key: execution.scope,
+          requestId: `${++requestSequence}`,
+        });
       } else {
-        dispatch({ type: "view-analysis", key: execution.scope, value: analysis });
+        dispatch({
+          type: "view-analysis",
+          key: execution.scope,
+          value: analysis,
+        });
       }
       set({ ...state, selectedExecutionId: executionId });
       if (execution.failedNodeId !== undefined)
@@ -564,7 +509,8 @@ export function createLiveWorkspaceController(
         });
     },
     armCancel: (executionId) => dispatch({ type: "arm-cancel", executionId }),
-    confirmCancel: (executionId) => dispatch({ type: "confirm-cancel", executionId }),
+    confirmCancel: (executionId) =>
+      dispatch({ type: "confirm-cancel", executionId }),
     clearCompleted: () => dispatch({ type: "clear-completed" }),
     retry: () => {
       reconnectCancel?.();
@@ -581,8 +527,6 @@ export function createLiveWorkspaceController(
       eventsController?.abort();
       reconnectCancel?.();
       reconnectCancel = undefined;
-      for (const cancel of legacyStreams.values()) cancel();
-      legacyStreams.clear();
       listeners.clear();
     },
   };

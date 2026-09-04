@@ -27,6 +27,10 @@ import echoRoutes from "./routes/echo.ts";
 
 export type AppOptions = {
 	readonly now?: () => Date;
+	/** Use an explicit history database (primarily for isolated acceptance runs). */
+	readonly databasePath?: string;
+	/** Timeout applied to each server-owned execution. */
+	readonly executionTimeoutMs?: number;
 	/** Hook used by tests to register extra routes. */
 	readonly registerTestRoutes?: (app: FastifyInstance) => void;
 	/** Folder whose files are exposed via `GET /api/files` (defaults to `settings.json:filesFolder`). */
@@ -86,17 +90,27 @@ export async function createApp(
 	});
 	const filesFolder = options.filesFolder ?? loadSettings().filesFolder;
 	let history: RevisionHistory = new InMemoryRevisionHistory(options.now);
-	if (process.env.VITEST === undefined) {
+	// Tests default to an in-memory store for isolation, but an explicit path
+	// opts into the same SQLite authority used by production. This keeps restart
+	// and source-deletion acceptance tests honest without sharing local state.
+	const useSqlite =
+		process.env.VITEST === undefined ||
+		(options.databasePath !== undefined && typeof globalThis.Bun !== "undefined");
+	if (useSqlite) {
 		const { SqliteRevisionHistory } = await import(
 			"../../../modules/analysis/infra/sqliteRevisionHistory.ts"
 		);
 		history = new SqliteRevisionHistory(
-			join(process.cwd(), ".runtime-visualizer", "revisions.sqlite"),
+			options.databasePath ??
+				join(process.cwd(), ".runtime-visualizer", "revisions.sqlite"),
 			options.now,
 		);
 	}
 	const eventHub = new WorkspaceEventHub();
-	const executionManager = new DefaultExecutionManager(history);
+	const executionManager = new DefaultExecutionManager(history, {
+		executionTimeoutMs: options.executionTimeoutMs,
+		now: options.now,
+	});
 	const executionSubscription = executionManager.subscribe((update) =>
 		eventHub.publish({ type: "execution-update", update }),
 	);
@@ -127,8 +141,12 @@ export async function createApp(
 		queue: revisionQueue,
 	});
 	// Baseline indexing is deliberately deferred so the server can accept Workspace connections first.
-	setTimeout(() => revisionQueue.enqueueAffected([], "baseline"), 250);
+	const baselineTimer = setTimeout(
+		() => revisionQueue.enqueueAffected([], "baseline"),
+		250,
+	);
 	app.addHook("onClose", async () => {
+		clearTimeout(baselineTimer);
 		sourceChangeWatcher.close();
 		scheduler.close();
 		executionSubscription();

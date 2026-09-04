@@ -28,7 +28,14 @@ export class WorkspaceEventHub {
   subscribe(lastEventId?: number, listener?: Listener): { replay: readonly Record[]; resyncRequired: boolean; unsubscribe: () => void } {
     const oldest = this.retained[0]?.id;
     const resyncRequired = lastEventId !== undefined && oldest !== undefined && lastEventId < oldest - 1;
-    const replay = resyncRequired ? [] : this.retained.filter((record) => lastEventId === undefined || record.id > lastEventId);
+    // A fresh client receives active-state hydration from the events route;
+    // replay is only meaningful when the client presents a cursor. Replaying
+    // the whole process-local log to every new browser would leak terminal
+    // notifications from earlier sessions into a fresh workspace.
+    const replay =
+      resyncRequired || lastEventId === undefined
+        ? []
+        : this.retained.filter((record) => record.id > lastEventId);
     if (listener) this.listeners.add(listener);
     return { replay, resyncRequired, unsubscribe: () => { if (listener) this.listeners.delete(listener); } };
   }

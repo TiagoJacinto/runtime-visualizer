@@ -28,16 +28,16 @@ async function readJson(response: Response): Promise<unknown> {
 function errorFromResponse(value: unknown, status: number): Error {
   const parsed = AnalysisErrorSchema.safeParse(value);
   return new Error(
-    parsed.success
-      ? parsed.data.error
-      : `Backend request failed (${status})`,
+    parsed.success ? parsed.data.error : `Backend request failed (${status})`,
   );
 }
 
 export function createAnalysisGateway(
   fetcher: typeof fetch = fetch,
 ): AnalysisGateway {
-  const parseAnalysis = async (response: Response): Promise<AnalysisResponse> => {
+  const parseAnalysis = async (
+    response: Response,
+  ): Promise<AnalysisResponse> => {
     const value = await readJson(response);
     if (!response.ok) {
       const diagnostic = AnalysisErrorSchema.safeParse(value);

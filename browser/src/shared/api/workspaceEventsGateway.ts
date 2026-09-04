@@ -23,13 +23,6 @@ export class WorkspaceEventsConnectionError extends Error {
 }
 
 function parseRecord(record: string): WorkspaceEventRecord | undefined {
-  const eventName = record
-    .split("\n")
-    .find((line) => line.startsWith("event:"))
-    ?.slice("event:".length)
-    .trim();
-  // The backend emits this legacy projection alongside the typed event.
-  if (eventName === "file-change") return undefined;
   const data = record
     .split("\n")
     .filter((line) => line.startsWith("data:"))
@@ -45,9 +38,7 @@ function parseRecord(record: string): WorkspaceEventRecord | undefined {
   const parsed = WorkspaceEventSchema.safeParse(value);
   if (!parsed.success)
     throw new WorkspaceEventsConnectionError("Invalid workspace event");
-  const idLine = record
-    .split("\n")
-    .find((line) => line.startsWith("id:"));
+  const idLine = record.split("\n").find((line) => line.startsWith("id:"));
   const id = Number(idLine?.slice("id:".length).trim() ?? 0);
   if (!Number.isSafeInteger(id) || id < 0)
     throw new WorkspaceEventsConnectionError("Invalid workspace event ID");

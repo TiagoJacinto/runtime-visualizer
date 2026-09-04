@@ -37,13 +37,13 @@ async function nextFileChange(
 			const records = buffer.split("\n\n");
 			buffer = records.pop() ?? "";
 			for (const record of records) {
-				if (!record.split("\n").includes("event: file-change")) continue;
+				if (!record.split("\n").includes("event: source-change")) continue;
 				const dataLine = record
 					.split("\n")
 					.find((line) => line.startsWith("data: "));
 				if (dataLine !== undefined) {
-					const payload = JSON.parse(dataLine.slice("data: ".length)) as FileChange;
-					if (payload.file === file && payload.change === change) return payload;
+					const payload = JSON.parse(dataLine.slice("data: ".length)) as { type: "source-change"; change: FileChange };
+					if (payload.change.file === file && payload.change.change === change) return payload.change;
 				}
 			}
 		}

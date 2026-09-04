@@ -1,10 +1,21 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { AnalysisResponse, RevisionKey } from "@runtime-visualizer/contracts";
+import type {
+  AnalysisResponse,
+  RevisionKey,
+} from "@runtime-visualizer/contracts";
 import { ControlFlowNode } from "../../../src/pages/liveWorkspace/components/controlFlowGraph/ControlFlowNode";
-import { layoutGraph } from "../../../src/pages/liveWorkspace/components/controlFlowGraph/controlFlowLayout";
+import {
+  layoutGraph,
+  layoutGraphWithElk,
+} from "../../../src/pages/liveWorkspace/components/controlFlowGraph/controlFlowLayout";
 import { selectVisibleGraph } from "../../../src/pages/liveWorkspace/components/controlFlowGraph/selectVisibleGraph";
+import {
+  selectRevisionBadge,
+  selectVisibleExecutions,
+  selectVisibleMarkers,
+} from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.selectors";
 import { SourcePane } from "../../../src/pages/liveWorkspace/components/source/SourcePane";
 import {
   buildSourceRangeIndex,
@@ -30,7 +41,8 @@ const analysis: AnalysisResponse = {
   },
   procedureId: scope.procedureId,
   revision: scope.revision,
-  source: "import { value } from './value';\nfunction run() {\n  return value;\n}",
+  source:
+    "import { value } from './value';\nfunction run() {\n  return value;\n}",
   procedures: [
     { id: scope.procedureId, kind: "Function", name: "run", label: "run" },
   ],
@@ -42,9 +54,25 @@ const analysis: AnalysisResponse = {
         entry: "entry",
         exit: "exit",
         nodes: [
-          { id: "import", kind: "import", label: "value", location: { start: { line: 1, column: 1 }, end: { line: 1, column: 38 } } },
+          {
+            id: "import",
+            kind: "import",
+            label: "value",
+            location: {
+              start: { line: 1, column: 1 },
+              end: { line: 1, column: 38 },
+            },
+          },
           { id: "entry", kind: "entry", label: "entry" },
-          { id: "return", kind: "return", label: "return value", location: { start: { line: 3, column: 3 }, end: { line: 3, column: 15 } } },
+          {
+            id: "return",
+            kind: "return",
+            label: "return value",
+            location: {
+              start: { line: 3, column: 3 },
+              end: { line: 3, column: 15 },
+            },
+          },
           { id: "exit", kind: "exit", label: "exit" },
         ],
         edges: [
@@ -86,6 +114,55 @@ describe("graph-source-sync", () => {
     expect(afterProgress.nodes.map((node) => node.id)).toEqual(
       first.nodes.map((node) => node.id),
     );
+  });
+
+  it("lays out an empty graph and an immutable graph with ELK", async () => {
+    const empty = await layoutGraphWithElk({ nodes: [], edges: [] });
+    expect(empty.nodes).toEqual([]);
+
+    const laidOut = await layoutGraphWithElk(selectVisibleGraph(cfg, true));
+    expect(laidOut.nodes).toHaveLength(cfg.procedures?.[0]?.nodes.length ?? 0);
+    expect(laidOut.edges).toEqual(cfg.procedures?.[0]?.edges ?? []);
+    expect(laidOut.width).toBeGreaterThan(0);
+    expect(laidOut.height).toBeGreaterThan(0);
+  });
+
+  it("selects markers and revision badges for the displayed scope", () => {
+    const execution = {
+      executionId: "execution-1",
+      displayNumber: 1,
+      scope,
+      status: "running" as const,
+      currentNodeId: "return",
+      error: null,
+      file: scope.file,
+      procedure: scope.procedureId,
+      revision: scope.revision,
+    };
+    const state = {
+      ...initialLiveWorkspaceState,
+      selectedScope: scope,
+      executions: [execution],
+      revisionsByScope: {
+        [`${scope.file}\0${scope.procedureId}`]: [
+          {
+            file: scope.file,
+            procedureId: scope.procedureId,
+            revision: scope.revision,
+            analyzedAt: "2025-01-01T00:00:00.000Z",
+            runnable: true,
+            diagnosticCount: 0,
+          },
+        ],
+      },
+    };
+
+    expect(selectVisibleExecutions(state, scope)).toEqual([execution]);
+    expect(selectVisibleMarkers(state, "return", scope)).toEqual([execution]);
+    expect(selectVisibleMarkers(state, "entry", scope)).toEqual([]);
+    expect(selectVisibleExecutions(state, null)).toEqual([]);
+    expect(selectRevisionBadge(state, scope)?.revision).toBe(scope.revision);
+    expect(selectRevisionBadge(state, null)).toBeNull();
   });
 
   it("maps executable source ranges to the same node focus target", () => {
@@ -131,7 +208,11 @@ describe("graph-source-sync", () => {
     const markup = renderToStaticMarkup(
       createElement(ControlFlowNode, {
         data: {
-          node: cfg.procedures?.[0]?.nodes[2] ?? { id: "return", kind: "return", label: "return" },
+          node: cfg.procedures?.[0]?.nodes[2] ?? {
+            id: "return",
+            kind: "return",
+            label: "return",
+          },
           focused: true,
           markers: [marker],
           selectedExecutionId: marker.executionId,
@@ -161,7 +242,15 @@ describe("graph-source-sync", () => {
     }).state;
 
     expect(graphFocus.focus?.nodeId).toBe("return");
-    expect(sourceFocus.focus).toEqual({ scope, nodeId: "return", origin: "source" });
-    expect(failureFocus.focus).toEqual({ scope, nodeId: "return", origin: "failure" });
+    expect(sourceFocus.focus).toEqual({
+      scope,
+      nodeId: "return",
+      origin: "source",
+    });
+    expect(failureFocus.focus).toEqual({
+      scope,
+      nodeId: "return",
+      origin: "failure",
+    });
   });
 });

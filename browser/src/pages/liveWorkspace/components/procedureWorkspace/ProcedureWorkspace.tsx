@@ -1,4 +1,8 @@
-import type { AnalysisResponse, RevisionKey, RevisionSummary } from "@runtime-visualizer/contracts";
+import type {
+  AnalysisResponse,
+  RevisionKey,
+  RevisionSummary,
+} from "@runtime-visualizer/contracts";
 import type { WorkspaceController } from "../../useCases/liveWorkspace.ports";
 import type { LiveWorkspaceState } from "../../useCases/liveWorkspace.types";
 import { GraphPane } from "../controlFlowGraph/GraphPane";
@@ -60,7 +64,9 @@ export function ProcedureWorkspace({
           <h2 className="text-xs font-semibold text-rose-200">Diagnostics</h2>
           <ul className="mt-2 space-y-1 text-[10px] text-rose-100/80">
             {analysis.diagnostics.map((diagnostic, index) => (
-              <li key={`${diagnostic.procedure}-${diagnostic.message ?? diagnostic.reason}-${index}`}>
+              <li
+                key={`${diagnostic.procedure}-${diagnostic.message ?? diagnostic.reason}-${index}`}
+              >
                 {diagnostic.message ?? diagnostic.reason}
                 {diagnostic.location ? (
                   <span className="ml-2 font-mono text-rose-300/70">
@@ -92,7 +98,8 @@ export function ProcedureWorkspace({
                 aria-label="Control-flow graph"
                 className="flex min-h-[28rem] items-center justify-center rounded-xl border border-rose-300/20 bg-rose-300/[0.04] p-6 text-center text-xs text-rose-200"
               >
-                Control-flow graph unavailable because this revision has diagnostics.
+                Control-flow graph unavailable because this revision has
+                diagnostics.
               </section>
             )}
             <SourcePane
@@ -107,7 +114,9 @@ export function ProcedureWorkspace({
           </div>
         ) : (
           <div className="flex min-h-[28rem] items-center justify-center rounded-xl border border-white/10 bg-[#091510] text-xs text-slate-500">
-            {state.status === "loading" ? "Loading workspace…" : "No analysis loaded."}
+            {state.status === "loading"
+              ? "Loading workspace…"
+              : "No analysis loaded."}
           </div>
         )}
         {loading ? (
@@ -125,7 +134,9 @@ export function ProcedureWorkspace({
             role="alert"
             className="absolute inset-x-3 top-3 z-10 rounded-lg border border-rose-300/20 bg-[#0A1712]/95 px-3 py-2 text-[10px] text-rose-200"
           >
-            {state.pane.status === "failed" ? state.pane.error : "Analysis unavailable."}
+            {state.pane.status === "failed"
+              ? state.pane.error
+              : "Analysis unavailable."}
           </div>
         ) : null}
       </div>

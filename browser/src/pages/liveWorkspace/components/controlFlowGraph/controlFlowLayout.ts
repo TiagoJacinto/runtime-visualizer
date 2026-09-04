@@ -68,7 +68,9 @@ export async function layoutGraphWithElk(
       "elk.algorithm": "layered",
       "elk.direction": "DOWN",
       "elk.edgeRouting": "ORTHOGONAL",
-      "elk.layered.spacing.nodeNodeBetweenLayers": String(ROW_GAP + NODE_HEIGHT),
+      "elk.layered.spacing.nodeNodeBetweenLayers": String(
+        ROW_GAP + NODE_HEIGHT,
+      ),
       "elk.spacing.nodeNode": String(COLUMN_GAP),
       "elk.padding": "24",
     },

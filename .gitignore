@@ -35,6 +35,9 @@ dist-ssr
 # Local durable revision history
 .runtime-visualizer/
 
+# Isolated browser acceptance workspace
+.playwright-live-workspace/
+
 # SSSF runtime
 adws/adw_data/sessions/
 adws/adw_data/runs/

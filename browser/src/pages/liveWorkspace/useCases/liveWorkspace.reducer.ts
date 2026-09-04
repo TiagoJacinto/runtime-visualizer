@@ -1,6 +1,5 @@
 import type {
   AnalysisResponse,
-  FileChangeEvent,
   RevisionKey,
   RevisionSummary,
   WorkspaceEvent,
@@ -16,16 +15,36 @@ import {
 import type { WorkspaceEffect } from "./liveWorkspace.effects";
 
 type ProcedureResource = AnalysisResponse["procedures"][number];
-type ExecutionUpdate = Extract<WorkspaceEvent, { type: "execution-update" }>["update"];
+type ExecutionUpdate = Extract<
+  WorkspaceEvent,
+  { type: "execution-update" }
+>["update"];
+type FileChangeEvent = Extract<
+  WorkspaceEvent,
+  { type: "source-change" }
+>["change"];
 
 export type LiveWorkspaceEvent =
   | { type: "preferences-loaded"; scope?: RevisionKey; importsVisible: boolean }
   | { type: "files-loaded"; files: readonly string[] }
-  | { type: "procedures-loaded"; file: string; procedures: readonly ProcedureResource[] }
+  | {
+      type: "procedures-loaded";
+      file: string;
+      procedures: readonly ProcedureResource[];
+    }
   | { type: "analysis-loading"; key: RevisionKey; requestId: string }
-  | { type: "analysis-loaded"; key: RevisionKey; requestId: string; value: AnalysisResponse }
+  | {
+      type: "analysis-loaded";
+      key: RevisionKey;
+      requestId: string;
+      value: AnalysisResponse;
+    }
   | { type: "analysis-failed"; requestId: string; error: string }
-  | { type: "revisions-loaded"; scope: { file: string; procedureId: string }; revisions: readonly RevisionSummary[] }
+  | {
+      type: "revisions-loaded";
+      scope: { file: string; procedureId: string };
+      revisions: readonly RevisionSummary[];
+    }
   | { type: "workspace-event"; id: number; event: WorkspaceEvent }
   | { type: "arm-cancel"; executionId: string }
   | { type: "confirm-cancel"; executionId: string }
@@ -35,7 +54,6 @@ export type LiveWorkspaceEvent =
   | { type: "focus"; target: LiveWorkspaceState["focus"] }
   | { type: "set-imports-visible"; visible: boolean }
   | { type: "view-analysis"; key: RevisionKey; value: AnalysisResponse }
-  | { type: "legacy-interrupted"; executionId: string; error: string }
   | { type: "clear-completed" };
 
 export type Transition = {
@@ -72,7 +90,9 @@ function project(
   patch: Partial<LiveWorkspaceState>,
 ): LiveWorkspaceState {
   const next = { ...state, ...patch };
-  const active = Object.values(next.activeExecutionsById).sort(compareExecutions);
+  const active = Object.values(next.activeExecutionsById).sort(
+    compareExecutions,
+  );
   const completed = [...next.completedExecutions].sort(compareExecutions);
   let analysis: AnalysisResponse | null = null;
   if (next.pane.status === "ready") analysis = next.pane.value;
@@ -103,12 +123,17 @@ function revisionIsSelected(
   revisions: readonly RevisionSummary[],
 ): boolean {
   if (selected === null) return false;
-  if (selected.file !== scope.file || selected.procedureId !== scope.procedureId)
+  if (
+    selected.file !== scope.file ||
+    selected.procedureId !== scope.procedureId
+  )
     return false;
   return revisions.some((revision) => revision.revision === selected.revision);
 }
 
-function executionStatus(status: ExecutionUpdate["status"]): ExecutionRecord["status"] {
+function executionStatus(
+  status: ExecutionUpdate["status"],
+): ExecutionRecord["status"] {
   if (status === "Running") return "running";
   if (status === "Succeeded") return "succeeded";
   if (status === "Cancelled") return "cancelled";
@@ -131,7 +156,8 @@ function recordFromUpdate(
     procedure: update.scope.procedureId,
     revision: update.scope.revision,
   };
-  if (update.failedNodeId !== undefined) record.failedNodeId = update.failedNodeId;
+  if (update.failedNodeId !== undefined)
+    record.failedNodeId = update.failedNodeId;
   return record;
 }
 
@@ -154,7 +180,7 @@ function sourceChangeTransition(
   if (change.change === "added") {
     const files = state.files.includes(change.file)
       ? state.files
-      : [...state.files, change.file].sort();
+      : [...state.files, change.file].sort((a, b) => a.localeCompare(b));
     return transition(state, {
       files,
       connectionState: { status: "connected", cursor: id },
@@ -187,13 +213,15 @@ function sourceChangeTransition(
   }
   if (change.file !== state.selectedFile) return { state, effects: [] };
   const selected = state.selectedScope;
-  const activeForScope = selected !== null && Object.values(state.activeExecutionsById).some(
-    (execution) =>
-      execution.status === "running" &&
-      execution.scope.file === selected.file &&
-      execution.scope.procedureId === selected.procedureId &&
-      execution.scope.revision === selected.revision,
-  );
+  const activeForScope =
+    selected !== null &&
+    Object.values(state.activeExecutionsById).some(
+      (execution) =>
+        execution.status === "running" &&
+        execution.scope.file === selected.file &&
+        execution.scope.procedureId === selected.procedureId &&
+        execution.scope.revision === selected.revision,
+    );
   const effects: WorkspaceEffect[] = [];
   if (selected !== null)
     effects.push({
@@ -204,7 +232,7 @@ function sourceChangeTransition(
     state,
     {
       queuedRevision: activeForScope
-        ? change.revision ?? state.queuedRevision
+        ? (change.revision ?? state.queuedRevision)
         : null,
       connectionState: { status: "connected", cursor: id },
     },
@@ -230,7 +258,8 @@ function filesLoaded(
   const nextScope =
     selected !== null && event.files.includes(selected.file) ? selected : null;
   const file = nextScope?.file ?? event.files[0];
-  const pane = event.files.length === 0 ? { status: "empty" as const } : state.pane;
+  const pane =
+    event.files.length === 0 ? { status: "empty" as const } : state.pane;
   const effects: WorkspaceEffect[] = [];
   if (file !== undefined)
     effects.push({
@@ -241,7 +270,13 @@ function filesLoaded(
     });
   return transition(
     state,
-    { files: event.files, selectedScope: nextScope, pane, errorMessage: null, fileDeleted: false },
+    {
+      files: event.files,
+      selectedScope: nextScope,
+      pane,
+      errorMessage: null,
+      fileDeleted: false,
+    },
     effects,
   );
 }
@@ -266,7 +301,10 @@ function analysisLoaded(
   state: LiveWorkspaceState,
   event: Extract<LiveWorkspaceEvent, { type: "analysis-loaded" }>,
 ): Transition {
-  if (state.pane.status !== "loading" || state.pane.requestId !== event.requestId)
+  if (
+    state.pane.status !== "loading" ||
+    state.pane.requestId !== event.requestId
+  )
     return { state, effects: [] };
   return transition(state, {
     selectedScope: {
@@ -290,10 +328,17 @@ function analysisFailed(
   state: LiveWorkspaceState,
   event: Extract<LiveWorkspaceEvent, { type: "analysis-failed" }>,
 ): Transition {
-  if (state.pane.status !== "loading" || state.pane.requestId !== event.requestId)
+  if (
+    state.pane.status !== "loading" ||
+    state.pane.requestId !== event.requestId
+  )
     return { state, effects: [] };
   return transition(state, {
-    pane: { status: "failed", previous: state.pane.previous, error: event.error },
+    pane: {
+      status: "failed",
+      previous: state.pane.previous,
+      error: event.error,
+    },
     errorMessage: event.error,
   });
 }
@@ -307,42 +352,56 @@ function revisionsLoaded(
     [scopeKey(event.scope)]: event.revisions,
   };
   const selected = state.selectedScope;
-  if (selected !== null && !revisionIsSelected(selected, event.scope, event.revisions)) {
-    if (selected.file !== event.scope.file || selected.procedureId !== event.scope.procedureId)
+  if (selected !== null && state.pane.status === "loading")
+    return transition(state, { revisionsByScope });
+  if (
+    selected !== null &&
+    !revisionIsSelected(selected, event.scope, event.revisions)
+  ) {
+    if (
+      selected.file !== event.scope.file ||
+      selected.procedureId !== event.scope.procedureId
+    )
       return transition(state, { revisionsByScope });
     const first = event.revisions[0];
-    if (first === undefined)
-      return transition(state, { revisionsByScope });
+    if (first === undefined) return transition(state, { revisionsByScope });
     const key = { ...event.scope, revision: first.revision };
-    return transition(
-      state,
-      { revisionsByScope, selectedScope: key },
-      [{ type: "load-analysis", key, requestId: requestId(key) }],
-    );
+    return transition(state, { revisionsByScope, selectedScope: key }, [
+      { type: "load-analysis", key, requestId: requestId(key) },
+    ]);
   }
   if (selected !== null || event.revisions[0] === undefined)
     return transition(state, { revisionsByScope });
   const first = event.revisions[0];
   const key = { ...event.scope, revision: first.revision };
-  return transition(
-    state,
-    { revisionsByScope },
-    [{ type: "load-analysis", key, requestId: requestId(key) }],
-  );
+  return transition(state, { revisionsByScope }, [
+    { type: "load-analysis", key, requestId: requestId(key) },
+  ]);
 }
 
 function activeExecutions(
   state: LiveWorkspaceState,
   id: number,
-  executions: Extract<WorkspaceEvent, { type: "active-executions" }>["executions"],
+  executions: Extract<
+    WorkspaceEvent,
+    { type: "active-executions" }
+  >["executions"],
 ): Transition {
+  // Hydration can race a just-accepted start request. Keep locally observed
+  // runs until the shared stream supplies their authoritative update instead
+  // of allowing a late list response to make them disappear.
+  const hydrated = Object.fromEntries(
+    executions.map((execution) => [
+      execution.executionId,
+      executionRecordFromActive(execution),
+    ]),
+  );
+  const activeExecutionsById = {
+    ...state.activeExecutionsById,
+    ...hydrated,
+  };
   return transition(state, {
-    activeExecutionsById: Object.fromEntries(
-      executions.map((execution) => [
-        execution.executionId,
-        executionRecordFromActive(execution),
-      ]),
-    ),
+    activeExecutionsById,
     connectionState: { status: "connected", cursor: id },
   });
 }
@@ -371,7 +430,9 @@ function executionUpdate(
   return transition(state, {
     activeExecutionsById,
     completedExecutions: [
-      ...state.completedExecutions.filter((item) => item.executionId !== record.executionId),
+      ...state.completedExecutions.filter(
+        (item) => item.executionId !== record.executionId,
+      ),
       record,
     ],
     cancellation: { ...state.cancellation, pendingById },
@@ -455,25 +516,6 @@ function viewAnalysis(
   });
 }
 
-function legacyInterrupted(
-  state: LiveWorkspaceState,
-  event: Extract<LiveWorkspaceEvent, { type: "legacy-interrupted" }>,
-): Transition {
-  const active = state.activeExecutionsById[event.executionId];
-  if (active === undefined) return { state, effects: [] };
-  const activeExecutionsById = { ...state.activeExecutionsById };
-  delete activeExecutionsById[event.executionId];
-  const record = { ...active, status: "interrupted" as const, currentNodeId: null, error: event.error };
-  return transition(state, {
-    activeExecutionsById,
-    completedExecutions: [
-      ...state.completedExecutions.filter((item) => item.executionId !== event.executionId),
-      record,
-    ],
-    notifications: addNotification(state, event.error, "error"),
-  });
-}
-
 function selectScope(
   state: LiveWorkspaceState,
   event: Extract<LiveWorkspaceEvent, { type: "select-scope" }>,
@@ -483,7 +525,11 @@ function selectScope(
     state,
     {
       selectedScope: event.key,
-      pane: { status: "loading", requestId: id, previous: state.analysis ?? undefined },
+      pane: {
+        status: "loading",
+        requestId: id,
+        previous: state.analysis ?? undefined,
+      },
       errorMessage: null,
     },
     [{ type: "load-analysis", key: event.key, requestId: id }],
@@ -501,19 +547,34 @@ export function reduceWorkspace(
   event: LiveWorkspaceEvent,
 ): Transition {
   switch (event.type) {
-    case "preferences-loaded": return preferencesLoaded(state, event);
-    case "files-loaded": return filesLoaded(state, event);
-    case "procedures-loaded": return transition(state, {
-      proceduresByFile: { ...state.proceduresByFile, [event.file]: event.procedures },
-    });
-    case "analysis-loading": return analysisLoading(state, event);
-    case "analysis-loaded": return analysisLoaded(state, event);
-    case "analysis-failed": return analysisFailed(state, event);
-    case "revisions-loaded": return revisionsLoaded(state, event);
-    case "workspace-event": return workspaceEvent(state, event);
-    case "arm-cancel": return transition(state, {
-      cancellation: { ...state.cancellation, armedExecutionId: event.executionId },
-    });
+    case "preferences-loaded":
+      return preferencesLoaded(state, event);
+    case "files-loaded":
+      return filesLoaded(state, event);
+    case "procedures-loaded":
+      return transition(state, {
+        proceduresByFile: {
+          ...state.proceduresByFile,
+          [event.file]: event.procedures,
+        },
+      });
+    case "analysis-loading":
+      return analysisLoading(state, event);
+    case "analysis-loaded":
+      return analysisLoaded(state, event);
+    case "analysis-failed":
+      return analysisFailed(state, event);
+    case "revisions-loaded":
+      return revisionsLoaded(state, event);
+    case "workspace-event":
+      return workspaceEvent(state, event);
+    case "arm-cancel":
+      return transition(state, {
+        cancellation: {
+          ...state.cancellation,
+          armedExecutionId: event.executionId,
+        },
+      });
     case "confirm-cancel":
       if (state.activeExecutionsById[event.executionId] === undefined)
         return { state, effects: [] };
@@ -522,24 +583,36 @@ export function reduceWorkspace(
         {
           cancellation: {
             armedExecutionId: null,
-            pendingById: { ...state.cancellation.pendingById, [event.executionId]: true },
+            pendingById: {
+              ...state.cancellation.pendingById,
+              [event.executionId]: true,
+            },
           },
         },
         [{ type: "cancel-execution", executionId: event.executionId }],
       );
-    case "cancel-failed": return cancelFailed(state, event);
-    case "select-scope": return selectScope(state, event);
-    case "set-tab": return transition(state, { contextTab: event.tab });
-    case "focus": return transition(state, { focus: event.target });
-    case "set-imports-visible": return transition(state, { importsVisible: event.visible });
-    case "view-analysis": return viewAnalysis(state, event);
-    case "legacy-interrupted": return legacyInterrupted(state, event);
-    case "clear-completed": return transition(state, {
-      completedExecutions: [],
-      selectedExecutionId: state.activeExecutionsById[state.selectedExecutionId ?? ""]
-        ? state.selectedExecutionId
-        : null,
-    });
-    default: return { state, effects: [] };
+    case "cancel-failed":
+      return cancelFailed(state, event);
+    case "select-scope":
+      return selectScope(state, event);
+    case "set-tab":
+      return transition(state, { contextTab: event.tab });
+    case "focus":
+      return transition(state, { focus: event.target });
+    case "set-imports-visible":
+      return transition(state, { importsVisible: event.visible });
+    case "view-analysis":
+      return viewAnalysis(state, event);
+    case "clear-completed":
+      return transition(state, {
+        completedExecutions: [],
+        selectedExecutionId: state.activeExecutionsById[
+          state.selectedExecutionId ?? ""
+        ]
+          ? state.selectedExecutionId
+          : null,
+      });
+    default:
+      return { state, effects: [] };
   }
 }

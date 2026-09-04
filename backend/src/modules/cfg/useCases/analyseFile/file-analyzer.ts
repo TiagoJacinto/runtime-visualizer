@@ -54,9 +54,7 @@ class GraphBuilder {
 			kind,
 			label,
 			...(text === undefined ? {} : { text }),
-			...(source === undefined
-				? {}
-				: { location: location(this.file, source) }),
+			...(source === undefined ? {} : { location: location(this.file, source) }),
 		});
 		return id;
 	}
@@ -214,8 +212,7 @@ function hasExecutableClassInitialization(
 
 function hasExecutableModuleBody(body: ts.ModuleBody | undefined): boolean {
 	if (body === undefined) return false;
-	if (ts.isModuleBlock(body))
-		return body.statements.some(isExecutableStatement);
+	if (ts.isModuleBlock(body)) return body.statements.some(isExecutableStatement);
 	return ts.isModuleDeclaration(body) && isExecutableStatement(body);
 }
 
@@ -254,11 +251,7 @@ function buildStatementList(
 		const current = buildStatement(file, builder, statement, context);
 		if (current.entry === undefined) continue;
 		if (entry === undefined) entry = current.entry;
-		connectNormal(
-			builder,
-			{ normal, normalLabels, normalEdges },
-			current.entry,
-		);
+		connectNormal(builder, { normal, normalLabels, normalEdges }, current.entry);
 		normal = current.normal;
 		normalLabels = current.normalLabels ?? new Map<string, string>();
 		normalEdges = current.normalEdges ?? [];
@@ -343,9 +336,7 @@ function buildStatement(
 	if (ts.isLabeledStatement(statement))
 		return buildLabeled(file, builder, statement, context);
 	if (ts.isWithStatement(statement))
-		throw new Error(
-			"Cannot visualize a With statement in a control-flow graph.",
-		);
+		throw new Error("Cannot visualize a With statement in a control-flow graph.");
 	return executableNode(builder, statement, statementLabel(file, statement));
 }
 
@@ -512,8 +503,7 @@ function buildFor(
 	const body = buildLoopBody(file, builder, statement.statement, context, loop);
 	if (initializer?.entry !== undefined) builder.link(initializer.entry, head);
 	if (body.entry !== undefined) builder.link(head, body.entry, "true");
-	else if (statement.condition === undefined)
-		builder.link(head, head, "repeat");
+	else if (statement.condition === undefined) builder.link(head, head, "repeat");
 	else builder.link(head, head, "true");
 	connectNormal(builder, body, update?.entry ?? head);
 	if (update?.entry !== undefined) builder.link(update.entry, head);
@@ -529,9 +519,7 @@ function buildFor(
 		entry: initializer?.entry ?? head,
 		normal,
 		normalLabels:
-			statement.condition === undefined
-				? undefined
-				: new Map([[head, "false"]]),
+			statement.condition === undefined ? undefined : new Map([[head, "false"]]),
 		abrupt,
 	};
 }
@@ -741,9 +729,7 @@ function buildClass(
 			continue;
 		}
 		if (member.name !== undefined && ts.isComputedPropertyName(member.name)) {
-			parts.push(
-				buildExpression(file, builder, member.name.expression, context),
-			);
+			parts.push(buildExpression(file, builder, member.name.expression, context));
 		}
 		if (
 			isStatic(member) &&
@@ -803,12 +789,7 @@ function buildExpression(
 			expression.condition.getText(file).trim(),
 			expression.condition,
 		);
-		const whenTrue = buildExpression(
-			file,
-			builder,
-			expression.whenTrue,
-			context,
-		);
+		const whenTrue = buildExpression(file, builder, expression.whenTrue, context);
 		const whenFalse = buildExpression(
 			file,
 			builder,
@@ -962,8 +943,7 @@ function isDeclare(node: ts.Node): boolean {
 		ts.canHaveModifiers(node) &&
 		ts
 			.getModifiers(node)
-			?.some((modifier) => modifier.kind === ts.SyntaxKind.DeclareKeyword) ===
-			true
+			?.some((modifier) => modifier.kind === ts.SyntaxKind.DeclareKeyword) === true
 	);
 }
 function isStatic(node: ts.Node): boolean {
@@ -971,8 +951,7 @@ function isStatic(node: ts.Node): boolean {
 		ts.canHaveModifiers(node) &&
 		ts
 			.getModifiers(node)
-			?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword) ===
-			true
+			?.some((modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword) === true
 	);
 }
 function isNestedProcedure(node: ts.Node): boolean {
@@ -1052,8 +1031,7 @@ function findSelectedFunction(
 	file: ts.SourceFile,
 	functionName: string | undefined,
 ): ts.FunctionDeclaration | undefined {
-	if (functionName === undefined || functionName.trim() === "")
-		return undefined;
+	if (functionName === undefined || functionName.trim() === "") return undefined;
 	const requested = functionName.trim();
 	let selected: ts.FunctionDeclaration | undefined;
 	const visit = (node: ts.Node): void => {

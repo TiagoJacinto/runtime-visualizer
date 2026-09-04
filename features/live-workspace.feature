@@ -21,7 +21,7 @@ Feature: Operate the live backend workspace
   Scenario: Queue a selected-file update during an Execution
     Given the live workspace is loaded
     And a slow saved Procedure is available
-    When I select saved file "hve2e-slow.ts"
+    When I select saved file "hve2e-queue.ts"
     And I run the displayed Procedure
     And the selected file changes during the Execution
     Then the workspace shows "Update queued"
@@ -40,8 +40,10 @@ Feature: Operate the live backend workspace
 
   Scenario: View and cancel a server-owned run from the Runs context
     Given the live workspace is loaded
-    And a slow saved Procedure is available
-    When I select saved file "hve2e-slow.ts"
+    And a cancellable saved Procedure is available
+    When I select saved file "hve2e-cancel.ts"
     And I run the displayed Procedure
     And I select the Runs context
     Then the Run inspector exposes View and Cancel actions
+    When I cancel the displayed run
+    Then the Run inspector shows a "Cancelled" outcome

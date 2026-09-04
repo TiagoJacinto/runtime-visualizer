@@ -62,7 +62,9 @@ export class DefaultRevisionBuilderWorkerClient
     if (worker !== undefined) await worker.terminate();
   }
 
-  private dispatch(request: RevisionBuilderWorkerRequest): Promise<WorkerResponse> {
+  private dispatch(
+    request: RevisionBuilderWorkerRequest,
+  ): Promise<WorkerResponse> {
     if (this.closed) {
       return Promise.reject(new Error("Revision worker is closed"));
     }
@@ -74,9 +76,12 @@ export class DefaultRevisionBuilderWorkerClient
     return operation;
   }
 
-  private request(request: RevisionBuilderWorkerRequest): Promise<WorkerResponse> {
-    const worker =
-      this.worker ??= new Worker(new URL("./revisionBuilderWorker.ts", import.meta.url));
+  private request(
+    request: RevisionBuilderWorkerRequest,
+  ): Promise<WorkerResponse> {
+    const worker = (this.worker ??= new Worker(
+      new URL("./revisionBuilderWorker.ts", import.meta.url),
+    ));
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         worker.off("message", onMessage);
@@ -95,7 +100,9 @@ export class DefaultRevisionBuilderWorkerClient
       };
       const onExit = (code: number) => {
         cleanup();
-        if (code === 0) reject(new Error("Revision worker exited before responding")); else reject(new Error(`Revision worker exited with code ${code}`));
+        if (code === 0)
+          reject(new Error("Revision worker exited before responding"));
+        else reject(new Error(`Revision worker exited with code ${code}`));
       };
       worker.once("message", onMessage);
       worker.once("error", onError);

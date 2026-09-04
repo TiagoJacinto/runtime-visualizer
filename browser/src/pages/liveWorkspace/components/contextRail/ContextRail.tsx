@@ -39,7 +39,9 @@ export function ContextRail({
       className={`absolute inset-y-0 left-0 z-30 flex w-[268px] shrink-0 flex-col border-r border-white/10 bg-[#0A1712] transition-transform lg:static lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}
     >
       <div className="flex items-center justify-between border-b border-white/10 px-3 py-3 lg:hidden">
-        <span className="text-xs font-semibold text-white">Workspace context</span>
+        <span className="text-xs font-semibold text-white">
+          Workspace context
+        </span>
         <button
           type="button"
           aria-label="Close workspace navigation"
@@ -109,7 +111,10 @@ export function ContextRail({
             className="flex min-h-0 flex-1"
           >
             <ActiveRuns
-              executions={state.executions}
+              executions={state.executions.filter(
+                (execution) =>
+                  state.cancellation.pendingById[execution.executionId] !== true,
+              )}
               selectedExecutionId={state.selectedExecutionId}
               onSelect={controller.selectExecution}
               onClearCompleted={controller.clearCompleted}

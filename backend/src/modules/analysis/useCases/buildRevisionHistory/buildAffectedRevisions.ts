@@ -104,10 +104,7 @@ function resolveAffectedFilesInProcess(
   files: Readonly<Record<string, string>>,
 ): readonly string[] {
   const changed = new Set(changedPaths);
-  if (
-    changed.size === 0 ||
-    [...changed].some((path) => !(path in files))
-  ) {
+  if (changed.size === 0 || [...changed].some((path) => !(path in files))) {
     return names;
   }
   return names.filter((file) => {

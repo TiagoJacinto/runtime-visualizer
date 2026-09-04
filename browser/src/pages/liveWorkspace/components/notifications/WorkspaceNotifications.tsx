@@ -18,7 +18,8 @@ export function WorkspaceNotifications({
   const hasConnectionNotice = state.connection === "reconnecting";
   const hasQueueNotice = state.queuedRevision !== null;
   const hasDeleteNotice = state.fileDeleted;
-  const hasErrorNotice = state.errorMessage !== null && state.pane.status !== "failed";
+  const hasErrorNotice =
+    state.errorMessage !== null && state.pane.status !== "failed";
   if (
     !hasRunningNotice &&
     !hasConnectionNotice &&
@@ -43,8 +44,8 @@ export function WorkspaceNotifications({
         >
           <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
           <span>
-            <strong>Running</strong>{" "}
-            {execution.procedure ?? "Top level"} · {execution.file}
+            <strong>Running</strong> {execution.procedure ?? "Top level"} ·{" "}
+            {execution.file}
           </span>
         </div>
       ))}

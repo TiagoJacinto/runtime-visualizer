@@ -1,5 +1,8 @@
 import { useMemo } from "react";
-import type { AnalysisResponse, RevisionKey } from "@runtime-visualizer/contracts";
+import type {
+  AnalysisResponse,
+  RevisionKey,
+} from "@runtime-visualizer/contracts";
 import type { FocusTarget } from "../../useCases/liveWorkspace.types";
 import {
   buildSourceRangeIndex,

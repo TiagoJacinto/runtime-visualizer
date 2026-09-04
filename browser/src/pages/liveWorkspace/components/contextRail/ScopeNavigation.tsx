@@ -78,7 +78,9 @@ export function ScopeNavigation({
         label="File"
         value={state.selectedFile ?? ""}
         onChange={(event) => onSelectFile(event.target.value)}
-        disabled={state.files.length === 0 || state.connection === "reconnecting"}
+        disabled={
+          state.files.length === 0 || state.connection === "reconnecting"
+        }
       >
         <option value="" disabled>
           Select a file
@@ -106,7 +108,10 @@ export function ScopeNavigation({
         value={selectedScope?.revision ?? ""}
         onChange={(event) => {
           if (selectedScope !== null)
-            onSelectRevision({ ...selectedScope, revision: event.target.value });
+            onSelectRevision({
+              ...selectedScope,
+              revision: event.target.value,
+            });
         }}
         disabled={revisions.length === 0 || state.connection === "reconnecting"}
       >
@@ -118,8 +123,12 @@ export function ScopeNavigation({
         ))}
       </SelectField>
       <div className="flex items-center justify-between gap-2 font-mono text-[9px] text-slate-600">
-        <span className="truncate">{revisionBadge?.analyzedAt ?? "No revision loaded"}</span>
-        <span className="shrink-0">{revisionBadge?.diagnosticCount ?? 0} diagnostics</span>
+        <span className="truncate">
+          {revisionBadge?.analyzedAt ?? "No revision loaded"}
+        </span>
+        <span className="shrink-0">
+          {revisionBadge?.diagnosticCount ?? 0} diagnostics
+        </span>
       </div>
       <button
         type="button"

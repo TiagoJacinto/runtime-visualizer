@@ -1,14 +1,10 @@
 import { describe, expect, it } from "vitest";
-import {
-  createAnalysisGateway,
-} from "../../../src/shared/api/analysisGateway";
+import { createAnalysisGateway } from "../../../src/shared/api/analysisGateway";
 import {
   createExecutionGateway,
   type ExecutionGatewayError,
 } from "../../../src/shared/api/executionGateway";
-import {
-  createWorkspaceEventsGateway,
-} from "../../../src/shared/api/workspaceEventsGateway";
+import { createWorkspaceEventsGateway } from "../../../src/shared/api/workspaceEventsGateway";
 import {
   createLocalStorageWorkspacePreferences,
   createMemoryWorkspacePreferences,
@@ -33,14 +29,30 @@ describe("live workspace gateways", () => {
     const gateway = createAnalysisGateway(async (input) => {
       requests.push(String(input));
       if (String(input).includes("/revisions"))
-        return response({ file: scope.file, procedure: scope.procedureId, revisions: [] });
+        return response({
+          file: scope.file,
+          procedure: scope.procedureId,
+          revisions: [],
+        });
       return response({
         file: scope.file,
-        procedure: { id: scope.procedureId, kind: "Function", name: "run", label: "run" },
+        procedure: {
+          id: scope.procedureId,
+          kind: "Function",
+          name: "run",
+          label: "run",
+        },
         procedureId: scope.procedureId,
         revision: scope.revision,
         source: "function run() {}",
-        procedures: [{ id: scope.procedureId, kind: "Function", name: "run", label: "run" }],
+        procedures: [
+          {
+            id: scope.procedureId,
+            kind: "Function",
+            name: "run",
+            label: "run",
+          },
+        ],
         cfg: null,
         diagnostics: [],
       });
@@ -57,7 +69,8 @@ describe("live workspace gateways", () => {
     const requests: Array<{ url: string; init?: RequestInit }> = [];
     const gateway = createExecutionGateway(async (input, init) => {
       requests.push({ url: String(input), init });
-      if (init?.method === "POST") return response({ executionId: "execution-1" });
+      if (init?.method === "POST")
+        return response({ executionId: "execution-1" });
       if (init?.method === "DELETE") return response({ accepted: true }, 202);
       return response({ executions: [] });
     });
@@ -75,7 +88,9 @@ describe("live workspace gateways", () => {
   });
 
   it("surfaces execution HTTP failures with their status", async () => {
-    const gateway = createExecutionGateway(async () => response({ error: "Revision unavailable" }, 409));
+    const gateway = createExecutionGateway(async () =>
+      response({ error: "Revision unavailable" }, 409),
+    );
     await expect(gateway.start(scope)).rejects.toEqual(
       expect.objectContaining<Partial<ExecutionGatewayError>>({
         message: "Revision unavailable",
@@ -84,22 +99,30 @@ describe("live workspace gateways", () => {
     );
   });
 
-  it("decodes typed workspace events, skips the legacy file projection, and sends the cursor", async () => {
+  it("decodes typed workspace events and sends the cursor", async () => {
     const controller = new AbortController();
     let requestInit: RequestInit | undefined;
     const gateway = createWorkspaceEventsGateway(async (_input, init) => {
       requestInit = init;
       return new Response(
         ": connected\n\n" +
-          "event: file-change\ndata: {\"type\":\"file-changed\",\"file\":\"main.ts\",\"change\":\"modified\"}\n\n" +
-          "id: 8\nevent: active-executions\ndata: {\"type\":\"active-executions\",\"executions\":[]}\n\n",
+          'id: 8\nevent: source-change\ndata: {"type":"source-change","change":{"type":"file-changed","file":"main.ts","change":"modified"}}\n\n' +
+          'id: 9\nevent: active-executions\ndata: {"type":"active-executions","executions":[]}\n\n',
         { headers: { "content-type": "text/event-stream" } },
       );
     });
-    const iterator = gateway.subscribe(controller.signal, 7)[Symbol.asyncIterator]();
+    const iterator = gateway
+      .subscribe(controller.signal, 7)
+      [Symbol.asyncIterator]();
     await expect(iterator.next()).resolves.toEqual({
       done: false,
-      value: { id: 8, event: { type: "active-executions", executions: [] } },
+      value: {
+        id: 8,
+        event: {
+          type: "source-change",
+          change: { type: "file-changed", file: "main.ts", change: "modified" },
+        },
+      },
     });
     controller.abort();
     await iterator.return?.();

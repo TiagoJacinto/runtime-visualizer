@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { ActiveExecution, AnalysisResponse } from "@runtime-visualizer/contracts";
+import type {
+  ActiveExecution,
+  AnalysisResponse,
+} from "@runtime-visualizer/contracts";
 import {
   initialLiveWorkspaceState,
   type LiveWorkspaceState,
@@ -14,11 +17,18 @@ const scope = {
 
 const analysis: AnalysisResponse = {
   file: scope.file,
-  procedure: { id: scope.procedureId, kind: "Function", name: "run", label: "run" },
+  procedure: {
+    id: scope.procedureId,
+    kind: "Function",
+    name: "run",
+    label: "run",
+  },
   procedureId: scope.procedureId,
   revision: scope.revision,
   source: "function run() {}",
-  procedures: [{ id: scope.procedureId, kind: "Function", name: "run", label: "run" }],
+  procedures: [
+    { id: scope.procedureId, kind: "Function", name: "run", label: "run" },
+  ],
   cfg: null,
   diagnostics: [],
 };
@@ -53,14 +63,16 @@ describe("live workspace reducer", () => {
     const next = reduce(listed, {
       type: "revisions-loaded",
       scope: { file: scope.file, procedureId: scope.procedureId },
-      revisions: [{
-        file: scope.file,
-        procedureId: scope.procedureId,
-        revision: nextRevision.revision,
-        analyzedAt: "2025-01-02T00:00:00.000Z",
-        runnable: true,
-        diagnosticCount: 0,
-      }],
+      revisions: [
+        {
+          file: scope.file,
+          procedureId: scope.procedureId,
+          revision: nextRevision.revision,
+          analyzedAt: "2025-01-02T00:00:00.000Z",
+          runnable: true,
+          diagnosticCount: 0,
+        },
+      ],
     });
     expect(next.selectedScope).toEqual(nextRevision);
     expect(next.executions).toEqual([]);
@@ -88,6 +100,34 @@ describe("live workspace reducer", () => {
     expect(current.analysis).toEqual(analysis);
   });
 
+  it("does not replace an in-flight analysis when a revision refresh races it", () => {
+    const loading = reduceWorkspace(initialLiveWorkspaceState, {
+      type: "analysis-loading",
+      key: scope,
+      requestId: "request",
+    });
+    const refreshed = reduceWorkspace(loading.state, {
+      type: "revisions-loaded",
+      scope: { file: scope.file, procedureId: scope.procedureId },
+      revisions: [
+        {
+          file: scope.file,
+          procedureId: scope.procedureId,
+          revision: "revision-2",
+          analyzedAt: "2025-01-02T00:00:00.000Z",
+          runnable: true,
+          diagnosticCount: 0,
+        },
+      ],
+    });
+    expect(refreshed.state.selectedScope).toEqual(scope);
+    expect(refreshed.state.pane).toMatchObject({
+      status: "loading",
+      requestId: "request",
+    });
+    expect(refreshed.effects).toEqual([]);
+  });
+
   it("hydrates active runs and rolls cancellation back when transport fails", () => {
     const hydrated = reduce(initialLiveWorkspaceState, {
       type: "workspace-event",
@@ -95,12 +135,20 @@ describe("live workspace reducer", () => {
       event: { type: "active-executions", executions: [active()] },
     });
     expect(hydrated.activeExecutionsById["execution-1"]?.scope).toEqual(scope);
-    const armed = reduce(hydrated, { type: "arm-cancel", executionId: "execution-1" });
-    const confirmedTransition = reduceWorkspace(armed, { type: "confirm-cancel", executionId: "execution-1" });
+    const armed = reduce(hydrated, {
+      type: "arm-cancel",
+      executionId: "execution-1",
+    });
+    const confirmedTransition = reduceWorkspace(armed, {
+      type: "confirm-cancel",
+      executionId: "execution-1",
+    });
     const confirmed = confirmedTransition.state;
     expect(confirmed.activeExecutionsById["execution-1"]).toBeDefined();
     expect(confirmed.cancellation.pendingById["execution-1"]).toBe(true);
-    expect(confirmedTransition.effects).toEqual([{ type: "cancel-execution", executionId: "execution-1" }]);
+    expect(confirmedTransition.effects).toEqual([
+      { type: "cancel-execution", executionId: "execution-1" },
+    ]);
     const rolledBack = reduce(confirmed, {
       type: "cancel-failed",
       executionId: "execution-1",

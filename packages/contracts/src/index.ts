@@ -22,18 +22,7 @@ export {
   ExecuteProcedureResponseSchema,
   type ExecuteProcedureRequest,
   type ExecuteProcedureResponse,
-  ExecutionNodeEventSchema,
-  ExecutionResultEventSchema,
-  ExecutionEventSchema,
-  type ExecutionNodeEvent,
-  type ExecutionResultEvent,
-  type ExecutionEvent,
 } from "./execution.ts";
-
-export {
-  FileChangeEventSchema,
-  type FileChangeEvent,
-} from "./file-events.ts";
 
 export {
   ActiveExecutionSchema,
