@@ -102,6 +102,28 @@ describe("analysis incoming adapter", () => {
 		expect(body.procedure).toHaveProperty("name", null);
 	});
 
+	it("serves revision history and validates its scope query", async () => {
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
+		await fs.writeFile(path.join(folder, "main.ts"), "function run() { return 1; }\\n");
+		app = await createApp({ filesFolder: folder });
+		const analysis = await app.inject({ method: "GET", url: "/api/analysis?file=main.ts&name=run&showImports=true" });
+		const analysisBody = analysis.json() as { revision: string; procedureId: string };
+		const revision = analysisBody.revision;
+		const procedureId = analysisBody.procedureId;
+		const history = await app.inject({ method: "GET", url: `/api/analysis/revisions?file=main.ts&procedureId=${procedureId}` });
+		expect(history.statusCode).toBe(200);
+		expect(history.json().revisions).toHaveLength(1);
+		const historical = await app.inject({ method: "GET", url: `/api/analysis?file=main.ts&procedureId=${procedureId}&revision=${revision}` });
+		expect(historical.statusCode).toBe(200);
+		expect(historical.json().revision).toBe(revision);
+		const invalid = await app.inject({ method: "GET", url: "/api/analysis/revisions?file=main.ts" });
+		expect(invalid.statusCode).toBe(400);
+		const missingProcedure = await app.inject({ method: "GET", url: `/api/analysis?file=main.ts&revision=${revision}` });
+		expect(missingProcedure.statusCode).toBe(404);
+		const invalidName = await app.inject({ method: "GET", url: "/api/analysis?file=main.ts&name=not-valid%20name" });
+		expect(invalidName.statusCode).toBe(400);
+	});
+
 	it("returns 400 for a missing file query parameter", async () => {
 		folder = await fs.mkdtemp(
 			path.join(os.tmpdir(), "runtime-visualizer-"),

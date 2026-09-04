@@ -5,7 +5,13 @@ export default defineConfig({
 		coverage: {
 			provider: "v8",
 			include: ["src/**/*.ts"],
-			exclude: ["src/**/*.d.ts"],
+			// bun:sqlite is unavailable in Vitest's Node workers; SQLite is validated by the direct Bun smoke test.
+			exclude: [
+				"src/**/*.d.ts",
+				"src/modules/analysis/infra/sqliteRevisionHistory.ts",
+				// Execution runs in a Bun worker, which Node-based Vitest cannot load.
+				"src/modules/execution/useCases/executeProcedure/execution-worker.ts",
+			],
 			reporter: ["text", "json-summary"],
 			thresholds: {
 				lines: 58,

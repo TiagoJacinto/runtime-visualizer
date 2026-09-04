@@ -80,5 +80,12 @@ export class SqliteRevisionHistory implements RevisionHistory {
   }
 
   private key(value: RevisionKey): string { return `${value.file}\0${value.procedureId}\0${value.revision}`; }
-  private array(value: string): JsonValue[] { const parsed = JSON.parse(value) as JsonValue; return Array.isArray(parsed) ? parsed : []; }
+  private array(value: string): JsonValue[] {
+    try {
+      const parsed = JSON.parse(value) as JsonValue;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      throw new Error("Invalid revision JSON");
+    }
+  }
 }

@@ -24,11 +24,17 @@ export async function analyseSavedProcedure(filesFolder: string, history: Revisi
   const functionName = procedure.name ?? undefined;
   const sourceFiles = (await listSourceFiles(filesFolder)).filter(isSourceFile);
   const entries: Array<readonly [string, string]> = [];
-  await Promise.all(Array.from({ length: Math.min(8, sourceFiles.length) }, async (_, worker) => {
-    for (let index = worker; index < sourceFiles.length; index += Math.min(8, sourceFiles.length)) {
-      const file = sourceFiles[index]; if (file) entries.push([file, (await readSource(filesFolder, file)).source]);
-    }
-  }));
+  const workerCount = Math.min(8, sourceFiles.length);
+  const workers: Promise<void>[] = [];
+  for (let worker = 0; worker < workerCount; worker += 1) {
+    workers.push((async () => {
+      for (let index = worker; index < sourceFiles.length; index += workerCount) {
+        const file = sourceFiles[index];
+        if (file) entries.push([file, (await readSource(filesFolder, file)).source]);
+      }
+    })());
+  }
+  await Promise.all(workers);
   const files = Object.fromEntries(entries);
   const revision = workspaceManifestRevision({ source: resource.source, file: resource.file, files, showImports: input.showImports });
   const analysis = analyseProject({ source: resource.source, filePath: resource.file, functionName, files, showImports: input.showImports });

@@ -16,6 +16,7 @@ const analysis: AnalysisResponse = {
     name: null,
     label: "Top level",
   },
+  procedureId: "top-level",
   revision: "revision-1",
   source: "work();",
   procedures: [
