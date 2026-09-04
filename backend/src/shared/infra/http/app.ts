@@ -1,13 +1,19 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { HttpError, loadSettings } from "../../index.ts";
 import { analysisRoutes } from "../../../modules/analysis/http.ts";
-import { InMemoryRevisionHistory, type RevisionHistory } from "../../../modules/analysis/index.ts";
+import {
+	InMemoryRevisionHistory,
+	type RevisionHistory,
+} from "../../../modules/analysis/index.ts";
 import { join } from "node:path";
 import { WorkspaceEventHub } from "../../../modules/workspace/eventHub.ts";
-import { RevisionBuildQueue, createSavedAnalysisScheduler } from "../../../modules/analysis/index.ts";
+import {
+	RevisionBuildQueue,
+	createSavedAnalysisScheduler,
+} from "../../../modules/analysis/index.ts";
 import { DefaultRevisionBuilderWorkerClient } from "../../../modules/analysis/infra/revisionBuilderWorkerClient.ts";
 import { cfgRoutes } from "../../../modules/cfg/http.ts";
-import { RevisionStore } from "../../../modules/execution/index.ts";
+import { DefaultExecutionManager } from "../../../modules/execution/useCases/executionManager.ts";
 import { executeRoutes } from "../../../modules/execution/http.ts";
 import {
 	eventsRoutes,
@@ -61,11 +67,8 @@ export async function createApp(
 		// generic message instead, matching the old behaviour.
 		const isFastifyNonErrorWrap =
 			err instanceof Error && err.message.startsWith("Non-Error thrown");
-		const message = isFastifyNonErrorWrap
-			? "Internal Server Error"
-			: err instanceof Error
-				? err.message
-				: "Internal Server Error";
+		let message = "Internal Server Error";
+		if (!isFastifyNonErrorWrap && err instanceof Error) message = err.message;
 		console.error("[server] unhandled error:", err);
 		reply.code(500).send({ error: message });
 	});
@@ -82,26 +85,54 @@ export async function createApp(
 		now: options.now,
 	});
 	const filesFolder = options.filesFolder ?? loadSettings().filesFolder;
-	const revisionStore = new RevisionStore();
 	let history: RevisionHistory = new InMemoryRevisionHistory(options.now);
 	if (process.env.VITEST === undefined) {
-		const { SqliteRevisionHistory } = await import("../../../modules/analysis/infra/sqliteRevisionHistory.ts");
-		history = new SqliteRevisionHistory(join(process.cwd(), ".runtime-visualizer", "revisions.sqlite"), options.now);
+		const { SqliteRevisionHistory } = await import(
+			"../../../modules/analysis/infra/sqliteRevisionHistory.ts"
+		);
+		history = new SqliteRevisionHistory(
+			join(process.cwd(), ".runtime-visualizer", "revisions.sqlite"),
+			options.now,
+		);
 	}
 	const eventHub = new WorkspaceEventHub();
+	const executionManager = new DefaultExecutionManager(history);
+	const executionSubscription = executionManager.subscribe((update) =>
+		eventHub.publish({ type: "execution-update", update }),
+	);
 	const revisionWorker = new DefaultRevisionBuilderWorkerClient();
 	const revisionQueue = new RevisionBuildQueue(filesFolder, history, {
 		workerClient: revisionWorker,
-		onReady: (snapshot) => eventHub.publish({ type: "revision-ready", revision: { file: snapshot.file, procedureId: snapshot.procedure.id, revision: snapshot.revision, analyzedAt: snapshot.analyzedAt, runnable: snapshot.cfg !== null && snapshot.diagnostics.length === 0, diagnosticCount: snapshot.diagnostics.length } }),
-		onFailure: (paths, error) => eventHub.publish({ type: "revision-build-failed", paths: [...paths], error: error.message }),
+		onReady: (snapshot) =>
+			eventHub.publish({
+				type: "revision-ready",
+				revision: {
+					file: snapshot.file,
+					procedureId: snapshot.procedure.id,
+					revision: snapshot.revision,
+					analyzedAt: snapshot.analyzedAt,
+					runnable: snapshot.cfg !== null && snapshot.diagnostics.length === 0,
+					diagnosticCount: snapshot.diagnostics.length,
+				},
+			}),
+		onFailure: (paths, error) =>
+			eventHub.publish({
+				type: "revision-build-failed",
+				paths: [...paths],
+				error: error.message,
+			}),
 	});
 	const sourceChangeWatcher = new SourceChangeWatcher(filesFolder);
-	const scheduler = createSavedAnalysisScheduler(filesFolder, history, { queue: revisionQueue });
+	const scheduler = createSavedAnalysisScheduler(filesFolder, history, {
+		queue: revisionQueue,
+	});
 	// Baseline indexing is deliberately deferred so the server can accept Workspace connections first.
 	setTimeout(() => revisionQueue.enqueueAffected([], "baseline"), 250);
 	app.addHook("onClose", async () => {
 		sourceChangeWatcher.close();
 		scheduler.close();
+		executionSubscription();
+		executionManager.close();
 		eventHub.close();
 		history.close?.();
 	});
@@ -110,18 +141,15 @@ export async function createApp(
 		prefix: "/api/analysis",
 		filesFolder,
 		history,
-		revisionStore,
 		scheduler,
 	});
 	await app.register(cfgRoutes, {
 		prefix: "/api/cfg",
 		filesFolder,
-		revisionStore,
 	});
 	await app.register(executeRoutes, {
 		prefix: "/api/execute",
-		filesFolder,
-		revisionStore,
+		manager: executionManager,
 	});
 	await app.register(filesRoutes, {
 		prefix: "/api/files",
@@ -135,6 +163,7 @@ export async function createApp(
 		prefix: "/api/events",
 		watcher: sourceChangeWatcher,
 		hub: eventHub,
+		activeExecutions: () => [...executionManager.listActive()],
 		onChange: (change) => revisionQueue.enqueueAffected([change.file], "change"),
 	});
 

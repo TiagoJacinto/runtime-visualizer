@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { analyseProject } from "./project-analyzer.ts";
-import type { RevisionStore } from "../../../execution/index.ts";
 import {
 	isSourceFile,
 	listSourceFiles,
@@ -38,7 +37,6 @@ const resourceQuery = z.object({
 
 type CfgRoutesOptions = {
 	readonly filesFolder: string;
-	readonly revisionStore: RevisionStore;
 };
 
 const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (
@@ -54,12 +52,10 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (
 		if (parsedQuery.data.file === undefined)
 			return {
 				ok: true,
-				info: "POST { source: string, filePath?: string, functionName?: string, showImports?: boolean, files?: Record<string, string> } to build a control-flow graph.",
+				info:
+					"POST { source: string, filePath?: string, functionName?: string, showImports?: boolean, files?: Record<string, string> } to build a control-flow graph.",
 			};
-		const resource = await readSource(
-			options.filesFolder,
-			parsedQuery.data.file,
-		);
+		const resource = await readSource(options.filesFolder, parsedQuery.data.file);
 		const sourceFiles = (await listSourceFiles(options.filesFolder)).filter(
 			isSourceFile,
 		);
@@ -70,10 +66,7 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (
 				const file = sourceFiles[nextIndex];
 				nextIndex += 1;
 				if (file === undefined) return;
-				entries.push([
-					file,
-					(await readSource(options.filesFolder, file)).source,
-				]);
+				entries.push([file, (await readSource(options.filesFolder, file)).source]);
 			}
 		};
 		await Promise.all(
@@ -97,18 +90,6 @@ const cfgRoutes: FastifyPluginAsync<CfgRoutesOptions> = async (
 		const procedure = analysis.cfg?.procedures?.[0];
 		if (procedure === undefined)
 			return reply.code(422).send({ error: "No executable Procedure found." });
-		options.revisionStore.set(
-			resource.file,
-			parsedQuery.data.name,
-			resource.revision,
-			{
-				source: resource.source,
-				filePath: resource.file,
-				functionName: parsedQuery.data.name,
-				files,
-				procedure,
-			},
-		);
 		return {
 			ok: true,
 			file: resource.file,

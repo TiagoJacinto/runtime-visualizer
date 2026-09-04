@@ -11,31 +11,46 @@ type FileChange = {
 	revision?: string;
 };
 
-async function nextEvent(response: Response): Promise<FileChange> {
+async function nextFileChange(
+	response: Response,
+	file: string,
+	change: FileChange["change"],
+): Promise<FileChange> {
 	if (response.body === null) throw new Error("Expected an SSE response body");
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
-	let text = "";
+	let buffer = "";
 	const deadline = Date.now() + 2000;
-	while (!text.includes("data: ")) {
-		const remaining = deadline - Date.now();
-		if (remaining <= 0) throw new Error("Timed out waiting for file change");
-		const result = await Promise.race([
-			reader.read(),
-			new Promise<never>((_, reject) =>
-				setTimeout(
-					() => reject(new Error("Timed out waiting for file change")),
-					remaining,
+	try {
+		while (Date.now() < deadline) {
+			const result = await Promise.race([
+				reader.read(),
+				new Promise<never>((_, reject) =>
+					setTimeout(
+						() => reject(new Error("Timed out waiting for file change")),
+						deadline - Date.now(),
+					),
 				),
-			),
-		]);
-		if (result.done) throw new Error("SSE stream closed before file change");
-		text += decoder.decode(result.value, { stream: true });
+			]);
+			if (result.done) throw new Error("SSE stream closed before file change");
+			buffer += decoder.decode(result.value, { stream: true });
+			const records = buffer.split("\n\n");
+			buffer = records.pop() ?? "";
+			for (const record of records) {
+				if (!record.split("\n").includes("event: file-change")) continue;
+				const dataLine = record
+					.split("\n")
+					.find((line) => line.startsWith("data: "));
+				if (dataLine !== undefined) {
+					const payload = JSON.parse(dataLine.slice("data: ".length)) as FileChange;
+					if (payload.file === file && payload.change === change) return payload;
+				}
+			}
+		}
+		throw new Error("Timed out waiting for file change");
+	} finally {
+		await reader.cancel();
 	}
-	await reader.cancel();
-	const dataLine = text.split("\n").find((line) => line.startsWith("data: "));
-	if (dataLine === undefined) throw new Error("Expected an SSE data line");
-	return JSON.parse(dataLine.slice("data: ".length)) as FileChange;
 }
 
 describe("source change SSE", () => {
@@ -52,19 +67,13 @@ describe("source change SSE", () => {
 
 	it("detects a change immediately after connecting", async () => {
 		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
-		await fs.writeFile(
-			path.join(folder, "main.ts"),
-			"export const value = 1;\n",
-		);
+		await fs.writeFile(path.join(folder, "main.ts"), "export const value = 1;\n");
 		app = await createApp({ filesFolder: folder });
 		const address = await app.listen({ port: 0, host: "127.0.0.1" });
 
 		const response = await fetch(`${address}/api/events`);
-		await fs.writeFile(
-			path.join(folder, "main.ts"),
-			"export const value = 2;\n",
-		);
-		const change = await nextEvent(response);
+		await fs.writeFile(path.join(folder, "main.ts"), "export const value = 2;\n");
+		const change = await nextFileChange(response, "main.ts", "modified");
 
 		expect(change).toMatchObject({
 			type: "file-changed",
@@ -75,33 +84,28 @@ describe("source change SSE", () => {
 
 	it("publishes added, modified, and deleted source changes", async () => {
 		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
-		await fs.writeFile(
-			path.join(folder, "main.ts"),
-			"export const value = 1;\n",
-		);
+		await fs.writeFile(path.join(folder, "main.ts"), "export const value = 1;\n");
 		app = await createApp({ filesFolder: folder });
 		const address = await app.listen({ port: 0, host: "127.0.0.1" });
 
 		const addedResponse = await fetch(`${address}/api/events`);
 		await new Promise((resolve) => setTimeout(resolve, 250));
-		await fs.writeFile(
-			path.join(folder, "new.ts"),
-			"export const value = 2;\n",
-		);
-		const added = await nextEvent(addedResponse);
+		await fs.writeFile(path.join(folder, "new.ts"), "export const value = 2;\n");
+		const added = await nextFileChange(addedResponse, "new.ts", "added");
 
 		const modifiedResponse = await fetch(`${address}/api/events`);
 		await new Promise((resolve) => setTimeout(resolve, 250));
-		await fs.writeFile(
-			path.join(folder, "main.ts"),
-			"export const value = 3;\n",
+		await fs.writeFile(path.join(folder, "main.ts"), "export const value = 3;\n");
+		const modified = await nextFileChange(
+			modifiedResponse,
+			"main.ts",
+			"modified",
 		);
-		const modified = await nextEvent(modifiedResponse);
 
 		const deletedResponse = await fetch(`${address}/api/events`);
 		await new Promise((resolve) => setTimeout(resolve, 250));
 		await fs.rm(path.join(folder, "main.ts"));
-		const deleted = await nextEvent(deletedResponse);
+		const deleted = await nextFileChange(deletedResponse, "main.ts", "deleted");
 
 		// result verification
 		expect(added).toMatchObject({
@@ -135,7 +139,7 @@ describe("source change SSE", () => {
 			"export const value = 1;\n",
 		);
 
-		const change = await nextEvent(response);
+		const change = await nextFileChange(response, "nested/new.ts", "added");
 
 		// result verification
 		expect(change).toMatchObject({
