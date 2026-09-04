@@ -1,6 +1,8 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { HttpError, loadSettings } from "../../index.ts";
 import { analysisRoutes } from "../../../modules/analysis/http.ts";
+import { InMemoryRevisionHistory, type RevisionHistory } from "../../../modules/analysis/index.ts";
+import { join } from "node:path";
 import { cfgRoutes } from "../../../modules/cfg/http.ts";
 import { RevisionStore } from "../../../modules/execution/index.ts";
 import { executeRoutes } from "../../../modules/execution/http.ts";
@@ -78,14 +80,21 @@ export async function createApp(
 	});
 	const filesFolder = options.filesFolder ?? loadSettings().filesFolder;
 	const revisionStore = new RevisionStore();
+	let history: RevisionHistory = new InMemoryRevisionHistory(options.now);
+	if (process.env.VITEST === undefined) {
+		const { SqliteRevisionHistory } = await import("../../../modules/analysis/infra/sqliteRevisionHistory.ts");
+		history = new SqliteRevisionHistory(join(process.cwd(), ".runtime-visualizer", "revisions.sqlite"), options.now);
+	}
 	const sourceChangeWatcher = new SourceChangeWatcher(filesFolder);
 	app.addHook("onClose", async () => {
 		sourceChangeWatcher.close();
+		history.close?.();
 	});
 	await app.register(echoRoutes, { prefix: "/api/echo" });
 	await app.register(analysisRoutes, {
 		prefix: "/api/analysis",
 		filesFolder,
+		history,
 		revisionStore,
 	});
 	await app.register(cfgRoutes, {

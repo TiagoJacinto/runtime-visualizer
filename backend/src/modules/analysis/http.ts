@@ -1,55 +1,77 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import type { RevisionHistory } from "./revisionHistory.ts";
 import type { RevisionStore } from "../execution/infra/revision-store.ts";
 import { analyseSavedProcedure } from "./useCases/analyseSavedProcedure/analyse-saved-procedure.ts";
 
 const querySchema = z.object({
-	file: z.string().min(1),
-	name: z
-		.string()
-		.regex(
-			/^[A-Za-z_$][A-Za-z0-9_$]*$/,
-			"Procedure name must be a valid identifier.",
-		)
-		.optional(),
-	showImports: z
-		.stringbool({ truthy: ["true", "1"], falsy: ["false", "0"] })
-		.optional(),
+  file: z.string().min(1),
+  procedureId: z.string().min(1).optional(),
+  name: z
+    .string()
+    .regex(/^[A-Za-z_$][A-Za-z0-9_$]*$/)
+    .optional(),
+  revision: z.string().min(1).optional(),
+  showImports: z
+    .stringbool({ truthy: ["true", "1"], falsy: ["false", "0"] })
+    .optional(),
 });
-
+const revisionsQuerySchema = z.object({
+  file: z.string().min(1),
+  procedureId: z.string().min(1),
+});
 type AnalysisRoutesOptions = {
-	readonly filesFolder: string;
-	readonly revisionStore: RevisionStore;
+  readonly filesFolder: string;
+  readonly history: RevisionHistory;
+  readonly revisionStore?: RevisionStore;
 };
 
 const analysisRoutes: FastifyPluginAsync<AnalysisRoutesOptions> = async (
-	app,
-	options,
+  app,
+  options,
 ) => {
-	app.get("/", async (req, reply) => {
-		const parsed = querySchema.safeParse(req.query);
-		if (!parsed.success)
-			return reply.code(400).send({
-				error:
-					parsed.error.issues[0]?.message ?? "Invalid request query.",
-			});
-
-		const result = await analyseSavedProcedure(
-			options.filesFolder,
-			options.revisionStore,
-			{
-				file: parsed.data.file,
-				name: parsed.data.name,
-				showImports: parsed.data.showImports,
-			},
-		);
-
-		if (!result.ok) {
-			return reply.code(422).send(result.error);
-		}
-
-		return result.snapshot;
-	});
+  app.get("/revisions", async (req, reply) => {
+    const parsed = revisionsQuerySchema.safeParse(req.query);
+    if (!parsed.success)
+      return reply.code(400).send({ error: "Invalid request query." });
+    return {
+      file: parsed.data.file,
+      procedure: parsed.data.procedureId,
+      revisions: await options.history.list(parsed.data),
+    };
+  });
+  app.get("/", async (req, reply) => {
+    const parsed = querySchema.safeParse(req.query);
+    if (!parsed.success)
+      return reply
+        .code(400)
+        .send({
+          error: parsed.error.issues[0]?.message ?? "Invalid request query.",
+        });
+    const result = await analyseSavedProcedure(
+      options.filesFolder,
+      options.history,
+      parsed.data,
+    );
+    if (!result.ok)
+      return reply
+        .code(result.error.error === "Revision unavailable" ? 404 : 422)
+        .send(result.error);
+    const executableProcedure = result.snapshot.cfg?.procedures?.[0];
+    if (options.revisionStore && executableProcedure)
+      options.revisionStore.set(
+        result.snapshot.file,
+        result.snapshot.procedure.name ?? undefined,
+        result.snapshot.revision,
+        {
+          source: result.snapshot.source,
+          filePath: result.snapshot.file,
+          functionName: result.snapshot.procedure.name ?? undefined,
+          files: { ...result.snapshot.files },
+          procedure: executableProcedure,
+        },
+      );
+    return { ...result.snapshot, procedureId: result.snapshot.procedure.id };
+  });
 };
-
 export { analysisRoutes };

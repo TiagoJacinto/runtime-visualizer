@@ -1,4 +1,15 @@
 export {
+  ProcedureScopeSchema,
+  RevisionKeySchema,
+  RevisionSummarySchema,
+  RevisionHistoryResponseSchema,
+  type ProcedureScope,
+  type RevisionKey,
+  type RevisionSummary,
+  type RevisionHistoryResponse,
+} from "./revisions.ts";
+
+export {
   AnalysisResponseSchema,
   AnalysisErrorSchema,
   type AnalysisResponse,
@@ -7,6 +18,10 @@ export {
 
 export {
   ExecutionIdSchema,
+  ExecuteProcedureRequestSchema,
+  ExecuteProcedureResponseSchema,
+  type ExecuteProcedureRequest,
+  type ExecuteProcedureResponse,
   ExecutionNodeEventSchema,
   ExecutionResultEventSchema,
   ExecutionEventSchema,

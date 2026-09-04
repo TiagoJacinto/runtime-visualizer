@@ -32,6 +32,9 @@ dist-ssr
 .pi/npm/
 .impeccable/
 
+# Local durable revision history
+.runtime-visualizer/
+
 # SSSF runtime
 adws/adw_data/sessions/
 adws/adw_data/runs/
