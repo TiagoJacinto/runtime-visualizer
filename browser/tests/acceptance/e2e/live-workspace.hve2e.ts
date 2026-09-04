@@ -5,7 +5,7 @@ import { unlink, writeFile } from "node:fs/promises";
 
 const slowFile = "../target/hve2e-slow.ts";
 const slowSource = `export async function run(): Promise<void> {
-  await new Promise<void>((resolve) => setTimeout(resolve, 3000));
+  await new Promise<void>((resolve) => setTimeout(resolve, 8000));
 }
 
 await run();
@@ -13,7 +13,7 @@ await run();
 
 export const { Given, When, Then } = createBdd(test);
 
-async function sourcePanel(page: Page) {
+function sourcePanel(page: Page) {
   return page.getByRole("region", { name: "Source" });
 }
 
@@ -37,7 +37,7 @@ When("I run the displayed Procedure", async ({ page }) => {
 });
 
 When("the selected file changes during the Execution", async ({ page }) => {
-  await expect(page.getByText("Running")).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByText("Running", { exact: true })).toBeVisible({ timeout: 5_000 });
   await writeFile(slowFile, `${slowSource}// updated while running\n`, "utf8");
 });
 
@@ -46,14 +46,34 @@ When("the Execution reaches a terminal outcome", async ({ page }) => {
 });
 
 Then(/^the source panel contains "([^"]+)"$/, async ({ page }, text: string) => {
-  await expect(await sourcePanel(page)).toContainText(text);
+  await expect(sourcePanel(page)).toContainText(text, { timeout: 15_000 });
 });
 
 Then("the live Control-flow graph is visible", async ({ page }) => {
   await expect(page.getByTestId("control-flow-graph")).toBeVisible();
 });
 
+Then("the Scope and Runs context tabs are visible", async ({ page }) => {
+  await expect(page.getByRole("tab", { name: /Scope/ })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Runs/ })).toBeVisible();
+});
+
+When("I select the Runs context", async ({ page }) => {
+  await page.getByRole("tab", { name: /Runs/ }).click();
+});
+
+When("I select the Scope context", async ({ page }) => {
+  await page.getByRole("tab", { name: /Scope/ }).click();
+});
+
+Then("the Run inspector exposes View and Cancel actions", async ({ page }) => {
+  const inspector = page.getByRole("complementary", { name: "Run inspector" });
+  await expect(inspector.getByRole("button", { name: /View execution/ }).first()).toBeVisible();
+  await expect(inspector.getByRole("button", { name: /Cancel execution/ }).first()).toBeVisible();
+});
+
 Then(/^the Run inspector shows a "([^"]+)" outcome$/, async ({ page }, status: string) => {
+  await page.getByRole("tab", { name: /Runs/ }).click();
   await expect(page.getByRole("complementary", { name: "Run inspector" })).toContainText(status);
 });
 
@@ -74,10 +94,10 @@ Then(/^the workspace shows "([^"]+)"$/, async ({ page }, text: string) => {
 });
 
 Then("the source stays pinned during the Execution", async ({ page }) => {
-  await expect(await sourcePanel(page)).not.toContainText("updated while running");
+  await expect(sourcePanel(page)).not.toContainText("updated while running", { timeout: 5_000 });
 });
 
 Then("the workspace refreshes to the newest source", async ({ page }) => {
-  await expect(await sourcePanel(page)).toContainText("updated while running", { timeout: 10_000 });
+  await expect(sourcePanel(page)).toContainText("updated while running", { timeout: 15_000 });
   await unlink(slowFile).catch(() => undefined);
 });

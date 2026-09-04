@@ -55,7 +55,9 @@ export class DefaultExecutionManager implements ExecutionManager {
     this.registry.register(active);
     this.publish({ ...active });
     if (!procedure) { release(); this.controllers.delete(executionId); this.releases.delete(executionId); this.registry.remove(executionId); throw new Error("Revision unavailable"); }
-    void executeProcedure(lease.snapshot.source, lease.snapshot.file, procedure, procedure.name ?? undefined,
+    const functionName =
+      input.procedureId === "top-level" ? undefined : procedure.name ?? undefined;
+    void executeProcedure(lease.snapshot.source, lease.snapshot.file, procedure, functionName,
       (nodeId) => this.runningUpdate(executionId, nodeId), { timeoutMs: this.timeoutMs, signal: controller.signal })
       .then((result) => this.finish(executionId, result.status, result.error, release))
       .catch((cause: unknown) => this.finish(executionId, "Failed", cause instanceof Error ? cause.message : String(cause), release));

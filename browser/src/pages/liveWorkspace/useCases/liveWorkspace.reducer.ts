@@ -366,6 +366,8 @@ function executionUpdate(
   delete activeExecutionsById[record.executionId];
   const pendingById = { ...state.cancellation.pendingById };
   delete pendingById[record.executionId];
+  const statusLabel =
+    record.status.charAt(0).toUpperCase() + record.status.slice(1);
   return transition(state, {
     activeExecutionsById,
     completedExecutions: [
@@ -375,7 +377,7 @@ function executionUpdate(
     cancellation: { ...state.cancellation, pendingById },
     notifications: addNotification(
       state,
-      `Execution ${record.executionId.slice(0, 8)} ${record.status}.`,
+      `Execution ${record.executionId.slice(0, 8)} ${statusLabel}.`,
       record.status === "failed" ? "error" : "info",
     ),
     connectionState: { status: "connected", cursor: id },
