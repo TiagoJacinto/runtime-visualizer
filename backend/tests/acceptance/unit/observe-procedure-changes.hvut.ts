@@ -23,27 +23,36 @@ async function nextEvent(response: Response): Promise<FileChange> {
 	if (response.body === null) throw new Error("Expected an SSE response body");
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
-	let text = "";
+	let buffer = "";
 	const deadline = Date.now() + 2000;
-	while (!text.includes("data: ")) {
-		const remaining = deadline - Date.now();
-		if (remaining <= 0) throw new Error("Timed out waiting for file change");
-		const result = await Promise.race([
-			reader.read(),
-			new Promise<never>((_, reject) =>
-				setTimeout(
-					() => reject(new Error("Timed out waiting for file change")),
-					remaining,
+	try {
+		while (Date.now() < deadline) {
+			const result = await Promise.race([
+				reader.read(),
+				new Promise<never>((_, reject) =>
+					setTimeout(
+						() => reject(new Error("Timed out waiting for file change")),
+						deadline - Date.now(),
+					),
 				),
-			),
-		]);
-		if (result.done) throw new Error("SSE stream closed before file change");
-		text += decoder.decode(result.value, { stream: true });
+			]);
+			if (result.done) throw new Error("SSE stream closed before file change");
+			buffer += decoder.decode(result.value, { stream: true });
+			const records = buffer.split("\n\n");
+			buffer = records.pop() ?? "";
+			for (const record of records) {
+				if (!record.split("\n").includes("event: file-change")) continue;
+				const dataLine = record
+					.split("\n")
+					.find((line) => line.startsWith("data: "));
+				if (dataLine !== undefined)
+					return JSON.parse(dataLine.slice("data: ".length)) as FileChange;
+			}
+		}
+		throw new Error("Timed out waiting for file change");
+	} finally {
+		await reader.cancel();
 	}
-	await reader.cancel();
-	const dataLine = text.split("\n").find((line) => line.startsWith("data: "));
-	if (dataLine === undefined) throw new Error("Expected an SSE data line");
-	return JSON.parse(dataLine.slice("data: ".length)) as FileChange;
 }
 
 async function openEvents(

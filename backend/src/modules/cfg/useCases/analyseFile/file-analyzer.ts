@@ -36,8 +36,11 @@ class GraphBuilder {
 	readonly nodes: CfgNode[] = [];
 	readonly edges: CfgEdge[] = [];
 	private sequence = 0;
+	readonly file: ts.SourceFile;
 
-	constructor(readonly file: ts.SourceFile) {}
+	constructor(file: ts.SourceFile) {
+		this.file = file;
+	}
 
 	node(
 		kind: CfgNodeKind,
