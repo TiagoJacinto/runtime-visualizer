@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { createAnalysisGateway } from "../../shared/api/analysisGateway";
 import { createExecutionGateway } from "../../shared/api/executionGateway";
-import { createFileEventsGateway } from "../../shared/api/fileEventsGateway";
+import { createWorkspaceEventsGateway } from "../../shared/api/workspaceEventsGateway";
+import { createLocalStorageWorkspacePreferences } from "../../shared/api/workspacePreferences";
 import { createRetryScheduler } from "../../shared/retry/retryScheduler";
 import { createLiveWorkspaceController } from "./useCases/createLiveWorkspaceController";
 import type { WorkspaceController } from "./useCases/liveWorkspace.ports";
@@ -20,7 +21,8 @@ export function LiveWorkspacePage({
       createLiveWorkspaceController({
         analysis: createAnalysisGateway(),
         execution: createExecutionGateway(),
-        fileEvents: createFileEventsGateway(),
+        workspaceEvents: createWorkspaceEventsGateway(),
+        preferences: createLocalStorageWorkspacePreferences(),
         retry: createRetryScheduler(),
       }),
   );
@@ -37,10 +39,14 @@ export function LiveWorkspacePage({
   const visibleExecutions = state.executions.filter(
     (execution) =>
       analysis !== null &&
-      execution.file === analysis.file &&
-      execution.revision === analysis.revision &&
-      execution.procedure === analysis.procedure.name,
+      execution.scope.file === analysis.file &&
+      execution.scope.revision === analysis.revision &&
+      execution.scope.procedureId === analysis.procedureId,
   );
+  const selectedScope = state.selectedScope;
+  const revisions = selectedScope
+    ? state.revisionsByScope[`${selectedScope.file}\0${selectedScope.procedureId}`] ?? []
+    : [];
   return (
     <main
       className="min-h-screen bg-slate-950 p-6 text-slate-100"
@@ -104,9 +110,28 @@ export function LiveWorkspacePage({
               {analysis?.procedures.map((procedure) => (
                 <option
                   key={procedure.id}
-                  value={procedure.name ?? procedure.label}
+                  value={procedure.id}
                 >
                   {procedure.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
+            Revision
+            <select
+              aria-label="Revision"
+              value={selectedScope?.revision ?? ""}
+              disabled={revisions.length === 0 || state.connection === "reconnecting"}
+              onChange={(event) => {
+                if (selectedScope !== null)
+                  controller.selectRevision({ ...selectedScope, revision: event.target.value });
+              }}
+              className="mt-1 block w-full bg-slate-900 p-2"
+            >
+              {revisions.map((revision) => (
+                <option key={revision.revision} value={revision.revision}>
+                  {revision.revision}
                 </option>
               ))}
             </select>
@@ -165,6 +190,13 @@ export function LiveWorkspacePage({
             selectedExecutionId={state.selectedExecutionId}
             onSelect={controller.selectExecution}
             onClearCompleted={controller.clearCompleted}
+            onCancel={(executionId) => {
+              if (state.cancellation.armedExecutionId === executionId)
+                controller.confirmCancel(executionId);
+              else controller.armCancel(executionId);
+            }}
+            armedExecutionId={state.cancellation.armedExecutionId}
+            pendingCancelIds={state.cancellation.pendingById}
           />
         </section>
       </div>
