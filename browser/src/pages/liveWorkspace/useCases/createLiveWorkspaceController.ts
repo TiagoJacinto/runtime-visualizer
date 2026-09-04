@@ -188,7 +188,6 @@ export function createLiveWorkspaceController(
         revisions = [];
       }
       if (disposed || controller.signal.aborted) return;
-      dispatch({ type: "revisions-loaded", scope, revisions });
       const requested = preferredRevision !== undefined &&
         revisions.some((revision) => revision.revision === preferredRevision)
         ? preferredRevision
@@ -196,6 +195,7 @@ export function createLiveWorkspaceController(
       const key: RevisionKey = { ...scope, revision: requested };
       const id = `${++requestSequence}`;
       dispatch({ type: "analysis-loading", key, requestId: id });
+      dispatch({ type: "revisions-loaded", scope, revisions });
       if (requested === current.revision) {
         dispatch({ type: "analysis-loaded", key, requestId: id, value: current });
       } else {
@@ -384,6 +384,7 @@ export function createLiveWorkspaceController(
     if (
       analysis === null ||
       analysis.cfg === null ||
+      state.pane.status !== "ready" ||
       scope === null ||
       state.connection === "reconnecting" ||
       state.fileDeleted
@@ -526,6 +527,8 @@ export function createLiveWorkspaceController(
     },
     selectRevision: (key) => {
       if (key === null || state.connection === "reconnecting") return;
+      analysisController?.abort();
+      analysisController = new AbortController();
       dispatch({ type: "select-scope", key, requestId: `${++requestSequence}` });
     },
     runProcedure: () => void runProcedure(),
@@ -538,6 +541,8 @@ export function createLiveWorkspaceController(
         revision: execution.scope.revision,
       })];
       if (analysis === undefined) {
+        analysisController?.abort();
+        analysisController = new AbortController();
         dispatch({ type: "select-scope", key: execution.scope, requestId: `${++requestSequence}` });
       } else {
         dispatch({ type: "view-analysis", key: execution.scope, value: analysis });

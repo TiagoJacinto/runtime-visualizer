@@ -311,7 +311,7 @@ function revisionsLoaded(
       return transition(state, { revisionsByScope });
     const first = event.revisions[0];
     if (first === undefined)
-      return transition(state, { revisionsByScope, pane: { status: "empty" } });
+      return transition(state, { revisionsByScope });
     const key = { ...event.scope, revision: first.revision };
     return transition(
       state,
