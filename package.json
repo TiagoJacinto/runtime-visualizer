@@ -13,6 +13,7 @@
     "setup": "bun run bootstrap",
     "update": "bun run bootstrap",
     "server": "bun run dev",
+    "frontend:install:playwright": "cd browser && bunx playwright install chromium",
     "test": "bun run lint && bun run backend:typecheck && bun run backend:check:boundaries && bun run contracts:typecheck && bun run backend:test:unit && bun run backend:test:integration && bun run backend:test:durable && bun run backend:test:hvut && bun run frontend:test:hvut && bun run frontend:test:hve2e && bun run contracts:test:unit",
     "lint": "oxlint browser/src backend/src",
     "coverage": "bun run backend:test:coverage && bun run frontend:test:coverage && bun run contracts:test:coverage",
