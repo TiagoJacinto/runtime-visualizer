@@ -1,0 +1,9 @@
+{
+  "default": {
+    "importance": 0,
+    "securityCriticality": 0,
+    "performanceCriticality": 0
+  },
+  "files": {},
+  "procedures": {}
+}

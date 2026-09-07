@@ -6,6 +6,7 @@ Runtime Visualizer is a graph-first workspace for inspecting and running saved T
 
 ```bash
 bun install
+bunx playwright install chromium # once; required for browser acceptance tests
 bun run dev                 # frontend (:5173) + backend (:3000)
 ```
 
@@ -33,6 +34,18 @@ Historical snapshots remain available after source changes or deletion, subject 
 
 ```bash
 bun run test
-bun run cibuild
+bun run cibuild              # authoritative local CI-equivalent quality gate
 bun run clone-check
 ```
+
+### Dynamic coverage policy
+
+All quality-policy numbers live in JSON and are validated with Zod before the gate runs:
+
+- `quality/policy.json` defines rating bounds, repository thresholds, changed-code floor/ceiling, default importance, and branch targets.
+- `quality/procedure-inputs.json` defines numeric importance and criticality values from the configured rating range:
+  - `default.importance` applies when no file or Procedure override exists.
+  - `files` overrides a whole production file.
+  - `procedures` overrides a function using `path#functionName`.
+
+Changed-code requirements are calculated from configured importance and static branch count. CI prints the calculated requirement and evidence when a changed Procedure fails.

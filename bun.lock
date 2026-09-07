@@ -15,6 +15,7 @@
         "lefthook": "2.1.9",
         "oxlint": "^1.71.0",
         "ts-api-utils": "^2.5.0",
+        "zod": "^4.4.3",
       },
     },
     "backend": {
@@ -83,7 +84,9 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
+        "@vitest/coverage-v8": "^4.1.10",
         "typescript": "^5.6.3",
+        "vitest": "^4.1.10",
       },
     },
   },

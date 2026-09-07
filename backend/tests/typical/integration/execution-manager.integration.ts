@@ -117,7 +117,7 @@ describe("server-owned ExecutionManager integration", () => {
         })
       ).statusCode,
     ).toBe(404);
-  }, 15_000);
+  });
 
   it("cancels a running execution and rejects unknown IDs without affecting other runs", async () => {
     const scope = await setup("function spin() { while (true) {} }\n");

@@ -11,18 +11,18 @@
     "check:boundaries": "bun run scripts/check-import-boundaries.ts",
     
     "test:typical": "vitest run --config vitest.config.ts --project backend-unit --project backend-integration --project backend-e2e --passWithNoTests",
-    "test:unit": "vitest run --config vitest.config.ts --project backend-unit --passWithNoTests",
-    "test:integration": "vitest run --config vitest.config.ts --project backend-integration --passWithNoTests",
+    "test:unit": "vitest run --config vitest.config.ts --project backend-unit",
+    "test:integration": "vitest run --config vitest.config.ts --project backend-integration --maxWorkers=1 --no-file-parallelism",
     "test:e2e": "vitest run --config vitest.config.ts --project backend-e2e --passWithNoTests",
     "test:durable": "bun test tests/typical/e2e/durable-live-workspace.bun.test.ts",
 
     "test:acceptance": "vitest run --config vitest.config.ts --project backend-hvut --project backend-hvit --project backend-hve2e --passWithNoTests",
-    "test:hvut": "vitest run --config vitest.config.ts --project backend-hvut --passWithNoTests",
+    "test:hvut": "vitest run --config vitest.config.ts --project backend-hvut",
     "test:hvit": "vitest run --config vitest.config.ts --project backend-hvit --passWithNoTests",
     "test:hve2e": "vitest run --config vitest.config.ts --project backend-hve2e --passWithNoTests",
     "test:coverage": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --passWithNoTests",
-    "test:coverage:unit": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --project backend-unit --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests",
-    "test:coverage:integration": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --project backend-integration --project backend-e2e --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests",
+    "test:coverage:unit": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --project backend-unit --coverage.reportsDirectory=coverage/unit --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0",
+    "test:coverage:integration": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --no-file-parallelism --project backend-integration --coverage.reportsDirectory=coverage/integration --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0",
     "test:coverage:acceptance": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --project backend-hvut --project backend-hvit --project backend-hve2e --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests"
   },
   "dependencies": {

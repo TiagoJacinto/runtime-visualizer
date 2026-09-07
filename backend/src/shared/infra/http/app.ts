@@ -6,14 +6,14 @@ import {
 	type RevisionHistory,
 } from "../../../modules/analysis/index.ts";
 import { join } from "node:path";
-import { WorkspaceEventHub } from "../../../modules/workspace/eventHub.ts";
+import { WorkspaceEventHub } from "../../../modules/workspace/index.ts";
 import {
 	RevisionBuildQueue,
 	createSavedAnalysisScheduler,
 } from "../../../modules/analysis/index.ts";
-import { DefaultRevisionBuilderWorkerClient } from "../../../modules/analysis/infra/revisionBuilderWorkerClient.ts";
+import { DefaultRevisionBuilderWorkerClient } from "../../../modules/analysis/index.ts";
 import { cfgRoutes } from "../../../modules/cfg/http.ts";
-import { DefaultExecutionManager } from "../../../modules/execution/useCases/executionManager.ts";
+import { DefaultExecutionManager } from "../../../modules/execution/index.ts";
 import { executeRoutes } from "../../../modules/execution/http.ts";
 import {
 	eventsRoutes,

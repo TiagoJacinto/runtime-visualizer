@@ -1,4 +1,4 @@
-import type { RevisionHistory } from "../../analysis/revisionHistory.ts";
+import type { RevisionHistory } from "../../analysis/index.ts";
 import type {
   RevisionKey,
   ActiveExecution,

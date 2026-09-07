@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { coveragePolicy } from "../quality/coverage-policy.mjs";
 
 export default defineConfig({
 	test: {
@@ -7,23 +8,14 @@ export default defineConfig({
 			include: ["src/**/*.{ts,tsx}"],
 			exclude: [
 				"src/**/*.d.ts",
-				"src/components/generated/**",
-				// The Workspace shell is covered by Playwright acceptance scenarios;
-				// keep Vitest focused on its state, gateway, and projection seams.
 				"src/pages/liveWorkspace/components/**/*.tsx",
 				"src/pages/liveWorkspace/liveWorkspace.page.tsx",
 				"src/pages/liveWorkspace/prototype/**",
 				"src/App.tsx",
 				"src/main.tsx",
-				"src/settings/theme.ts",
 			],
-			reporter: ["text", "json-summary"],
-			thresholds: {
-				lines: 58,
-				branches: 58,
-				functions: 58,
-				statements: 58,
-			},
+			reporter: ["text", "json-summary", "json"],
+			thresholds: coveragePolicy.packages.browser.thresholds,
 		},
 		projects: [
 			{

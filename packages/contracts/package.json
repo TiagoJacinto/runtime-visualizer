@@ -5,10 +5,18 @@
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage",
+    "test:coverage:unit": "vitest run --config vitest.config.ts --coverage --coverage.reportsDirectory=coverage/unit"
+  },
   "dependencies": {
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "typescript": "^5.6.3"
+    "@vitest/coverage-v8": "^4.1.10",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.10"
   }
 }

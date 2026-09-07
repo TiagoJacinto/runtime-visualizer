@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { SourceChange, SourceChangeWatcher } from "./change-watcher.ts";
-import type { WorkspaceEventHub } from "../../../workspace/eventHub.ts";
+import type { WorkspaceEventHub } from "../../../workspace/index.ts";
 
 type EventsRoutesOptions = {
   readonly watcher: SourceChangeWatcher;

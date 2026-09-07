@@ -55,7 +55,7 @@ export default defineConfig({
 				"VITE_API_PORT=4301 bun run frontend:dev -- --host 127.0.0.1 --port 4173",
 			cwd: "..",
 			url: "http://127.0.0.1:4173",
-			reuseExistingServer: true,
+			reuseExistingServer: false,
 		},
 	],
 	projects: [
