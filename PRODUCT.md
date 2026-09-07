@@ -54,7 +54,7 @@ Success means that an Operator can inspect a Procedure, understand its possible 
 
 - `CONTEXT.md` — domain terminology and graph behavior.
 - `features/*.feature` — acceptance scenarios for graph visualization, execution highlighting, diagnostics, imports, and multi-file analysis.
-- `browser/src/components/generated/LiveProcedureWorkspace.tsx` — existing workspace implementation with graph, source, runs, imports, and diagnostics views.
+- `browser/src/pages/liveWorkspace/` — production Workspace composition, controller, graph, source, runs, and diagnostics views.
 - `browser/package.json` — React, TypeScript, Vite, Mermaid, and related browser tooling.
 - `README.md` — local development commands and backend API endpoints.
 

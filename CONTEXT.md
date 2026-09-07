@@ -12,6 +12,16 @@ The person who selects a Procedure and inspects its control flow or execution.
 
 A bounded piece of code with an identifiable start and end. A Procedure may be a file, function, or selected source range. A graph is scoped to the selected Procedure: a file graph shows a function call as `helper()`, while a function graph shows the function body's statements such as `work()`. This boundary also applies to nested function and arrow-function expressions. The graph currently accepts TypeScript source in `.ts` and `.tsx` files and requires successful TypeScript type-checking for the selected Procedure and its required dependencies; unrelated project files do not block graph generation.
 
+### Analysis history
+
+**Analysis revision**:
+An immutable, content-addressed snapshot of one Procedure's analyzed source context, dependencies, control-flow graph, and diagnostics. An Analysis revision is the unit an Operator can inspect or run, even after the source workspace changes.
+_Avoid_: version, build
+
+**Revision history**:
+The retained set of Analysis revisions for a Procedure, including revisions whose source file or Procedure is no longer present in the current workspace.
+_Avoid_: execution history
+
 ### Entry
 
 A synthetic graph node representing the start boundary of a Procedure.
@@ -23,6 +33,11 @@ A synthetic graph node representing the end boundary of a Procedure. Normal comp
 ### Execution
 
 One attempt to run a Procedure from its initial state to a terminal Result. While it is in progress, an Execution has one current graph node.
+
+### Active Execution
+
+An Execution that has started but has not reached a terminal Result. The Workspace labels collections of Active Executions as “Runs.”
+_Avoid_: job, task
 
 ### Execution highlighting
 
