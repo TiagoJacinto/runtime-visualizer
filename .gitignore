@@ -32,19 +32,20 @@ dist-ssr
 .pi/npm/
 .impeccable/
 
+coverage
+
 # Local durable revision history
 .runtime-visualizer/
 
 # Isolated browser acceptance workspace
 .playwright-live-workspace/
 
-# SSSF runtime
+# Test coverage output
+**/coverage/
+
+# sssf runtime
 adws/adw_data/sessions/
 adws/adw_data/runs/
 adws/adw_data/sssf.db*
 .pi/skills/sssf/
 .env
-coverage
-
-# Test coverage output
-**/coverage/

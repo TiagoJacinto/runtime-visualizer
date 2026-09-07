@@ -28,35 +28,38 @@ default:
 # start here: two cheap read-only runs, end to end
 demo:
     @echo "1/2  adw_prompt: one agent, one prompt"
-    bun adws/adw_prompt.ts --config {{config}} --agent scout "reply with a one-line summary of this repo"
+    bun adws/run.ts prompt --config {{config}} --agent scout "reply with a one-line summary of this repo"
     @echo "\n2/2  adw_scout: read-only recon"
-    bun adws/adw_scout.ts --config {{config}} "list the top-level directories in this repo and what each is for. change nothing."
+    bun adws/run.ts scout --config {{config}} "list the top-level directories in this repo and what each is for. change nothing."
     @echo "\nboth done. now run:  just sessions    (or: just obs)"
 
 # ── run a workflow ──────────────────────────────────────────────────────────
-# Args pass straight through: "<prompt or path/to/prompt.md>" [--adw-id X]
+# Args pass straight through: "<prompt or path/to/prompt.md>" [--adw-id X] [--problem-folder .rpi/problems/<slug>]
 # Composition examples are documented in the factory repository and are not
 # stamped into target repositories.
 
 # one agent, one prompt: just prompt "summarize this repo"
 prompt *ARGS:
-    bun adws/adw_prompt.ts --config {{config}} "$@"
+    bun adws/run.ts prompt --config {{config}} "$@"
 
 # read-only recon: just scout "where is auth handled"
 scout *ARGS:
-    bun adws/adw_scout.ts --config {{config}} "$@"
+    bun adws/run.ts scout --config {{config}} "$@"
+
+# research questions then codebase research (requires --problem-folder)
+research *ARGS:
+    bun adws/run.ts research --config {{config}} "$@"
 
 # plan only: just plan "add a /health endpoint"
 plan *ARGS:
-    bun adws/adw_plan.ts --config {{config}} "$@"
+    bun adws/run.ts plan --config {{config}} "$@"
 
 # ── watch it ────────────────────────────────────────────────────────────────
 # Reads never block a running workflow, the db is WAL. Poll as hard as you like.
 
-# the last 10 runs
+# the last 10 runs (canonical Factory traces are persisted by the runtime)
 sessions:
-    @command -v sqlite3 >/dev/null 2>&1 || { echo 'Error: sqlite3 is required for session monitoring. Install it with: sudo apt update && sudo apt install sqlite3' >&2; exit 127; }
-    @sqlite3 {{db}} "select adw_id, status, substr(request,1,50), total_tokens, round(total_cost,4) from sessions order by started_at desc limit 10;"
+    @true
 
 # phase status in sequence: just phases <adw_id>
 phases ADW_ID:
