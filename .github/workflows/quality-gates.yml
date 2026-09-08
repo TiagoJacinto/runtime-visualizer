@@ -83,7 +83,6 @@ jobs:
 
   regression_tests:
     name: Typical regression tests
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -101,10 +100,9 @@ jobs:
 
   coverage:
     name: Coverage policy
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     env:
-      QUALITY_BASE_SHA: ${{ github.event.before || github.sha }}
+      QUALITY_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -147,8 +145,6 @@ jobs:
           require_success "$STATIC_RESULT" "Static checks" "bun run quality:static"
           require_success "$ACCEPTANCE_TESTS_RESULT" "Acceptance tests (HVUT)" "bun run quality:acceptance"
           require_success "$BROWSER_HVE2E_RESULT" "Browser HVE2E" "bun run frontend:test:hve2e"
-          if test "$GITHUB_EVENT_NAME" != "pull_request"; then
-            require_success "$REGRESSION_TESTS_RESULT" "Typical regression tests" "bun run quality:regression"
-            require_success "$COVERAGE_RESULT" "Coverage policy" "bun run quality:coverage"
-          fi
+          require_success "$REGRESSION_TESTS_RESULT" "Typical regression tests" "bun run quality:regression"
+          require_success "$COVERAGE_RESULT" "Coverage policy" "bun run quality:coverage"
           exit "$failed"
