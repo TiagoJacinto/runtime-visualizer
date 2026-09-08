@@ -1,12 +1,13 @@
-import { describe, expect, it } from "vitest";
 import type {
   AnalysisResponse,
   ActiveExecution,
   WorkspaceEvent,
 } from "@runtime-visualizer/contracts";
-import { LiveWorkspaceController } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.controller";
+import { describe, expect, it } from "vitest";
+
+import { LiveWorkspaceController } from "../../../src/pages/liveWorkspace/useCases/live-workspace.controller";
+import type { LiveWorkspaceState } from "../../../src/pages/liveWorkspace/useCases/live-workspace.types";
 import type { LiveWorkspacePorts } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.ports";
-import type { LiveWorkspaceState } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.types";
 
 const analysis: AnalysisResponse = {
   file: "main.ts",
@@ -69,7 +70,7 @@ class WorkspaceEventsSpy {
         signal.addEventListener(
           "abort",
           () => resolve({ done: true, value: undefined }),
-          { once: true },
+          { once: true }
         );
       });
       if (result.done) return;
@@ -141,7 +142,7 @@ describe("live workspace server event observation", () => {
     expect(
       controller
         .getState()
-        .executions.map((execution) => execution.currentNodeId),
+        .executions.map((execution) => execution.currentNodeId)
     ).toEqual([null, "work"]);
     controller.dispose();
   });

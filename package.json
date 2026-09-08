@@ -1,13 +1,13 @@
 {
   "name": "runtime-visualizer",
-  "private": true,
   "version": "0.0.0",
-  "type": "module",
+  "private": true,
   "workspaces": [
     "packages/*",
     "backend",
     "browser"
   ],
+  "type": "module",
   "scripts": {
     "bootstrap": "bun install --frozen-lockfile",
     "setup": "bun run bootstrap",
@@ -71,7 +71,9 @@
     "frontend:test:acceptance": "bun run --filter runtime-visualizer-browser test:acceptance",
     "frontend:test:hvut": "bun run --filter runtime-visualizer-browser test:hvut",
     "frontend:test:hvit": "bun run --filter runtime-visualizer-browser test:hvit",
-    "frontend:test:hve2e": "bun run --filter runtime-visualizer-browser test:hve2e"
+    "frontend:test:hve2e": "bun run --filter runtime-visualizer-browser test:hve2e",
+    "check": "ultracite check browser/src backend/src",
+    "fix": "ultracite fix browser/src backend/src"
   },
   "dependencies": {
     "commander": "^15.0.0"
@@ -83,8 +85,10 @@
     "fallow": "3.15.0",
     "jscpd": "5.0.14",
     "lefthook": "2.1.9",
-    "oxlint": "^1.71.0",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
     "ts-api-utils": "^2.5.0",
+    "ultracite": "7.11.0",
     "zod": "^4.4.3"
   }
 }

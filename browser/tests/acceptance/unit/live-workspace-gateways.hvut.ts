@@ -1,14 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { AnalysisGateway } from "../../../src/shared/api/analysisGateway";
-import {
-  ExecutionGateway,
-  type ExecutionGatewayError,
-} from "../../../src/shared/api/executionGateway";
-import { WorkspaceEventsGateway } from "../../../src/shared/api/workspaceEventsGateway";
-import {
-  LocalStorageWorkspacePreferences,
-  MemoryWorkspacePreferences,
-} from "../../../src/shared/api/workspacePreferences";
+
+import { AnalysisGateway } from "../../../src/shared/api/analysis-gateway";
+import { ExecutionGateway } from "../../../src/shared/api/execution-gateway";
+import type { ExecutionGatewayError } from "../../../src/shared/api/execution-gateway-error";
+import { MemoryWorkspacePreferences } from "../../../src/shared/api/memory-workspace-preferences";
+import { WorkspaceEventsGateway } from "../../../src/shared/api/workspace-events-gateway";
+import { LocalStorageWorkspacePreferences } from "../../../src/shared/api/workspace-preferences";
 
 const scope = {
   file: "main.ts",
@@ -89,13 +86,13 @@ describe("live workspace gateways", () => {
 
   it("surfaces execution HTTP failures with their status", async () => {
     const gateway = new ExecutionGateway(async () =>
-      response({ error: "Revision unavailable" }, 409),
+      response({ error: "Revision unavailable" }, 409)
     );
     await expect(gateway.start(scope)).rejects.toEqual(
       expect.objectContaining<Partial<ExecutionGatewayError>>({
         message: "Revision unavailable",
         status: 409,
-      }),
+      })
     );
   });
 
@@ -108,7 +105,7 @@ describe("live workspace gateways", () => {
         ": connected\n\n" +
           'id: 8\nevent: source-change\ndata: {"type":"source-change","change":{"type":"file-changed","file":"main.ts","change":"modified"}}\n\n' +
           'id: 9\nevent: active-executions\ndata: {"type":"active-executions","executions":[]}\n\n',
-        { headers: { "content-type": "text/event-stream" } },
+        { headers: { "content-type": "text/event-stream" } }
       );
     });
     const iterator = gateway

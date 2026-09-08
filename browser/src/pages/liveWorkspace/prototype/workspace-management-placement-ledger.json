@@ -1,9 +1,7 @@
 {
   "candidates": {
     "v-c98c5217279b": {
-      "basedOn": [
-        "workspace-activity-tabs"
-      ],
+      "basedOn": ["workspace-activity-tabs"],
       "interval": 75.0,
       "name": "Wide run rail",
       "round": 6,
@@ -13,9 +11,7 @@
       "status": "rejected"
     },
     "v-d0683e8e607a": {
-      "basedOn": [
-        "workspace-activity-tabs"
-      ],
+      "basedOn": ["workspace-activity-tabs"],
       "interval": 60.0,
       "name": "Tabs with overflow",
       "round": 5,
@@ -25,9 +21,7 @@
       "status": "rejected"
     },
     "workspace-activity-board": {
-      "basedOn": [
-        "workspace-activity-switcher"
-      ],
+      "basedOn": ["workspace-activity-switcher"],
       "interval": 50.0,
       "legacy": true,
       "round": 3,
@@ -35,9 +29,7 @@
       "status": "rejected"
     },
     "workspace-activity-drawer": {
-      "basedOn": [
-        "workspace-activity-switcher"
-      ],
+      "basedOn": ["workspace-activity-switcher"],
       "interval": 100.0,
       "legacy": true,
       "round": 2,
@@ -45,9 +37,7 @@
       "status": "rejected"
     },
     "workspace-activity-inline": {
-      "basedOn": [
-        "workspace-activity-switcher"
-      ],
+      "basedOn": ["workspace-activity-switcher"],
       "interval": 75.0,
       "legacy": true,
       "round": 4,
@@ -63,9 +53,7 @@
       "status": "rejected"
     },
     "workspace-activity-split": {
-      "basedOn": [
-        "workspace-activity-switcher"
-      ],
+      "basedOn": ["workspace-activity-switcher"],
       "interval": 75.0,
       "legacy": true,
       "round": 3,
@@ -73,9 +61,7 @@
       "status": "rejected"
     },
     "workspace-activity-switcher": {
-      "basedOn": [
-        "workspace-activity-rail"
-      ],
+      "basedOn": ["workspace-activity-rail"],
       "interval": 100.0,
       "legacy": true,
       "round": 1,
@@ -83,9 +69,7 @@
       "status": "rejected"
     },
     "workspace-activity-tabs": {
-      "basedOn": [
-        "workspace-activity-switcher"
-      ],
+      "basedOn": ["workspace-activity-switcher"],
       "interval": 50.0,
       "legacy": true,
       "round": 4,
@@ -104,40 +88,28 @@
   "comparisons": [
     {
       "confidence": "medium",
-      "pair": [
-        "workspace-activity-switcher",
-        "workspace-activity-drawer"
-      ],
+      "pair": ["workspace-activity-switcher", "workspace-activity-drawer"],
       "reason": "A persistent rail scales better than a popover when the run list may contain 30 entries.",
       "round": 2,
       "winner": "workspace-activity-switcher"
     },
     {
       "confidence": "medium",
-      "pair": [
-        "workspace-activity-switcher",
-        "workspace-activity-split"
-      ],
+      "pair": ["workspace-activity-switcher", "workspace-activity-split"],
       "reason": "The switcher keeps the run control beside the rail it changes; the split pane puts the control far from the controlled run list.",
       "round": 3,
       "winner": "workspace-activity-switcher"
     },
     {
       "confidence": "low",
-      "pair": [
-        "workspace-activity-inline",
-        "workspace-activity-tabs"
-      ],
+      "pair": ["workspace-activity-inline", "workspace-activity-tabs"],
       "reason": "Context tabs keep the control adjacent to the content, but the preference depends on how many workspace contexts must become tabs.",
       "round": 4,
       "winner": "workspace-activity-tabs"
     },
     {
       "confidence": "medium",
-      "pair": [
-        "workspace-activity-tabs",
-        "v-d0683e8e607a"
-      ],
+      "pair": ["workspace-activity-tabs", "v-d0683e8e607a"],
       "reason": "Context tabs use the existing secondary rail; the overflow challenger adds vertical navigation and this workspace should spend horizontal room rather than vertical room.",
       "recordedAt": "2026-09-02T19:07:01.966937+00:00",
       "round": 5,
@@ -145,10 +117,7 @@
     },
     {
       "confidence": "high",
-      "pair": [
-        "workspace-activity-tabs",
-        "v-c98c5217279b"
-      ],
+      "pair": ["workspace-activity-tabs", "v-c98c5217279b"],
       "reason": "Context tabs preserve graph/source space and use the existing secondary rail; the wide rail reduced vertical scrolling but consumed unnecessary horizontal space.",
       "recordedAt": "2026-09-02T19:17:07.840742+00:00",
       "round": 6,
@@ -206,19 +175,13 @@
       "number": 6
     },
     {
-      "candidates": [
-        "workspace-activity-tabs",
-        "workspace-activity-inline"
-      ],
+      "candidates": ["workspace-activity-tabs", "workspace-activity-inline"],
       "number": 7
     }
   ],
   "tabPolicy": {
     "confidence": "high",
-    "currentContexts": [
-      "Scope",
-      "Runs"
-    ],
+    "currentContexts": ["Scope", "Runs"],
     "currentCount": 2,
     "fallback": "workspace-activity-inline",
     "reason": "Context tabs preserve graph/source space and keep the control beside the scrollable rail content.",

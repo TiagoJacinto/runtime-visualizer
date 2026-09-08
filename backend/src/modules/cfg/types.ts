@@ -11,125 +11,125 @@
  */
 
 /** A 1-based line/column span in the original source file. */
-export type SourceLocation = {
-  readonly start: { readonly line: number; readonly column: number }
-  readonly end: { readonly line: number; readonly column: number }
+export interface SourceLocation {
+  readonly start: { readonly line: number; readonly column: number };
+  readonly end: { readonly line: number; readonly column: number };
 }
 
 /** The kind of a CFG basic block. */
 export type CfgNodeKind =
   /** Synthetic entry point for a function. */
-  | 'entry'
+  | "entry"
   /** Synthetic exit point for a function. */
-  | 'exit'
+  | "exit"
   /** A contextual module dependency declaration. */
-  | 'import'
+  | "import"
   /** A straight-line statement (expression, var/let/const, expr-stmt, ...). */
-  | 'statement'
+  | "statement"
   /** A branching condition (`if` test, ternary test, `while`/`for`/`do-while` test). */
-  | 'branch'
+  | "branch"
   /** A join node that merges several control-flow edges. */
-  | 'merge'
+  | "merge"
   /** A `switch` discriminant dispatch node. */
-  | 'switch'
+  | "switch"
   /** A `case` clause under a `switch`. */
-  | 'case'
+  | "case"
   /** A `default` clause under a `switch`. */
-  | 'default'
+  | "default"
   /** A `return` (or implicit fall-through to the function exit). */
-  | 'return'
+  | "return"
   /** A `throw` statement (control transfers to a `catch` block or the exit). */
-  | 'throw'
+  | "throw"
   /** A `break` statement (control transfers to the enclosing loop/switch exit). */
-  | 'break'
+  | "break"
   /** A `continue` statement (control transfers to the enclosing loop head). */
-  | 'continue'
+  | "continue"
   /** A `try` block entry, with an outgoing edge to the `catch`/`finally`. */
-  | 'try'
+  | "try"
   /** A `catch` block entry. */
-  | 'catch'
+  | "catch"
   /** A `finally` block entry. */
-  | 'finally'
+  | "finally";
 
 /** A single basic block in the CFG. */
-export type CfgNode = {
+export interface CfgNode {
   /** Stable, unique id within the enclosing {@link FunctionCfg}. */
-  readonly id: string
-  readonly kind: CfgNodeKind
+  readonly id: string;
+  readonly kind: CfgNodeKind;
   /** Human-readable short label, e.g. `if (x > 0)`, `return x`, `for (...)`. */
-  readonly label: string
+  readonly label: string;
   /** Original source span for this node, if available. */
-  readonly location?: SourceLocation
+  readonly location?: SourceLocation;
   /** Original source text for the statement, if available. */
-  readonly text?: string
+  readonly text?: string;
 }
 
 /** The kind of a CFG edge. */
 export type CfgEdgeKind =
   /** Fall-through / sequential edge inside a block. */
-  | 'next'
+  | "next"
   /** Edge taken when the branch condition evaluates to true. */
-  | 'true'
+  | "true"
   /** Edge taken when the branch condition evaluates to false. */
-  | 'false'
+  | "false"
   /** Edge from a switch dispatch to a specific `case` clause. */
-  | 'case'
+  | "case"
   /** Edge from a switch dispatch to the `default` clause. */
-  | 'default'
+  | "default"
   /** Edge from a `try` block to the corresponding `catch`/`finally`. */
-  | 'unwind'
+  | "unwind"
   /** Edge into the function entry node. */
-  | 'entry'
+  | "entry";
 
 /** A directed edge between two {@link CfgNode}s. */
-export type CfgEdge = {
-  readonly from: string
-  readonly to: string
-  readonly kind?: CfgEdgeKind
+export interface CfgEdge {
+  readonly from: string;
+  readonly to: string;
+  readonly kind?: CfgEdgeKind;
   /** Free-form label (e.g. the case value text `"x === 1"`). */
-  readonly label?: string
+  readonly label?: string;
 }
 
 /** A CFG for a single function-like declaration. */
-export type FunctionCfg = {
+export interface FunctionCfg {
   /** Function name as written in source (e.g. `"foo"`); `"<anonymous>"` for unnamed function expressions. */
-  readonly name: string
+  readonly name: string;
   /** Names of declared parameters (excluding `this` and rest binding). */
-  readonly params: ReadonlyArray<string>
-  readonly isAsync: boolean
-  readonly isGenerator: boolean
-  readonly isExported: boolean
-  readonly nodes: ReadonlyArray<CfgNode>
-  readonly edges: ReadonlyArray<CfgEdge>
+  readonly params: readonly string[];
+  readonly isAsync: boolean;
+  readonly isGenerator: boolean;
+  readonly isExported: boolean;
+  readonly nodes: readonly CfgNode[];
+  readonly edges: readonly CfgEdge[];
   /** Id of the synthetic {@link CfgNodeKind.entry} node. */
-  readonly entry: string
+  readonly entry: string;
   /** Id of the synthetic {@link CfgNodeKind.exit} node. */
-  readonly exit: string
-  readonly location?: SourceLocation
+  readonly exit: string;
+  readonly location?: SourceLocation;
 }
 
 /** The CFG produced for an entire TypeScript file. */
-export type ProcedureCfg = {
-  readonly name: string
-  readonly nodes: ReadonlyArray<CfgNode>
-  readonly edges: ReadonlyArray<CfgEdge>
-  readonly entry: string
-  readonly exit: string
+export interface ProcedureCfg {
+  readonly name: string;
+  readonly nodes: readonly CfgNode[];
+  readonly edges: readonly CfgEdge[];
+  readonly entry: string;
+  readonly exit: string;
 }
 
-export type GraphDiagnostic = {
-	readonly procedure: string
-	readonly dependency?: string
-	readonly reason: string
-	readonly message?: string
-	readonly location?: SourceLocation
+export interface GraphDiagnostic {
+  readonly procedure: string;
+  readonly dependency?: string;
+  readonly reason: string;
+  readonly message?: string;
+  readonly location?: SourceLocation;
 }
 
-export type ControlFlowGraph = {
+export interface ControlFlowGraph {
   /** Optional virtual file name attached to the source. */
-  readonly filePath?: string
+  readonly filePath?: string;
   /** One entry per function-like declaration encountered in the file. */
-  readonly functions: ReadonlyArray<FunctionCfg>
+  readonly functions: readonly FunctionCfg[];
   /** The selected file-scoped Procedure, when requested. */
-  readonly procedures?: ReadonlyArray<ProcedureCfg>
+  readonly procedures?: readonly ProcedureCfg[];
 }

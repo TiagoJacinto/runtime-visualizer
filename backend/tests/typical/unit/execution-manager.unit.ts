@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import type {
   AnalysisSnapshot,
   RevisionLease,
   RevisionHistory,
 } from "../../../src/modules/analysis/index.ts";
-import { createExecutionManager } from "../../../src/modules/execution/index.ts";
+import type { ProcedureCfg } from "../../../src/modules/cfg/index.ts";
 import type {
   ExecutionObserver,
   ExecutionOptions,
   ExecutionResult,
-} from "../../../src/modules/execution/index.ts";
-import type { ProcedureCfg } from "../../../src/modules/cfg/index.ts";
+} from "../../../src/modules/execution/useCases/executeProcedure/runner.ts";
+import { createExecutionManager } from "../../../src/modules/execution/useCases/execution-manager.ts";
 
 type Runner = {
   node: (id: string) => void;
@@ -24,7 +25,7 @@ const execute = async (
   _procedure: ProcedureCfg,
   _name: string | undefined,
   node: ExecutionObserver = () => undefined,
-  options: ExecutionOptions = {},
+  options: ExecutionOptions = {}
 ): Promise<ExecutionResult> =>
   new Promise((resolve) => {
     const run = { node, resolve, signal: options.signal };
@@ -37,7 +38,7 @@ const execute = async (
           events: [],
           error: "Execution cancelled.",
         }),
-      { once: true },
+      { once: true }
     );
   });
 

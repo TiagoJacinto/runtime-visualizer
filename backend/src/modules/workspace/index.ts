@@ -1,2 +1,2 @@
-export { WorkspaceEventHub } from "./eventHub.ts";
-export type { WorkspaceEventRecord } from "./eventHub.ts";
+export { WorkspaceEventHub } from "./event-hub.ts";
+export type { WorkspaceEventRecord } from "./event-hub.ts";

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+
 import { createApp } from "../../../src/shared/infra/http/app.ts";
 
 describe("durable live workspace contract", () => {
@@ -9,7 +10,7 @@ describe("durable live workspace contract", () => {
     "loads and executes a selected revision after restart and source deletion",
     async () => {
       const folder = await mkdtemp(
-        path.join(os.tmpdir(), "runtime-visualizer-live-"),
+        path.join(os.tmpdir(), "runtime-visualizer-live-")
       );
       const databasePath = path.join(folder, "history", "revisions.sqlite");
       const sourcePath = path.join(folder, "main.ts");
@@ -76,13 +77,13 @@ describe("durable live workspace contract", () => {
           await new Promise((resolve) => setTimeout(resolve, 10));
         }
         throw new Error(
-          "historical execution did not reach a terminal outcome",
+          "historical execution did not reach a terminal outcome"
         );
       } finally {
         await app?.close();
         await rm(folder, { recursive: true, force: true });
       }
     },
-    { timeout: 30_000 },
+    { timeout: 30_000 }
   );
 });

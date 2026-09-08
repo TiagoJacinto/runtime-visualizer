@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { WorkspaceEventHub } from "../../../src/modules/workspace/eventHub.ts";
+
 import { WorkspaceEventSchema } from "../../../../packages/contracts/src/workspace-events.ts";
+import { WorkspaceEventHub } from "../../../src/modules/workspace/event-hub.ts";
 
 describe("workspace event hub", () => {
   it("assigns ordered IDs, hydrates active clients, and replays retained events", () => {
@@ -37,7 +38,7 @@ describe("workspace event hub", () => {
       executions: [active],
     });
     expect(
-      WorkspaceEventSchema.safeParse(subscription.replay[1]?.event).success,
+      WorkspaceEventSchema.safeParse(subscription.replay[1]?.event).success
     ).toBe(true);
   });
 
@@ -84,7 +85,7 @@ describe("workspace event hub", () => {
     const hub = new WorkspaceEventHub();
     const seen: number[] = [];
     const subscription = hub.subscribe(undefined, (record) =>
-      seen.push(record.id),
+      seen.push(record.id)
     );
     hub.publish({
       type: "source-change",

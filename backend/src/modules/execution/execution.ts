@@ -9,12 +9,12 @@ export type TerminalExecutionStatus = Exclude<
   "Running"
 >;
 
-export type StartExecutionState = {
+export interface StartExecutionState {
   readonly executionId: string;
   readonly displayNumber: number;
   readonly scope: RevisionKey;
   readonly startedAt: string;
-};
+}
 
 /** Owns the state transitions and invariants of one Execution. */
 export class Execution {
@@ -34,8 +34,8 @@ export class Execution {
     this.ensureRunning();
     return {
       ...this.initial,
-      status: "Running",
       currentNodeId: this.currentNodeId,
+      status: "Running",
     };
   }
 
@@ -48,22 +48,25 @@ export class Execution {
   finish(status: TerminalExecutionStatus, error?: string): ExecutionUpdate {
     this.ensureRunning();
     this.status = status;
-    return {
+    const update: ExecutionUpdate = {
       ...this.initial,
-      status,
       currentNodeId: this.currentNodeId,
-      ...(error === undefined ? {} : { error }),
-      ...(status === "Failed" && this.currentNodeId !== null
-        ? { failedNodeId: this.currentNodeId }
-        : {}),
+      status,
     };
+    if (error !== undefined) {
+      update.error = error;
+    }
+    if (status === "Failed" && this.currentNodeId !== null) {
+      update.failedNodeId = this.currentNodeId;
+    }
+    return update;
   }
 
   private runningUpdate(): ExecutionUpdate {
     return {
       ...this.initial,
-      status: "Running",
       currentNodeId: this.currentNodeId,
+      status: "Running",
     };
   }
 

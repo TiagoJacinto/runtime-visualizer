@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  LocalStorageWorkspacePreferences,
-  MemoryWorkspacePreferences,
-} from "../../../src/shared/api/workspacePreferences";
+
+import { MemoryWorkspacePreferences } from "../../../src/shared/api/memory-workspace-preferences";
+import { LocalStorageWorkspacePreferences } from "../../../src/shared/api/workspace-preferences";
 
 const scope = {
   file: "main.ts",
@@ -28,7 +27,7 @@ describe("workspace preferences", () => {
     };
     const preferences = new LocalStorageWorkspacePreferences(
       fakeStorage,
-      "workspace",
+      "workspace"
     );
 
     preferences.save(scope);
@@ -45,7 +44,7 @@ describe("workspace preferences", () => {
     };
     const preferences = new LocalStorageWorkspacePreferences(
       fakeStorage,
-      "workspace",
+      "workspace"
     );
 
     expect(preferences.load()).toBeUndefined();
@@ -61,7 +60,7 @@ describe("workspace preferences", () => {
     };
     const preferences = new LocalStorageWorkspacePreferences(
       fakeStorage,
-      "workspace",
+      "workspace"
     );
 
     preferences.save({ ...scope, importsVisible: "yes" as never });

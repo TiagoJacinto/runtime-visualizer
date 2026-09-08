@@ -1,13 +1,14 @@
-import { describe, expect, it } from "vitest";
 import type {
   ActiveExecution,
   AnalysisResponse,
 } from "@runtime-visualizer/contracts";
+import { describe, expect, it } from "vitest";
+
+import { reduceWorkspace } from "../../../src/pages/liveWorkspace/useCases/live-workspace.reducer";
 import {
   initialLiveWorkspaceState,
   type LiveWorkspaceState,
-} from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.types";
-import { reduceWorkspace } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.reducer";
+} from "../../../src/pages/liveWorkspace/useCases/live-workspace.types";
 
 const scope = {
   file: "main.ts",
@@ -46,7 +47,7 @@ function active(executionId = "execution-1"): ActiveExecution {
 
 function reduce(
   state: LiveWorkspaceState,
-  event: Parameters<typeof reduceWorkspace>[1],
+  event: Parameters<typeof reduceWorkspace>[1]
 ): LiveWorkspaceState {
   return reduceWorkspace(state, event).state;
 }
