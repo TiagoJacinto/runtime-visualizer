@@ -11,4 +11,5 @@ export {
 } from "./useCases/readSource/read-source.ts";
 
 export type { ProcedureResource, SourceResource } from "./types.ts";
+export { SourceChangeWatcher } from "./useCases/observeChanges/change-watcher.ts";
 export type { SourceChange } from "./useCases/observeChanges/change-watcher.ts";

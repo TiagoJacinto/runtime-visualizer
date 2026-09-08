@@ -1,23 +1,16 @@
 import {
-  ExecutionEventSchema,
-  ExecutionIdSchema,
-  type ExecutionEvent,
+  ActiveExecutionSchema,
+  ExecuteProcedureResponseSchema,
+  type ActiveExecution,
+  type RevisionKey,
 } from "@runtime-visualizer/contracts";
 
-export type ExecutionRequest = {
-  file: string;
-  name?: string;
-  revision: string;
-};
-
-export type ExecutionStream = {
-  executionId: string;
-  events: AsyncIterable<ExecutionEvent>;
-  cancel(): void;
-};
+export type ExecutionRequest = RevisionKey;
 
 export type ExecutionGateway = {
-  start(input: ExecutionRequest, signal?: AbortSignal): Promise<ExecutionStream>;
+  start(input: ExecutionRequest, signal?: AbortSignal): Promise<string>;
+  list(signal?: AbortSignal): Promise<readonly ActiveExecution[]>;
+  cancel(executionId: string, signal?: AbortSignal): Promise<void>;
 };
 
 export class ExecutionGatewayError extends Error {
@@ -30,37 +23,25 @@ export class ExecutionGatewayError extends Error {
   }
 }
 
-async function* readEvents(
-  response: Response,
-  signal: AbortSignal,
-): AsyncGenerator<ExecutionEvent> {
-  if (response.body === null) throw new Error("Execution response has no body");
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+async function errorMessage(response: Response): Promise<string> {
   try {
-    while (true) {
-      const result = await reader.read();
-      if (result.done) break;
-      buffer += decoder.decode(result.value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.length === 0) continue;
-        yield ExecutionEventSchema.parse(JSON.parse(trimmed));
-      }
-    }
-    buffer += decoder.decode();
-    const trimmed = buffer.trim();
-    if (trimmed.length > 0) yield ExecutionEventSchema.parse(JSON.parse(trimmed));
-  } finally {
-    if (signal.aborted) await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
+    const value: unknown = await response.json();
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      "error" in value &&
+      typeof value.error === "string"
+    )
+      return value.error;
+  } catch {
+    // Use the status fallback below when the response is not JSON.
   }
+  return `Execution request failed (${response.status})`;
 }
 
-export function createExecutionGateway(fetcher: typeof fetch = fetch): ExecutionGateway {
+export function createExecutionGateway(
+  fetcher: typeof fetch = fetch,
+): ExecutionGateway {
   return {
     async start(input, signal) {
       const response = await fetcher("/api/execute", {
@@ -69,23 +50,43 @@ export function createExecutionGateway(fetcher: typeof fetch = fetch): Execution
         body: JSON.stringify(input),
         signal,
       });
-      if (!response.ok) {
-        let message = `Execution request failed (${response.status})`;
-        try {
-          const body = (await response.json()) as { error?: unknown };
-          if (typeof body.error === "string") message = body.error;
-        } catch {
-          // Keep the status message when the server does not return JSON.
-        }
-        throw new ExecutionGatewayError(message, response.status);
-      }
-      const executionId = response.headers.get("X-Execution-Id");
-      if (executionId === null) throw new Error("Execution response has no X-Execution-Id header");
-      ExecutionIdSchema.parse(executionId);
-      const controller = new AbortController();
-      const cancel = (): void => controller.abort();
-      const events = readEvents(response, controller.signal);
-      return { executionId, events, cancel };
+      if (!response.ok)
+        throw new ExecutionGatewayError(
+          await errorMessage(response),
+          response.status,
+        );
+      return ExecuteProcedureResponseSchema.parse(await response.json())
+        .executionId;
+    },
+    async list(signal) {
+      const response = await fetcher("/api/execute", { signal });
+      if (!response.ok)
+        throw new ExecutionGatewayError(
+          await errorMessage(response),
+          response.status,
+        );
+      const value: unknown = await response.json();
+      if (
+        typeof value !== "object" ||
+        value === null ||
+        !("executions" in value) ||
+        !Array.isArray(value.executions)
+      )
+        throw new Error("Invalid executions response");
+      return value.executions.map((execution) =>
+        ActiveExecutionSchema.parse(execution),
+      );
+    },
+    async cancel(executionId, signal) {
+      const response = await fetcher(
+        `/api/execute/${encodeURIComponent(executionId)}`,
+        { method: "DELETE", signal },
+      );
+      if (!response.ok)
+        throw new ExecutionGatewayError(
+          await errorMessage(response),
+          response.status,
+        );
     },
   };
 }

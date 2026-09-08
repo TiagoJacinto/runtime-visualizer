@@ -29,9 +29,7 @@ describe("backend-owned CFG resource", () => {
 	});
 
 	async function start(files: Record<string, string>) {
-		folder = await fs.mkdtemp(
-			path.join(os.tmpdir(), "runtime-visualizer-cfg-"),
-		);
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-cfg-"));
 		for (const [file, source] of Object.entries(files)) {
 			const destination = path.join(folder, file);
 			await fs.mkdir(path.dirname(destination), { recursive: true });

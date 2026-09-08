@@ -1,7 +1,7 @@
 import { describeFeature, loadFeature } from "@amiceli/vitest-cucumber";
 import { expect } from "vitest";
-import { analyseFileProcedure } from "../../../src/modules/cfg/useCases/analyseFile/file-analyzer.ts";
-import type { ControlFlowGraph } from "../../../src/modules/cfg/types.ts";
+import { analyseFileProcedure } from "../../../src/modules/cfg/index.ts";
+import type { ControlFlowGraph } from "../../../src/modules/cfg/index.ts";
 
 const feature = await loadFeature(
 	new URL(
@@ -80,16 +80,13 @@ describeFeature(feature, ({ Scenario }) => {
 				'I view ControlFlowTransition{from: "import { helper } from \'./helper\'", to: "helper()"} not in ControlFlowGraph: Contextual imports do not become local execution flow',
 				() => {
 					const procedure = graph.procedures?.[0];
-					const importNode = procedure?.nodes.find(
-						(node) => node.kind === "import",
-					);
+					const importNode = procedure?.nodes.find((node) => node.kind === "import");
 					const helperNode = procedure?.nodes.find(
 						(node) => node.label === "helper()",
 					);
 					expect(
 						procedure?.edges.some(
-							(edge) =>
-								edge.from === importNode?.id || edge.to === importNode?.id,
+							(edge) => edge.from === importNode?.id || edge.to === importNode?.id,
 						),
 					).toBe(false);
 					expect(importNode).toBeDefined();
@@ -100,9 +97,7 @@ describeFeature(feature, ({ Scenario }) => {
 				'I view GraphNode{label: "helper()", kind: Executable} in ControlFlowGraph: The local call remains one node',
 				() => {
 					expect(
-						graph.procedures?.[0]?.nodes.filter(
-							(node) => node.label === "helper()",
-						),
+						graph.procedures?.[0]?.nodes.filter((node) => node.label === "helper()"),
 					).toHaveLength(1);
 				},
 			);
@@ -110,9 +105,7 @@ describeFeature(feature, ({ Scenario }) => {
 				'I view GraphNode{label: "work()"} not in ControlFlowGraph: The imported Procedure is not expanded',
 				() => {
 					expect(
-						graph.procedures?.[0]?.nodes.some(
-							(node) => node.label === "work()",
-						),
+						graph.procedures?.[0]?.nodes.some((node) => node.label === "work()"),
 					).toBe(false);
 				},
 			);

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createApp } from "../../../src/shared/infra/http/app.js";
+import { createApp } from "../../../src/shared/infra/http/app.ts";
 
 describe("analysis incoming adapter", () => {
 	let app: Awaited<ReturnType<typeof createApp>> | undefined;
@@ -17,9 +17,7 @@ describe("analysis incoming adapter", () => {
 	});
 
 	it("returns a revision-consistent snapshot for a valid saved file", async () => {
-		folder = await fs.mkdtemp(
-			path.join(os.tmpdir(), "runtime-visualizer-"),
-		);
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
 		await fs.writeFile(
 			path.join(folder, "main.ts"),
 			"function greet() { return 1; }\n",
@@ -52,9 +50,7 @@ describe("analysis incoming adapter", () => {
 	});
 
 	it("returns a 422 with source context when diagnostics are present", async () => {
-		folder = await fs.mkdtemp(
-			path.join(os.tmpdir(), "runtime-visualizer-"),
-		);
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
 		await fs.writeFile(
 			path.join(folder, "broken.ts"),
 			"function broken() { invalid syntax here }}\n",
@@ -82,13 +78,8 @@ describe("analysis incoming adapter", () => {
 	});
 
 	it("defaults to Top level Procedure when no name is given", async () => {
-		folder = await fs.mkdtemp(
-			path.join(os.tmpdir(), "runtime-visualizer-"),
-		);
-		await fs.writeFile(
-			path.join(folder, "app.ts"),
-			"const x = 1;\n",
-		);
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
+		await fs.writeFile(path.join(folder, "app.ts"), "const x = 1;\n");
 		app = await createApp({ filesFolder: folder });
 
 		const response = await app.inject({
@@ -102,14 +93,55 @@ describe("analysis incoming adapter", () => {
 		expect(body.procedure).toHaveProperty("name", null);
 	});
 
-	it("returns 400 for a missing file query parameter", async () => {
-		folder = await fs.mkdtemp(
-			path.join(os.tmpdir(), "runtime-visualizer-"),
-		);
+	it("serves revision history and validates its scope query", async () => {
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
 		await fs.writeFile(
 			path.join(folder, "main.ts"),
-			"function f() {}\n",
+			"function run() { return 1; }\\n",
 		);
+		app = await createApp({ filesFolder: folder });
+		const analysis = await app.inject({
+			method: "GET",
+			url: "/api/analysis?file=main.ts&name=run&showImports=true",
+		});
+		const analysisBody = analysis.json() as {
+			revision: string;
+			procedureId: string;
+		};
+		const revision = analysisBody.revision;
+		const procedureId = analysisBody.procedureId;
+		const history = await app.inject({
+			method: "GET",
+			url: `/api/analysis/revisions?file=main.ts&procedureId=${procedureId}`,
+		});
+		expect(history.statusCode).toBe(200);
+		expect(history.json().revisions).toHaveLength(1);
+		const historical = await app.inject({
+			method: "GET",
+			url: `/api/analysis?file=main.ts&procedureId=${procedureId}&revision=${revision}`,
+		});
+		expect(historical.statusCode).toBe(200);
+		expect(historical.json().revision).toBe(revision);
+		const invalid = await app.inject({
+			method: "GET",
+			url: "/api/analysis/revisions?file=main.ts",
+		});
+		expect(invalid.statusCode).toBe(400);
+		const missingProcedure = await app.inject({
+			method: "GET",
+			url: `/api/analysis?file=main.ts&revision=${revision}`,
+		});
+		expect(missingProcedure.statusCode).toBe(404);
+		const invalidName = await app.inject({
+			method: "GET",
+			url: "/api/analysis?file=main.ts&name=not-valid%20name",
+		});
+		expect(invalidName.statusCode).toBe(400);
+	});
+
+	it("returns 400 for a missing file query parameter", async () => {
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
+		await fs.writeFile(path.join(folder, "main.ts"), "function f() {}\n");
 		app = await createApp({ filesFolder: folder });
 
 		const response = await app.inject({
@@ -124,16 +156,40 @@ describe("analysis incoming adapter", () => {
 
 	it("uses the transitive dependency manifest as the revision boundary", async () => {
 		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
-		await fs.writeFile(path.join(folder, "main.ts"), "import { value } from './dependency'; function run() { return value; }\n");
-		await fs.writeFile(path.join(folder, "dependency.ts"), "export const value = 1;\n");
-		await fs.writeFile(path.join(folder, "unrelated.ts"), "export const unrelated = 1;\n");
+		await fs.writeFile(
+			path.join(folder, "main.ts"),
+			"import { value } from './dependency'; function run() { return value; }\n",
+		);
+		await fs.writeFile(
+			path.join(folder, "dependency.ts"),
+			"export const value = 1;\n",
+		);
+		await fs.writeFile(
+			path.join(folder, "unrelated.ts"),
+			"export const unrelated = 1;\n",
+		);
 		app = await createApp({ filesFolder: folder });
 
-		const first = await app.inject({ method: "GET", url: "/api/analysis?file=main.ts&name=run" });
-		await fs.writeFile(path.join(folder, "unrelated.ts"), "export const unrelated = 2;\n");
-		const afterUnrelatedChange = await app.inject({ method: "GET", url: "/api/analysis?file=main.ts&name=run" });
-		await fs.writeFile(path.join(folder, "dependency.ts"), "export const value = 2;\n");
-		const afterDependencyChange = await app.inject({ method: "GET", url: "/api/analysis?file=main.ts&name=run" });
+		const first = await app.inject({
+			method: "GET",
+			url: "/api/analysis?file=main.ts&name=run",
+		});
+		await fs.writeFile(
+			path.join(folder, "unrelated.ts"),
+			"export const unrelated = 2;\n",
+		);
+		const afterUnrelatedChange = await app.inject({
+			method: "GET",
+			url: "/api/analysis?file=main.ts&name=run",
+		});
+		await fs.writeFile(
+			path.join(folder, "dependency.ts"),
+			"export const value = 2;\n",
+		);
+		const afterDependencyChange = await app.inject({
+			method: "GET",
+			url: "/api/analysis?file=main.ts&name=run",
+		});
 
 		expect(first.statusCode).toBe(200);
 		expect(afterUnrelatedChange.statusCode).toBe(200);
@@ -143,9 +199,7 @@ describe("analysis incoming adapter", () => {
 	}, 30_000);
 
 	it("returns a consistent revision when queried twice", async () => {
-		folder = await fs.mkdtemp(
-			path.join(os.tmpdir(), "runtime-visualizer-"),
-		);
+		folder = await fs.mkdtemp(path.join(os.tmpdir(), "runtime-visualizer-"));
 		await fs.writeFile(
 			path.join(folder, "main.ts"),
 			"function stable() { return 42; }\n",

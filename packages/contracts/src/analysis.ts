@@ -52,6 +52,7 @@ const DiagnosticSchema = z.object({
 export const AnalysisResponseSchema = z.object({
   file: z.string(),
   procedure: ProcedureSchema,
+  procedureId: z.string().min(1),
   revision: z.string(),
   source: z.string(),
   procedures: z.array(ProcedureSchema),
@@ -62,6 +63,7 @@ export const AnalysisResponseSchema = z.object({
 export const AnalysisErrorSchema = z.object({
   error: z.string(),
   file: z.string(),
+  procedureId: z.string().min(1),
   revision: z.string(),
   source: z.string(),
   procedures: z.array(ProcedureSchema),

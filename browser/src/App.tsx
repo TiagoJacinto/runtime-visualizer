@@ -1,24 +1,7 @@
-import { Theme } from './settings/types';
-import { LiveWorkspacePage } from './pages/liveWorkspace/liveWorkspace.page';
-
-let theme: Theme = 'light';
+import { LiveWorkspacePage } from "./pages/liveWorkspace/liveWorkspace.page";
 
 function App() {
-  function setTheme(theme: Theme) {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }
-
-  setTheme(theme);
-
-  return (
-    <>
-      <LiveWorkspacePage />
-    </>);
-  // %EXPORT_STATEMENT%
+  return <LiveWorkspacePage />;
 }
 
 export default App;

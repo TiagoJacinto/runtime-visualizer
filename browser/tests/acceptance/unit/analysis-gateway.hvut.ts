@@ -4,6 +4,7 @@ import { createAnalysisGateway } from "../../../src/shared/api/analysisGateway";
 const diagnosticResponse = {
     error: "Analysis failed",
     file: "fixtures/entry.ts",
+    procedureId: "top-level",
     revision: "revision-1",
     source: "const value: number = 'invalid';",
     procedures: [

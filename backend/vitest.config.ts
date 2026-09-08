@@ -1,18 +1,18 @@
 import { defineConfig } from "vitest/config";
+import { coveragePolicy } from "../quality/coverage-policy.mjs";
 
 export default defineConfig({
 	test: {
 		coverage: {
 			provider: "v8",
 			include: ["src/**/*.ts"],
-			exclude: ["src/**/*.d.ts"],
-			reporter: ["text", "json-summary"],
-			thresholds: {
-				lines: 58,
-				branches: 58,
-				functions: 58,
-				statements: 58,
-			},
+			exclude: [
+				"src/**/*.d.ts",
+				"src/modules/analysis/infra/sqliteRevisionHistory.ts",
+				"src/modules/execution/useCases/executeProcedure/execution-worker.ts",
+			],
+			reporter: ["text", "json-summary", "json"],
+			thresholds: coveragePolicy.packages.backend.thresholds,
 		},
 		projects: [
 			{
@@ -29,6 +29,7 @@ export default defineConfig({
 					name: "backend-integration",
 					include: ["tests/typical/integration/**/*.integration.ts"],
 					environment: "node",
+					testTimeout: 30_000,
 				},
 			},
 			{

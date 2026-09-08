@@ -7,7 +7,10 @@ if (!Number.isFinite(PORT) || PORT <= 0 || PORT > 65535) {
 	throw new Error(`Invalid PORT: ${process.env.PORT ?? ""}`);
 }
 
-const app = await createApp();
+const app = await createApp({
+	filesFolder: process.env.RUNTIME_VISUALIZER_FILES_FOLDER,
+	databasePath: process.env.RUNTIME_VISUALIZER_DATABASE_PATH,
+});
 
 await app.listen({ port: PORT, host: HOST });
 console.log(`[server] listening on http://${HOST}:${PORT}`);

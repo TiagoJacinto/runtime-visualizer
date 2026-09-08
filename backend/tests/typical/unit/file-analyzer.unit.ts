@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyseFileProcedure } from "../../../src/modules/cfg/useCases/analyseFile/file-analyzer.ts";
+import { analyseFileProcedure } from "../../../src/modules/cfg/index.ts";
 
 function procedureFor(
 	source: string,

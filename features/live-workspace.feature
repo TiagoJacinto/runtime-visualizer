@@ -21,10 +21,29 @@ Feature: Operate the live backend workspace
   Scenario: Queue a selected-file update during an Execution
     Given the live workspace is loaded
     And a slow saved Procedure is available
-    When I select saved file "hve2e-slow.ts"
+    When I select saved file "hve2e-queue.ts"
     And I run the displayed Procedure
     And the selected file changes during the Execution
     Then the workspace shows "Update queued"
     And the source stays pinned during the Execution
     When the Execution reaches a terminal outcome
     Then the workspace refreshes to the newest source
+
+  Scenario: Keep the graph workspace visible while switching context tabs
+    Given the live workspace is loaded
+    Then the Scope and Runs context tabs are visible
+    When I select saved file "fixtures/file1.ts"
+    And I select the Runs context
+    Then the live Control-flow graph is visible
+    When I select the Scope context
+    Then the Scope and Runs context tabs are visible
+
+  Scenario: View and cancel a server-owned run from the Runs context
+    Given the live workspace is loaded
+    And a cancellable saved Procedure is available
+    When I select saved file "hve2e-cancel.ts"
+    And I run the displayed Procedure
+    And I select the Runs context
+    Then the Run inspector exposes View and Cancel actions
+    When I cancel the displayed run
+    Then the Run inspector shows a "Cancelled" outcome

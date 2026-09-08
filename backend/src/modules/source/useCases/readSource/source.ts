@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { discoverProcedures } from "../discoverProcedures/discover-procedures.ts";
 import { readSource } from "./read-source.ts";
-import { HttpError } from "../../../../shared/index.ts";
+import { parseQuery } from "../../../../shared/index.ts";
 
 export type SourceRoutesOptions = {
 	readonly filesFolder: string;
@@ -13,12 +13,14 @@ const querySchema = z.object({
 	name: z.string().optional(),
 });
 
-type SourceQuery = z.infer<typeof querySchema>;
+type SourceQuery = z.output<typeof querySchema>;
 
-function sourceQuery(query: unknown): SourceQuery {
-	const parsed = querySchema.safeParse(query);
-	if (!parsed.success) throw new HttpError(400, "A source file is required.");
-	return parsed.data;
+function sourceInput(query: unknown): SourceQuery {
+	const parsed = parseQuery(querySchema, query);
+	return {
+		file: parsed.file,
+		name: parsed.name,
+	};
 }
 
 const sourceRoutes: FastifyPluginAsync<SourceRoutesOptions> = async (
@@ -26,12 +28,13 @@ const sourceRoutes: FastifyPluginAsync<SourceRoutesOptions> = async (
 	options,
 ) => {
 	app.get("/source", async (request) => {
-		const { file } = sourceQuery(request.query);
-		return readSource(options.filesFolder, file);
+		const input = sourceInput(request.query);
+		return readSource(options.filesFolder, input.file);
 	});
 
 	app.get("/procedures", async (request) => {
-		const { file, name } = sourceQuery(request.query);
+		const input = sourceInput(request.query);
+		const { file, name } = input;
 		const resource = await readSource(options.filesFolder, file);
 		const procedures = discoverProcedures(resource.source, resource.file);
 		const diagnostics =

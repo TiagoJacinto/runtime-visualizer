@@ -1,4 +1,10 @@
+pre-commit:
+  commands:
+    lint-staged-source:
+      glob: "{backend/src,browser/src}/**.{js,jsx,ts,tsx,mjs,mts,cjs,cts}"
+      run: bun run lint:files -- {staged_files}
+
 pre-push:
   commands:
-    maintainability:
-      run: bun run check:maintainability
+    fast-checks:
+      run: bun run prepush

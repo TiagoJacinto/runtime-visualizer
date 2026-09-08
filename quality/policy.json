@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "ratings": {
+    "minimum": 0,
+    "maximum": 100
+  },
+  "coverage": {
+    "repositoryThresholds": {
+      "lines": 58,
+      "branches": 58,
+      "functions": 58,
+      "statements": 58
+    },
+    "changedCode": {
+      "floor": 58,
+      "ceiling": 95,
+      "defaultImportance": 0,
+      "exclusions": [
+        {
+          "pattern": "backend/src/index.ts",
+          "reason": "The application composition root is exercised through process-level tests, not instrumented Vitest tests."
+        },
+        {
+          "pattern": "backend/src/modules/analysis/infra/revisionBuilderWorker.ts",
+          "reason": "The Bun worker runtime is exercised by durable tests, not instrumented Vitest tests."
+        },
+        {
+          "pattern": "browser/src/pages/liveWorkspace/useCases/createLiveWorkspaceController.ts",
+          "reason": "The orchestration boundary is exercised by browser acceptance journeys, whose Playwright coverage is not part of the V8 report."
+        }
+      ]
+    },
+    "branchTargets": [
+      { "minimumBranches": 0, "target": 58 },
+      { "minimumBranches": 8, "target": 70 },
+      { "minimumBranches": 15, "target": 80 },
+      { "minimumBranches": 30, "target": 90 }
+    ]
+  }
+}
