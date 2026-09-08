@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createAnalysisGateway } from "../../../src/shared/api/analysisGateway";
+import { AnalysisGateway } from "../../../src/shared/api/analysisGateway";
 
 const diagnosticResponse = {
     error: "Analysis failed",
@@ -21,7 +21,7 @@ const diagnosticResponse = {
 
 describe("analysis gateway", () => {
     it("retains source and Procedures when analysis returns diagnostics", async () => {
-        const gateway = createAnalysisGateway(
+        const gateway = new AnalysisGateway(
             async () =>
                 new Response(JSON.stringify(diagnosticResponse), {
                     status: 422,

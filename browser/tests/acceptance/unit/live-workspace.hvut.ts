@@ -4,28 +4,40 @@ import type {
   ActiveExecution,
   WorkspaceEvent,
 } from "@runtime-visualizer/contracts";
-import { createLiveWorkspaceController } from "../../../src/pages/liveWorkspace/useCases/createLiveWorkspaceController";
+import { LiveWorkspaceController } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.controller";
 import type { LiveWorkspacePorts } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.ports";
 import type { LiveWorkspaceState } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.types";
 
 const analysis: AnalysisResponse = {
   file: "main.ts",
-  procedure: { id: "top-level", kind: "TopLevel", name: null, label: "Top level" },
+  procedure: {
+    id: "top-level",
+    kind: "TopLevel",
+    name: null,
+    label: "Top level",
+  },
   procedureId: "top-level",
   revision: "revision-1",
   source: "work();",
-  procedures: [{ id: "top-level", kind: "TopLevel", name: null, label: "Top level" }],
+  procedures: [
+    { id: "top-level", kind: "TopLevel", name: null, label: "Top level" },
+  ],
   diagnostics: [],
   cfg: {
     filePath: "main.ts",
     functions: [],
-    procedures: [{
-      name: "Top level",
-      nodes: [{ id: "entry", kind: "entry", label: "Entry" }, { id: "work", kind: "statement", label: "work()" }],
-      edges: [{ from: "entry", to: "work" }],
-      entry: "entry",
-      exit: "work",
-    }],
+    procedures: [
+      {
+        name: "Top level",
+        nodes: [
+          { id: "entry", kind: "entry", label: "Entry" },
+          { id: "work", kind: "statement", label: "work()" },
+        ],
+        edges: [{ from: "entry", to: "work" }],
+        entry: "entry",
+        exit: "work",
+      },
+    ],
   },
 };
 
@@ -43,7 +55,8 @@ class WorkspaceEventsSpy {
   }
   close(): void {
     this.closed = true;
-    for (const waiter of this.waiters.splice(0)) waiter({ done: true, value: undefined });
+    for (const waiter of this.waiters.splice(0))
+      waiter({ done: true, value: undefined });
   }
   async *iterate(signal: AbortSignal): AsyncGenerator<Record> {
     while (!this.closed && !signal.aborted) {
@@ -53,7 +66,11 @@ class WorkspaceEventsSpy {
       }
       const result = await new Promise<IteratorResult<Record>>((resolve) => {
         this.waiters.push(resolve);
-        signal.addEventListener("abort", () => resolve({ done: true, value: undefined }), { once: true });
+        signal.addEventListener(
+          "abort",
+          () => resolve({ done: true, value: undefined }),
+          { once: true },
+        );
       });
       if (result.done) return;
       yield result.value;
@@ -65,7 +82,11 @@ function active(executionId: string, displayNumber: number): ActiveExecution {
   return {
     executionId,
     displayNumber,
-    scope: { file: "main.ts", procedureId: "top-level", revision: "revision-1" },
+    scope: {
+      file: "main.ts",
+      procedureId: "top-level",
+      revision: "revision-1",
+    },
     startedAt: new Date(displayNumber).toISOString(),
     status: "Running",
     currentNodeId: null,
@@ -98,30 +119,64 @@ async function settle(): Promise<void> {
 describe("live workspace server event observation", () => {
   it("routes overlapping node updates by server execution ID", async () => {
     const { ports, events } = createPorts();
-    const controller = createLiveWorkspaceController(ports);
+    const controller = new LiveWorkspaceController(ports);
     controller.start();
     await settle();
     controller.runProcedure();
     controller.runProcedure();
     await settle();
-    events.push({ type: "active-executions", executions: [active("execution-1", 1), active("execution-2", 2)] });
-    events.push({ type: "execution-update", update: { ...active("execution-1", 1), status: "Running", currentNodeId: "work" } });
+    events.push({
+      type: "active-executions",
+      executions: [active("execution-1", 1), active("execution-2", 2)],
+    });
+    events.push({
+      type: "execution-update",
+      update: {
+        ...active("execution-1", 1),
+        status: "Running",
+        currentNodeId: "work",
+      },
+    });
     await settle();
-    expect(controller.getState().executions.map((execution) => execution.currentNodeId)).toEqual([null, "work"]);
+    expect(
+      controller
+        .getState()
+        .executions.map((execution) => execution.currentNodeId),
+    ).toEqual([null, "work"]);
     controller.dispose();
   });
 
   it("retains terminal results and clears only active markers", async () => {
     const { ports, events } = createPorts();
-    const controller = createLiveWorkspaceController(ports);
+    const controller = new LiveWorkspaceController(ports);
     controller.start();
     await settle();
     controller.runProcedure();
     await settle();
-    events.push({ type: "execution-update", update: { ...active("execution-1", 1), status: "Running", currentNodeId: "work" } });
-    events.push({ type: "execution-update", update: { ...active("execution-1", 1), status: "Failed", currentNodeId: null, error: "boom", failedNodeId: "work" } });
+    events.push({
+      type: "execution-update",
+      update: {
+        ...active("execution-1", 1),
+        status: "Running",
+        currentNodeId: "work",
+      },
+    });
+    events.push({
+      type: "execution-update",
+      update: {
+        ...active("execution-1", 1),
+        status: "Failed",
+        currentNodeId: null,
+        error: "boom",
+        failedNodeId: "work",
+      },
+    });
     await settle();
-    expect(controller.getState().executions[0]).toMatchObject({ status: "failed", currentNodeId: null, error: "boom" });
+    expect(controller.getState().executions[0]).toMatchObject({
+      status: "failed",
+      currentNodeId: null,
+      error: "boom",
+    });
     controller.clearCompleted();
     expect(controller.getState().executions).toHaveLength(0);
     controller.dispose();
@@ -129,11 +184,21 @@ describe("live workspace server event observation", () => {
 
   it("publishes the terminal startup state to a late subscriber", async () => {
     const { ports } = createPorts();
-    const controller = createLiveWorkspaceController({ ...ports, analysis: { ...ports.analysis, analyse: async () => { throw new Error("Invalid source"); } } });
+    const controller = new LiveWorkspaceController({
+      ...ports,
+      analysis: {
+        ...ports.analysis,
+        analyse: async () => {
+          throw new Error("Invalid source");
+        },
+      },
+    });
     controller.start();
     await settle();
     let observed: LiveWorkspaceState | null = null;
-    const unsubscribe = controller.subscribe((state) => { observed = state; });
+    const unsubscribe = controller.subscribe((state) => {
+      observed = state;
+    });
     expect(observed).not.toBeNull();
     expect(observed!.status).toBe("error");
     expect(observed!.error).toBe("Invalid source");
@@ -144,11 +209,25 @@ describe("live workspace server event observation", () => {
   it("keeps a selected revision pinned while source changes publish a newer revision", async () => {
     const { ports, events } = createPorts();
     let analysisCalls = 0;
-    ports.analysis = { ...ports.analysis, analyse: async () => ({ ...analysis, revision: analysisCalls++ === 0 ? "revision-1" : "revision-2" }) };
-    const controller = createLiveWorkspaceController(ports);
+    ports.analysis = {
+      ...ports.analysis,
+      analyse: async () => ({
+        ...analysis,
+        revision: analysisCalls++ === 0 ? "revision-1" : "revision-2",
+      }),
+    };
+    const controller = new LiveWorkspaceController(ports);
     controller.start();
     await settle();
-    events.push({ type: "source-change", change: { type: "file-changed", file: "main.ts", change: "modified", revision: "revision-2" } });
+    events.push({
+      type: "source-change",
+      change: {
+        type: "file-changed",
+        file: "main.ts",
+        change: "modified",
+        revision: "revision-2",
+      },
+    });
     await settle();
     expect(controller.getState().analysis?.revision).toBe("revision-1");
     controller.dispose();
@@ -156,10 +235,13 @@ describe("live workspace server event observation", () => {
 
   it("adds files without changing the selected workspace", async () => {
     const { ports, events } = createPorts();
-    const controller = createLiveWorkspaceController(ports);
+    const controller = new LiveWorkspaceController(ports);
     controller.start();
     await settle();
-    events.push({ type: "source-change", change: { type: "file-changed", file: "new.ts", change: "added" } });
+    events.push({
+      type: "source-change",
+      change: { type: "file-changed", file: "new.ts", change: "added" },
+    });
     await settle();
     expect(controller.getState().files).toEqual(["main.ts", "new.ts"]);
     expect(controller.getState().selectedFile).toBe("main.ts");
@@ -170,8 +252,13 @@ describe("live workspace server event observation", () => {
     const events = new WorkspaceEventsSpy();
     const { ports } = createPorts(events);
     const scheduled: Array<() => void> = [];
-    ports.retry = { schedule: (_delay, task) => { scheduled.push(task); return () => undefined; } };
-    const controller = createLiveWorkspaceController(ports);
+    ports.retry = {
+      schedule: (_delay, task) => {
+        scheduled.push(task);
+        return () => undefined;
+      },
+    };
+    const controller = new LiveWorkspaceController(ports);
     controller.start();
     await settle();
     events.close();

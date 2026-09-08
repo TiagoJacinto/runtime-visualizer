@@ -1,12 +1,12 @@
-import type { AnalysisGateway } from "../../../shared/api/analysisGateway";
-import type { ExecutionGateway } from "../../../shared/api/executionGateway";
-import type { WorkspaceEventsGateway } from "../../../shared/api/workspaceEventsGateway";
+import type { AnalysisGatewayPort } from "../../../shared/api/analysisGateway";
+import type { ExecutionGatewayPort } from "../../../shared/api/executionGateway";
+import type { WorkspaceEventsGatewayPort } from "../../../shared/api/workspaceEventsGateway";
 import type { WorkspacePreferences } from "../../../shared/api/workspacePreferences";
 import type { RetryScheduler } from "../../../shared/retry/retryScheduler";
 import type { LiveWorkspaceEvent } from "./liveWorkspace.reducer";
 import type { LiveWorkspaceState } from "./liveWorkspace.types";
 
-export type ExecutionPort = ExecutionGateway;
+export type ExecutionPort = ExecutionGatewayPort;
 
 export type WorkspaceController = {
   getState(): LiveWorkspaceState;
@@ -28,9 +28,9 @@ export type WorkspaceController = {
 };
 
 export type LiveWorkspacePorts = {
-  analysis: AnalysisGateway;
+  analysis: AnalysisGatewayPort;
   execution: ExecutionPort;
-  workspaceEvents: WorkspaceEventsGateway;
+  workspaceEvents: WorkspaceEventsGatewayPort;
   preferences?: WorkspacePreferences;
   retry?: RetryScheduler;
 };

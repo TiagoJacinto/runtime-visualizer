@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import { createAnalysisGateway } from "../../shared/api/analysisGateway";
-import { createExecutionGateway } from "../../shared/api/executionGateway";
-import { createWorkspaceEventsGateway } from "../../shared/api/workspaceEventsGateway";
-import { createLocalStorageWorkspacePreferences } from "../../shared/api/workspacePreferences";
-import { createRetryScheduler } from "../../shared/retry/retryScheduler";
+import { AnalysisGateway } from "../../shared/api/analysisGateway";
+import { ExecutionGateway } from "../../shared/api/executionGateway";
+import { WorkspaceEventsGateway } from "../../shared/api/workspaceEventsGateway";
+import { LocalStorageWorkspacePreferences } from "../../shared/api/workspacePreferences";
+import { RetryScheduler } from "../../shared/retry/retryScheduler";
 import { ContextRail } from "./components/contextRail/ContextRail";
 import { WorkspaceHeader } from "./components/workspaceHeader/WorkspaceHeader";
 import { WorkspaceNotifications } from "./components/notifications/WorkspaceNotifications";
 import { ProcedureWorkspace } from "./components/procedureWorkspace/ProcedureWorkspace";
-import { createLiveWorkspaceController } from "./useCases/createLiveWorkspaceController";
+import { LiveWorkspaceController } from "./useCases/liveWorkspace.controller";
 import type { WorkspaceController } from "./useCases/liveWorkspace.ports";
 import type { LiveWorkspaceState } from "./useCases/liveWorkspace.types";
 import {
@@ -24,12 +24,12 @@ export function LiveWorkspacePage({
   const [controller] = useState(
     () =>
       provided ??
-      createLiveWorkspaceController({
-        analysis: createAnalysisGateway(),
-        execution: createExecutionGateway(),
-        workspaceEvents: createWorkspaceEventsGateway(),
-        preferences: createLocalStorageWorkspacePreferences(),
-        retry: createRetryScheduler(),
+      new LiveWorkspaceController({
+        analysis: new AnalysisGateway(),
+        execution: new ExecutionGateway(),
+        workspaceEvents: new WorkspaceEventsGateway(),
+        preferences: new LocalStorageWorkspacePreferences(),
+        retry: new RetryScheduler(),
       }),
   );
   const [state, setState] = useState<LiveWorkspaceState>(controller.getState());

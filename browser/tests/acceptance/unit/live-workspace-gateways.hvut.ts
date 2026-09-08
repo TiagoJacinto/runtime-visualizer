@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createAnalysisGateway } from "../../../src/shared/api/analysisGateway";
+import { AnalysisGateway } from "../../../src/shared/api/analysisGateway";
 import {
-  createExecutionGateway,
+  ExecutionGateway,
   type ExecutionGatewayError,
 } from "../../../src/shared/api/executionGateway";
-import { createWorkspaceEventsGateway } from "../../../src/shared/api/workspaceEventsGateway";
+import { WorkspaceEventsGateway } from "../../../src/shared/api/workspaceEventsGateway";
 import {
-  createLocalStorageWorkspacePreferences,
-  createMemoryWorkspacePreferences,
+  LocalStorageWorkspacePreferences,
+  MemoryWorkspacePreferences,
 } from "../../../src/shared/api/workspacePreferences";
 
 const scope = {
@@ -26,7 +26,7 @@ function response(value: unknown, status = 200): Response {
 describe("live workspace gateways", () => {
   it("loads exact revisions and revision summaries by Procedure ID", async () => {
     const requests: string[] = [];
-    const gateway = createAnalysisGateway(async (input) => {
+    const gateway = new AnalysisGateway(async (input) => {
       requests.push(String(input));
       if (String(input).includes("/revisions"))
         return response({
@@ -67,7 +67,7 @@ describe("live workspace gateways", () => {
 
   it("uses the server-owned execution ID, active-list, and cancel endpoints", async () => {
     const requests: Array<{ url: string; init?: RequestInit }> = [];
-    const gateway = createExecutionGateway(async (input, init) => {
+    const gateway = new ExecutionGateway(async (input, init) => {
       requests.push({ url: String(input), init });
       if (init?.method === "POST")
         return response({ executionId: "execution-1" });
@@ -88,7 +88,7 @@ describe("live workspace gateways", () => {
   });
 
   it("surfaces execution HTTP failures with their status", async () => {
-    const gateway = createExecutionGateway(async () =>
+    const gateway = new ExecutionGateway(async () =>
       response({ error: "Revision unavailable" }, 409),
     );
     await expect(gateway.start(scope)).rejects.toEqual(
@@ -102,7 +102,7 @@ describe("live workspace gateways", () => {
   it("decodes typed workspace events and sends the cursor", async () => {
     const controller = new AbortController();
     let requestInit: RequestInit | undefined;
-    const gateway = createWorkspaceEventsGateway(async (_input, init) => {
+    const gateway = new WorkspaceEventsGateway(async (_input, init) => {
       requestInit = init;
       return new Response(
         ": connected\n\n" +
@@ -138,11 +138,11 @@ describe("live workspace gateways", () => {
       setItem: (key: string, value: string) => values.set(key, value),
       removeItem: (key: string) => values.delete(key),
     };
-    const local = createLocalStorageWorkspacePreferences(storage, "workspace");
+    const local = new LocalStorageWorkspacePreferences(storage, "workspace");
     expect(local.load()).toBeUndefined();
     expect(values.has("workspace")).toBe(false);
 
-    const memory = createMemoryWorkspacePreferences({
+    const memory = new MemoryWorkspacePreferences({
       ...scope,
       importsVisible: true,
     });

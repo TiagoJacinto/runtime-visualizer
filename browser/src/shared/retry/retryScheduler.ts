@@ -1,12 +1,6 @@
-export type RetryScheduler = {
-  schedule(delayMs: number, task: () => void): () => void;
-};
-
-export function createRetryScheduler(): RetryScheduler {
-  return {
-    schedule(delayMs, task) {
-      const handle = window.setTimeout(task, delayMs);
-      return () => window.clearTimeout(handle);
-    },
-  };
+export class RetryScheduler {
+  schedule(delayMs: number, task: () => void): () => void {
+    const handle = window.setTimeout(task, delayMs);
+    return () => window.clearTimeout(handle);
+  }
 }

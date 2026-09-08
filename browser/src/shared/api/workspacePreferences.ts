@@ -26,41 +26,46 @@ function browserStorage(): StorageLike | undefined {
   return globalThis.localStorage;
 }
 
-export function createLocalStorageWorkspacePreferences(
-  storage: StorageLike | undefined = browserStorage(),
-  key = "runtime-visualizer.workspace",
-): WorkspacePreferences {
-  return {
-    load() {
-      if (storage === undefined) return undefined;
-      try {
-        const raw = storage.getItem(key);
-        if (raw === null) return undefined;
-        const value = parse(JSON.parse(raw));
-        if (value !== undefined) return value;
-        storage.removeItem(key);
-      } catch {
-        storage.removeItem(key);
-      }
-      return undefined;
-    },
-    save(scope) {
-      if (storage === undefined) return;
-      const value = parse(scope);
-      if (value === undefined) return;
-      storage.setItem(key, JSON.stringify(value));
-    },
-  };
+export class LocalStorageWorkspacePreferences implements WorkspacePreferences {
+  constructor(
+    private readonly storage: StorageLike | undefined = browserStorage(),
+    private readonly key = "runtime-visualizer.workspace",
+  ) {}
+
+  load(): SavedWorkspaceScope | undefined {
+    if (this.storage === undefined) return undefined;
+    try {
+      const raw = this.storage.getItem(this.key);
+      if (raw === null) return undefined;
+      const value = parse(JSON.parse(raw));
+      if (value !== undefined) return value;
+      this.storage.removeItem(this.key);
+    } catch {
+      this.storage.removeItem(this.key);
+    }
+    return undefined;
+  }
+
+  save(scope: SavedWorkspaceScope): void {
+    if (this.storage === undefined) return;
+    const value = parse(scope);
+    if (value === undefined) return;
+    this.storage.setItem(this.key, JSON.stringify(value));
+  }
 }
 
-export function createMemoryWorkspacePreferences(
-  initial?: SavedWorkspaceScope,
-): WorkspacePreferences {
-  let value = parse(initial);
-  return {
-    load: () => value,
-    save: (scope) => {
-      value = parse(scope);
-    },
-  };
+export class MemoryWorkspacePreferences implements WorkspacePreferences {
+  private value: SavedWorkspaceScope | undefined;
+
+  constructor(initial?: SavedWorkspaceScope) {
+    this.value = parse(initial);
+  }
+
+  load(): SavedWorkspaceScope | undefined {
+    return this.value;
+  }
+
+  save(scope: SavedWorkspaceScope): void {
+    this.value = parse(scope);
+  }
 }

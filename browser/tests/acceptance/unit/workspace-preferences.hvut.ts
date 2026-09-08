@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  createLocalStorageWorkspacePreferences,
-  createMemoryWorkspacePreferences,
+  LocalStorageWorkspacePreferences,
+  MemoryWorkspacePreferences,
 } from "../../../src/shared/api/workspacePreferences";
 
 const scope = {
@@ -13,7 +13,7 @@ const scope = {
 
 describe("workspace preferences", () => {
   it("round-trips valid values in memory", () => {
-    const preferences = createMemoryWorkspacePreferences();
+    const preferences = new MemoryWorkspacePreferences();
     expect(preferences.load()).toBeUndefined();
     preferences.save(scope);
     expect(preferences.load()).toEqual(scope);
@@ -26,7 +26,7 @@ describe("workspace preferences", () => {
       setItem: (key: string, value: string) => storage.set(key, value),
       removeItem: (key: string) => storage.delete(key),
     };
-    const preferences = createLocalStorageWorkspacePreferences(
+    const preferences = new LocalStorageWorkspacePreferences(
       fakeStorage,
       "workspace",
     );
@@ -43,7 +43,7 @@ describe("workspace preferences", () => {
       setItem: (key: string, value: string) => storage.set(key, value),
       removeItem: (key: string) => storage.delete(key),
     };
-    const preferences = createLocalStorageWorkspacePreferences(
+    const preferences = new LocalStorageWorkspacePreferences(
       fakeStorage,
       "workspace",
     );
@@ -59,7 +59,7 @@ describe("workspace preferences", () => {
       setItem: (key: string, value: string) => storage.set(key, value),
       removeItem: (key: string) => storage.delete(key),
     };
-    const preferences = createLocalStorageWorkspacePreferences(
+    const preferences = new LocalStorageWorkspacePreferences(
       fakeStorage,
       "workspace",
     );
