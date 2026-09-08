@@ -1,18 +1,23 @@
 import type { RevisionHistory } from "../../analysis/index.ts";
 import type {
-  RevisionKey,
   ActiveExecution,
   ExecutionUpdate,
 } from "../../../../../packages/contracts/src/index.ts";
 import { executeProcedure } from "./executeProcedure/runner.ts";
+import { Execution } from "../execution.ts";
 import { ActiveRunRegistry } from "../infra/activeRunRegistry.ts";
 
-export type StartExecution = RevisionKey;
+export type StartExecution = {
+  readonly file: string;
+  readonly procedureId: string;
+  readonly revision: string;
+};
 export type CancelResult = "cancelled" | "not-found";
 export type ExecutionManagerOptions = {
   readonly executionTimeoutMs?: number;
   readonly now?: () => Date;
   readonly registry?: ActiveRunRegistry;
+  readonly execute?: typeof executeProcedure;
 };
 export interface ExecutionManager {
   start(input: StartExecution): Promise<string>;
@@ -44,8 +49,10 @@ export class DefaultExecutionManager implements ExecutionManager {
     this.registry = options.registry ?? new ActiveRunRegistry();
     this.now = options.now ?? (() => new Date());
     this.timeoutMs = options.executionTimeoutMs ?? 30_000;
+    this.execute = options.execute ?? executeProcedure;
   }
   private readonly timeoutMs: number;
+  private readonly execute: typeof executeProcedure;
 
   async start(input: StartExecution): Promise<string> {
     if (this.closed) throw new Error("Execution manager is closed.");
@@ -53,14 +60,12 @@ export class DefaultExecutionManager implements ExecutionManager {
     if (!lease || !lease.snapshot.cfg) throw new Error("Revision unavailable");
     const executionId = crypto.randomUUID();
     const displayNumber = ++this.displayNumber;
-    const active: ActiveExecution = {
+    const execution = new Execution({
       executionId,
       displayNumber,
       scope: input,
       startedAt: this.now().toISOString(),
-      status: "Running",
-      currentNodeId: null,
-    };
+    });
     const controller = new AbortController();
     // A stored snapshot is already scoped to the requested Procedure ID; its CFG
     // contains the corresponding executable Procedure (CFG records use names).
@@ -73,8 +78,8 @@ export class DefaultExecutionManager implements ExecutionManager {
     };
     this.controllers.set(executionId, controller);
     this.releases.set(executionId, release);
-    this.registry.register(active);
-    this.publish({ ...active });
+    this.registry.register(execution);
+    this.publish(execution.snapshot());
     if (!procedure) {
       release();
       this.controllers.delete(executionId);
@@ -86,7 +91,7 @@ export class DefaultExecutionManager implements ExecutionManager {
       input.procedureId === "top-level"
         ? undefined
         : (procedure.name ?? undefined);
-    void executeProcedure(
+    void this.execute(
       lease.snapshot.source,
       lease.snapshot.file,
       procedure,
@@ -146,10 +151,9 @@ export class DefaultExecutionManager implements ExecutionManager {
     this.listeners.clear();
   }
   private runningUpdate(id: string, nodeId: string): void {
-    const run = this.registry.get(id);
-    if (!run) return;
-    this.registry.update({ ...run, status: "Running", currentNodeId: nodeId });
-    this.publish({ ...run, status: "Running", currentNodeId: nodeId });
+    const execution = this.registry.get(id);
+    if (!execution) return;
+    this.publish(execution.advanceTo(nodeId));
   }
   private finish(
     id: string,
@@ -157,24 +161,13 @@ export class DefaultExecutionManager implements ExecutionManager {
     error: string | undefined,
     release: () => void,
   ): void {
-    const run = this.registry.get(id);
-    if (!run) {
+    const execution = this.registry.get(id);
+    if (!execution) {
       this.releases.delete(id);
       release();
       return;
     }
-    const update: ExecutionUpdate = {
-      executionId: id,
-      displayNumber: run.displayNumber,
-      scope: run.scope,
-      status,
-      currentNodeId: run.currentNodeId,
-      ...(error === undefined ? {} : { error }),
-      ...(status === "Failed" && run.currentNodeId
-        ? { failedNodeId: run.currentNodeId }
-        : {}),
-    };
-    this.publish(update);
+    this.publish(execution.finish(status, error));
     this.registry.remove(id);
     this.controllers.delete(id);
     this.releases.delete(id);

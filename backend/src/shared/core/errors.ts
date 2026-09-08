@@ -3,11 +3,17 @@
  * handler (set up in `app.ts`) maps these to a JSON response.
  */
 export class HttpError extends Error {
-  readonly status: number
+  readonly status: number;
+  readonly body: unknown;
 
-  constructor(status: number, message: string) {
-    super(message)
-    this.status = status
-    this.name = 'HttpError'
+  constructor(
+    status: number,
+    message: string,
+    body: unknown = { error: message },
+  ) {
+    super(message);
+    this.status = status;
+    this.body = body;
+    this.name = "HttpError";
   }
 }

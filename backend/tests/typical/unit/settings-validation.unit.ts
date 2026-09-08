@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { loadSettings } from "../../../src/shared/infra/config/settings.ts";
-import { parseBody } from "../../../src/shared/core/validation.ts";
-import { HttpError } from "../../../src/shared/core/errors.ts";
+import {
+  HttpError,
+  loadSettings,
+  parseBody,
+} from "../../../src/shared/index.ts";
 import { z } from "zod";
 
 describe("settings and request validation", () => {

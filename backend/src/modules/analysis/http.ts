@@ -1,7 +1,11 @@
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import { HttpError, parseQuery } from "../../shared/index.ts";
 import type { RevisionHistory } from "./revisionHistory.ts";
-import { analyseSavedProcedure } from "./useCases/analyseSavedProcedure/analyse-saved-procedure.ts";
+import {
+  analyseSavedProcedure,
+  type AnalyseSavedProcedureInput,
+} from "./useCases/analyseSavedProcedure/analyse-saved-procedure.ts";
 import type { SavedAnalysisScheduler } from "./useCases/savedAnalysisScheduler.ts";
 
 const querySchema = z.object({
@@ -25,37 +29,52 @@ type AnalysisRoutesOptions = {
   readonly history: RevisionHistory;
   readonly scheduler?: SavedAnalysisScheduler;
 };
+type AnalysisQuery = z.output<typeof querySchema>;
+type RevisionsQuery = z.output<typeof revisionsQuerySchema>;
+
+function toAnalysisInput(query: AnalysisQuery): AnalyseSavedProcedureInput {
+  return {
+    file: query.file,
+    procedureId: query.procedureId,
+    name: query.name,
+    revision: query.revision,
+    showImports: query.showImports,
+  };
+}
+
+function toRevisionScope(query: RevisionsQuery): {
+  readonly file: string;
+  readonly procedureId: string;
+} {
+  return { file: query.file, procedureId: query.procedureId };
+}
 
 const analysisRoutes: FastifyPluginAsync<AnalysisRoutesOptions> = async (
   app,
   options,
 ) => {
-  app.get("/revisions", async (req, reply) => {
-    const parsed = revisionsQuerySchema.safeParse(req.query);
-    if (!parsed.success)
-      return reply.code(400).send({ error: "Invalid request query." });
+  app.get("/revisions", async (req) => {
+    const query = parseQuery(revisionsQuerySchema, req.query);
+    const scope = toRevisionScope(query);
     return {
-      file: parsed.data.file,
-      procedure: parsed.data.procedureId,
-      revisions: await options.history.list(parsed.data),
+      file: scope.file,
+      procedure: scope.procedureId,
+      revisions: await options.history.list(scope),
     };
   });
-  app.get("/", async (req, reply) => {
-    const parsed = querySchema.safeParse(req.query);
-    if (!parsed.success)
-      return reply.code(400).send({
-        error: parsed.error.issues[0]?.message ?? "Invalid request query.",
-      });
+  app.get("/", async (req) => {
+    const query = parseQuery(querySchema, req.query);
+    const input = toAnalysisInput(query);
     let result;
     if (
       options.scheduler !== undefined &&
-      parsed.data.procedureId !== undefined &&
-      parsed.data.revision === undefined
+      input.procedureId !== undefined &&
+      input.revision === undefined
     ) {
-      const procedureId = parsed.data.procedureId;
+      const procedureId = input.procedureId;
       try {
         const snapshot = await options.scheduler.analyze(
-          { file: parsed.data.file, procedureId },
+          { file: input.file, procedureId },
           "interactive",
         );
         result = { ok: true as const, snapshot };
@@ -64,7 +83,7 @@ const analysisRoutes: FastifyPluginAsync<AnalysisRoutesOptions> = async (
           ok: false as const,
           error: {
             error: error instanceof Error ? error.message : "Analysis failed",
-            file: parsed.data.file,
+            file: input.file,
             procedureId,
             revision: "",
             source: "",
@@ -77,13 +96,13 @@ const analysisRoutes: FastifyPluginAsync<AnalysisRoutesOptions> = async (
       result = await analyseSavedProcedure(
         options.filesFolder,
         options.history,
-        parsed.data,
+        input,
       );
     }
-    if (!result.ok)
-      return reply
-        .code(result.error.error === "Revision unavailable" ? 404 : 422)
-        .send(result.error);
+    if (!result.ok) {
+      const status = result.error.error === "Revision unavailable" ? 404 : 422;
+      throw new HttpError(status, result.error.error, result.error);
+    }
     return { ...result.snapshot, procedureId: result.snapshot.procedure.id };
   });
 };

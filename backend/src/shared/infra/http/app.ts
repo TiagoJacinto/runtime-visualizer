@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
-import { HttpError, loadSettings } from "../../index.ts";
+import { HttpError } from "../../core/errors.ts";
+import { loadSettings } from "../config/settings.ts";
 import { analysisRoutes } from "../../../modules/analysis/http.ts";
 import {
 	InMemoryRevisionHistory,
@@ -63,7 +64,7 @@ export async function createApp(
 
 	app.setErrorHandler((err, _req, reply) => {
 		if (err instanceof HttpError) {
-			reply.code(err.status).send({ error: err.message });
+			reply.code(err.status).send(err.body);
 			return;
 		}
 		// Fastify wraps any thrown non-Error value with a generic
@@ -98,7 +99,7 @@ export async function createApp(
 		(options.databasePath !== undefined && typeof globalThis.Bun !== "undefined");
 	if (useSqlite) {
 		const { SqliteRevisionHistory } = await import(
-			"../../../modules/analysis/infra/sqliteRevisionHistory.ts"
+			"../../../modules/analysis/persistence.ts"
 		);
 		history = new SqliteRevisionHistory(
 			options.databasePath ??

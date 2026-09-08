@@ -1,3 +1,4 @@
+export { Execution } from "./execution.ts";
 export { executeProcedure } from "./useCases/executeProcedure/runner.ts";
 export { DefaultExecutionManager, createExecutionManager } from "./useCases/executionManager.ts";
 export { ActiveRunRegistry } from "./infra/activeRunRegistry.ts";

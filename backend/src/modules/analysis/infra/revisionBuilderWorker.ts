@@ -8,7 +8,7 @@ import {
 import {
   discoverProcedures,
   type ProcedureResource,
-} from "../../source/index.ts";
+} from "../../source/client.ts";
 import type { AnalysisSnapshot } from "../revisionHistory.ts";
 
 export type RevisionBuildInput = {

@@ -3,7 +3,7 @@ import type {
   RevisionHistory,
   AnalysisSnapshot,
 } from "../../revisionHistory.ts";
-import type { RevisionBuilderWorkerClient } from "../../infra/revisionBuilderWorkerClient.ts";
+import type { RevisionBuilderWorkerClient } from "../../worker.ts";
 
 type Priority = "interactive" | "change" | "baseline";
 type Item = {

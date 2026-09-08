@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createApp } from "../../../src/shared/infra/http/app.js";
+import { createApp } from "../../../src/shared/infra/http/app.ts";
 
 type FileChange = {
 	type: "file-changed";
@@ -42,8 +42,12 @@ async function nextFileChange(
 					.split("\n")
 					.find((line) => line.startsWith("data: "));
 				if (dataLine !== undefined) {
-					const payload = JSON.parse(dataLine.slice("data: ".length)) as { type: "source-change"; change: FileChange };
-					if (payload.change.file === file && payload.change.change === change) return payload.change;
+					const payload = JSON.parse(dataLine.slice("data: ".length)) as {
+						type: "source-change";
+						change: FileChange;
+					};
+					if (payload.change.file === file && payload.change.change === change)
+						return payload.change;
 				}
 			}
 		}

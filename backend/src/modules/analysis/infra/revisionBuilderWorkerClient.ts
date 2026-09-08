@@ -1,23 +1,11 @@
 import { Worker } from "node:worker_threads";
 import type { AnalysisSnapshot } from "../revisionHistory.ts";
+import type { RevisionBuilderWorkerRequest } from "./revisionBuilderWorker.ts";
 import type {
   RevisionBuildInput,
-  RevisionBuilderWorkerRequest,
+  RevisionBuilderWorkerClient,
   RevisionDependencyInput,
-} from "./revisionBuilderWorker.ts";
-
-export type {
-  RevisionBuildInput,
-  RevisionDependencyInput,
-} from "./revisionBuilderWorker.ts";
-
-export interface RevisionBuilderWorkerClient {
-  build(input: RevisionBuildInput): Promise<AnalysisSnapshot>;
-  resolveAffectedFiles(
-    input: RevisionDependencyInput,
-  ): Promise<readonly string[]>;
-  close?(): Promise<void> | void;
-}
+} from "../worker.ts";
 
 type WorkerResponse = {
   readonly ok: boolean;

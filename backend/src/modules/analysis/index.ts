@@ -13,7 +13,7 @@ export type {
 } from "./revisionHistory.ts";
 export { InMemoryRevisionHistory } from "./infra/inMemoryRevisionHistory.ts";
 export { DefaultRevisionBuilderWorkerClient } from "./infra/revisionBuilderWorkerClient.ts";
-export type { RevisionBuilderWorkerClient } from "./infra/revisionBuilderWorkerClient.ts";
+export type { RevisionBuilderWorkerClient } from "./worker.ts";
 export { RevisionBuildQueue } from "./useCases/buildRevisionHistory/createRevisionBuildQueue.ts";
 export { buildAffectedRevisions } from "./useCases/buildRevisionHistory/buildAffectedRevisions.ts";
 export type { RevisionBuildQueueOptions } from "./useCases/buildRevisionHistory/createRevisionBuildQueue.ts";

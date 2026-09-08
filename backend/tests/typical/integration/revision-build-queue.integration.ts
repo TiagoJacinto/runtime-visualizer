@@ -2,14 +2,16 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { InMemoryRevisionHistory } from "../../../src/modules/analysis/infra/inMemoryRevisionHistory.ts";
-import { buildAffectedRevisions } from "../../../src/modules/analysis/useCases/buildRevisionHistory/buildAffectedRevisions.ts";
-import { RevisionBuildQueue } from "../../../src/modules/analysis/useCases/buildRevisionHistory/createRevisionBuildQueue.ts";
-import type { AnalysisSnapshot } from "../../../src/modules/analysis/revisionHistory.ts";
+import {
+  InMemoryRevisionHistory,
+  buildAffectedRevisions,
+  RevisionBuildQueue,
+} from "../../../src/modules/analysis/index.ts";
+import type { AnalysisSnapshot } from "../../../src/modules/analysis/index.ts";
 import type {
   RevisionBuilderWorkerClient,
   RevisionDependencyInput,
-} from "../../../src/modules/analysis/infra/revisionBuilderWorkerClient.ts";
+} from "../../../src/modules/analysis/worker.ts";
 
 const procedure = {
   id: "top-level",

@@ -13,3 +13,5 @@ Use the default Matt Pocock triage labels. See `docs/agents/triage-labels.md`.
 This repository uses a single-context layout. See `docs/agents/domain.md`.
 
 Feature documentation is in `./features/`.
+
+Backend modules are deep modules; read [backend/src/modules/README.md](./backend/src/modules/README.md) before adding or importing one.

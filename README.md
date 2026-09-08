@@ -38,6 +38,8 @@ bun run cibuild              # authoritative local CI-equivalent quality gate
 bun run clone-check
 ```
 
+See [`docs/testing.md`](docs/testing.md) for test levels, suite commands, and the tests assigned to each gate layer.
+
 ### Dynamic coverage policy
 
 All quality-policy numbers live in JSON and are validated with Zod before the gate runs:

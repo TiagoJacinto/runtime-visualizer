@@ -15,7 +15,7 @@ import type {
   AnalysisSnapshot,
 } from "../../revisionHistory.ts";
 import type { ProcedureResource } from "../../../source/index.ts";
-import type { RevisionBuilderWorkerClient } from "../../infra/revisionBuilderWorkerClient.ts";
+import type { RevisionBuilderWorkerClient } from "../../worker.ts";
 
 export type RevisionBuildResult = {
   readonly snapshots: readonly AnalysisSnapshot[];

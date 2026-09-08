@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { InMemoryRevisionHistory } from "../../../src/modules/analysis/infra/inMemoryRevisionHistory.ts";
-import type { AnalysisSnapshot } from "../../../src/modules/analysis/revisionHistory.ts";
-
+import {
+  InMemoryRevisionHistory,
+  type AnalysisSnapshot,
+} from "../../../src/modules/analysis/index.ts";
 const procedure = {
   id: "procedure:run",
   kind: "Function" as const,
