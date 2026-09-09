@@ -25,6 +25,14 @@
           "reason": "The Bun worker runtime is exercised by durable tests, not instrumented Vitest tests."
         },
         {
+          "pattern": "browser/src/app.tsx",
+          "reason": "The browser composition root is exercised through Playwright acceptance journeys, not instrumented Vitest tests."
+        },
+        {
+          "pattern": "browser/src/pages/liveWorkspace/live-workspace.page.tsx",
+          "reason": "The composed workspace page is exercised through Playwright acceptance journeys, not instrumented Vitest tests."
+        },
+        {
           "pattern": "backend/src/modules/cfg/useCases/analyseFile/file-analyzer.ts",
           "reason": "The mutually recursive CFG analyzer is exercised through backend analysis tests; the lint migration reformats the implementation without adding an independently measurable execution path."
         },
