@@ -9,9 +9,9 @@ export default defineConfig({
 			exclude: [
 				"src/**/*.d.ts",
 				"src/pages/liveWorkspace/components/**/*.tsx",
-				"src/pages/liveWorkspace/liveWorkspace.page.tsx",
+				"src/pages/liveWorkspace/live-workspace.page.tsx",
 				"src/pages/liveWorkspace/prototype/**",
-				"src/App.tsx",
+				"src/app.tsx",
 				"src/main.tsx",
 			],
 			reporter: ["text", "json-summary", "json"],

@@ -6,14 +6,13 @@ export class HttpError extends Error {
   readonly status: number;
   readonly body: unknown;
 
-  constructor(
-    status: number,
-    message: string,
-    body: unknown = { error: message },
-  ) {
+  // SAFETY: this is an internal serialized error-body boundary, not external input.
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters
+  constructor(status: number, message: string, body?: unknown) {
     super(message);
     this.status = status;
-    this.body = body;
+    // SAFETY: route code supplies the optional serialized error body.
+    this.body = body ?? { error: message };
     this.name = "HttpError";
   }
 }

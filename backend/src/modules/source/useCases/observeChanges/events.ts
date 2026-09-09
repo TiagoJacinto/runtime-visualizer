@@ -1,63 +1,73 @@
-import type { FastifyPluginAsync } from "fastify";
-import type { SourceChange, SourceChangeWatcher } from "./change-watcher.ts";
-import type { WorkspaceEventHub } from "../../../workspace/index.ts";
+import type { FastifyPluginCallback } from "fastify";
 
-type EventsRoutesOptions = {
+import type {
+  ActiveExecution,
+  WorkspaceEvent,
+} from "../../../../../../packages/contracts/src/index.ts";
+import type { WorkspaceEventHub } from "../../../workspace/index.ts";
+import type { SourceChange, SourceChangeWatcher } from "./change-watcher.ts";
+
+interface EventsRoutesOptions {
   readonly watcher: SourceChangeWatcher;
   readonly hub: WorkspaceEventHub;
   readonly onChange?: (change: SourceChange) => void;
-  readonly activeExecutions?: () =>
-    | import("../../../../../../packages/contracts/src/index.ts").ActiveExecution[]
-    | readonly import("../../../../../../packages/contracts/src/index.ts").ActiveExecution[];
-};
+  readonly activeExecutions?: () => readonly ActiveExecution[];
+}
 
-const eventsRoutes: FastifyPluginAsync<EventsRoutesOptions> = async (
+const eventsRoutes: FastifyPluginCallback<EventsRoutesOptions> = (
   app,
   options,
+  done
 ) => {
   app.get("/", async (request, reply) => {
     await options.watcher.refresh();
     const encoder = new TextEncoder();
     let unsubscribe: (() => void) | undefined;
     const last = request.headers["last-event-id"];
+    const lastEventId = Array.isArray(last) ? last[0] : last;
     const cursor =
-      typeof last === "string" && /^\d+$/.test(last) ? Number(last) : undefined;
+      lastEventId !== undefined && /^\d+$/u.test(lastEventId)
+        ? Number(lastEventId)
+        : undefined;
     const stream = new ReadableStream<Uint8Array>({
+      cancel() {
+        unsubscribe?.();
+      },
       start(controller) {
         controller.enqueue(encoder.encode(": connected\n\n"));
         const write = (record: {
           readonly id: number;
-          readonly event: import("../../../../../../packages/contracts/src/index.ts").WorkspaceEvent;
+          readonly event: WorkspaceEvent;
         }): void => {
           controller.enqueue(
             encoder.encode(
-              `id: ${record.id}\nevent: ${record.event.type}\ndata: ${JSON.stringify(record.event)}\n\n`,
-            ),
+              `id: ${record.id}\nevent: ${record.event.type}\ndata: ${JSON.stringify(record.event)}\n\n`
+            )
           );
         };
         const subscription = options.hub.subscribe(cursor, write);
-        if (subscription.resyncRequired)
+        if (subscription.resyncRequired) {
           controller.enqueue(
             encoder.encode(
-              'event: resync-required\ndata: {"type":"resync-required"}\n\n',
-            ),
+              'event: resync-required\ndata: {"type":"resync-required"}\n\n'
+            )
           );
-        for (const record of subscription.replay) write(record);
+        }
+        for (const record of subscription.replay) {
+          write(record);
+        }
         options.hub.publish({
-          type: "active-executions",
           executions: [...(options.activeExecutions?.() ?? [])],
+          type: "active-executions",
         });
         const sourceUnsubscribe = options.watcher.subscribe((change) => {
           options.onChange?.(change);
-          options.hub.publish({ type: "source-change", change });
+          options.hub.publish({ change, type: "source-change" });
         });
         unsubscribe = () => {
           sourceUnsubscribe();
           subscription.unsubscribe();
         };
-      },
-      cancel() {
-        unsubscribe?.();
       },
     });
     return reply
@@ -66,6 +76,7 @@ const eventsRoutes: FastifyPluginAsync<EventsRoutesOptions> = async (
       .header("connection", "keep-alive")
       .send(stream);
   });
+  done();
 };
 
 export default eventsRoutes;

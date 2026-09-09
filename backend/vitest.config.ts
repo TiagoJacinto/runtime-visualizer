@@ -8,7 +8,7 @@ export default defineConfig({
 			include: ["src/**/*.ts"],
 			exclude: [
 				"src/**/*.d.ts",
-				"src/modules/analysis/infra/sqliteRevisionHistory.ts",
+				"src/modules/analysis/infra/sqlite-revision-history.ts",
 				"src/modules/execution/useCases/executeProcedure/execution-worker.ts",
 			],
 			reporter: ["text", "json-summary", "json"],

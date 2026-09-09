@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  createLocalStorageWorkspacePreferences,
-  createMemoryWorkspacePreferences,
-} from "../../../src/shared/api/workspacePreferences";
+
+import { MemoryWorkspacePreferences } from "../../../src/shared/api/memory-workspace-preferences";
+import { LocalStorageWorkspacePreferences } from "../../../src/shared/api/workspace-preferences";
 
 const scope = {
   file: "main.ts",
@@ -13,7 +12,7 @@ const scope = {
 
 describe("workspace preferences", () => {
   it("round-trips valid values in memory", () => {
-    const preferences = createMemoryWorkspacePreferences();
+    const preferences = new MemoryWorkspacePreferences();
     expect(preferences.load()).toBeUndefined();
     preferences.save(scope);
     expect(preferences.load()).toEqual(scope);
@@ -26,9 +25,9 @@ describe("workspace preferences", () => {
       setItem: (key: string, value: string) => storage.set(key, value),
       removeItem: (key: string) => storage.delete(key),
     };
-    const preferences = createLocalStorageWorkspacePreferences(
+    const preferences = new LocalStorageWorkspacePreferences(
       fakeStorage,
-      "workspace",
+      "workspace"
     );
 
     preferences.save(scope);
@@ -43,9 +42,9 @@ describe("workspace preferences", () => {
       setItem: (key: string, value: string) => storage.set(key, value),
       removeItem: (key: string) => storage.delete(key),
     };
-    const preferences = createLocalStorageWorkspacePreferences(
+    const preferences = new LocalStorageWorkspacePreferences(
       fakeStorage,
-      "workspace",
+      "workspace"
     );
 
     expect(preferences.load()).toBeUndefined();
@@ -59,9 +58,9 @@ describe("workspace preferences", () => {
       setItem: (key: string, value: string) => storage.set(key, value),
       removeItem: (key: string) => storage.delete(key),
     };
-    const preferences = createLocalStorageWorkspacePreferences(
+    const preferences = new LocalStorageWorkspacePreferences(
       fakeStorage,
-      "workspace",
+      "workspace"
     );
 
     preferences.save({ ...scope, importsVisible: "yes" as never });

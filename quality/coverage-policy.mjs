@@ -94,7 +94,7 @@ export const coveragePolicy = {
 		},
 		{
 			config: "backend/vitest.config.ts",
-			pattern: "src/modules/analysis/infra/sqliteRevisionHistory.ts",
+			pattern: "src/modules/analysis/infra/sqlite-revision-history.ts",
 			reason: "Vitest Node workers cannot load Bun SQLite.",
 			verification: "backend:test:durable",
 		},
@@ -121,7 +121,7 @@ export const coveragePolicy = {
 		},
 		{
 			config: "browser/vitest.config.ts",
-			pattern: "src/pages/liveWorkspace/liveWorkspace.page.tsx",
+			pattern: "src/pages/liveWorkspace/live-workspace.page.tsx",
 			reason:
 				"The composed workspace page is covered through browser acceptance journeys.",
 			verification: "frontend:test:hve2e",
@@ -135,7 +135,7 @@ export const coveragePolicy = {
 		},
 		{
 			config: "browser/vitest.config.ts",
-			pattern: "src/App.tsx",
+			pattern: "src/app.tsx",
 			reason:
 				"The application composition root is covered through browser acceptance journeys.",
 			verification: "frontend:test:hve2e",

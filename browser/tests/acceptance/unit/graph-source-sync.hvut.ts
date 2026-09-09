@@ -1,29 +1,30 @@
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
 import type {
   AnalysisResponse,
   RevisionKey,
 } from "@runtime-visualizer/contracts";
-import { ControlFlowNode } from "../../../src/pages/liveWorkspace/components/controlFlowGraph/ControlFlowNode";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+
 import {
   layoutGraph,
   layoutGraphWithElk,
-} from "../../../src/pages/liveWorkspace/components/controlFlowGraph/controlFlowLayout";
-import { selectVisibleGraph } from "../../../src/pages/liveWorkspace/components/controlFlowGraph/selectVisibleGraph";
-import {
-  selectRevisionBadge,
-  selectVisibleExecutions,
-  selectVisibleMarkers,
-} from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.selectors";
-import { SourcePane } from "../../../src/pages/liveWorkspace/components/source/SourcePane";
+} from "../../../src/pages/liveWorkspace/components/controlFlowGraph/control-flow-layout";
+import { ControlFlowNode } from "../../../src/pages/liveWorkspace/components/controlFlowGraph/control-flow-node";
+import { selectVisibleGraph } from "../../../src/pages/liveWorkspace/components/controlFlowGraph/select-visible-graph";
+import { SourcePane } from "../../../src/pages/liveWorkspace/components/source/source-pane";
 import {
   buildSourceRangeIndex,
   nodeIdAtSourceLine,
   sourceRangeForNode,
-} from "../../../src/pages/liveWorkspace/components/source/sourceRangeIndex";
-import { reduceWorkspace } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.reducer";
-import { initialLiveWorkspaceState } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.types";
+} from "../../../src/pages/liveWorkspace/components/source/source-range-index";
+import { reduceWorkspace } from "../../../src/pages/liveWorkspace/useCases/live-workspace.reducer";
+import {
+  selectRevisionBadge,
+  selectVisibleExecutions,
+  selectVisibleMarkers,
+} from "../../../src/pages/liveWorkspace/useCases/live-workspace.selectors";
+import { initialLiveWorkspaceState } from "../../../src/pages/liveWorkspace/useCases/live-workspace.types";
 
 const scope: RevisionKey = {
   file: "main.ts",
@@ -109,10 +110,10 @@ describe("graph-source-sync", () => {
     const afterProgress = layoutGraph(graph);
 
     expect(afterProgress.nodes.map((node) => node.position)).toEqual(
-      first.nodes.map((node) => node.position),
+      first.nodes.map((node) => node.position)
     );
     expect(afterProgress.nodes.map((node) => node.id)).toEqual(
-      first.nodes.map((node) => node.id),
+      first.nodes.map((node) => node.id)
     );
   });
 
@@ -185,7 +186,7 @@ describe("graph-source-sync", () => {
         scope,
         focus: null,
         onFocus: () => undefined,
-      }),
+      })
     );
 
     expect(markup).toContain("Source line 2, not executable");
@@ -219,7 +220,7 @@ describe("graph-source-sync", () => {
           onFocus: () => undefined,
           scope,
         },
-      }),
+      })
     );
 
     expect(markup).toContain('aria-label="Graph node return value"');

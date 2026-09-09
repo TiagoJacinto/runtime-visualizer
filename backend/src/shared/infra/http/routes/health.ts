@@ -1,17 +1,22 @@
-import type { FastifyPluginAsync } from 'fastify'
+import type { FastifyPluginCallback } from "fastify";
 
-export type HealthRoutesOptions = {
-  readonly now?: () => Date
+export interface HealthRoutesOptions {
+  readonly now?: () => Date;
 }
 
-const healthRoutes: FastifyPluginAsync<HealthRoutesOptions> = async (app, options) => {
-  const now = options.now ?? (() => new Date())
+const healthRoutes: FastifyPluginCallback<HealthRoutesOptions> = (
+  app,
+  options,
+  done
+) => {
+  const now = options.now ?? (() => new Date());
 
-  app.get('/', async () => ({
-    status: 'ok',
-    uptimeMs: Math.round(process.uptime() * 1000),
+  app.get("/", () => ({
+    status: "ok",
     timestamp: now().toISOString(),
-  }))
-}
+    uptimeMs: Math.round(process.uptime() * 1000),
+  }));
+  done();
+};
 
-export default healthRoutes
+export default healthRoutes;
