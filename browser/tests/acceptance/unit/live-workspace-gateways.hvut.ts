@@ -1,11 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { AnalysisGateway } from "../../../src/shared/api/analysis-gateway";
 import { ExecutionGateway } from "../../../src/shared/api/execution-gateway";
 import type { ExecutionGatewayError } from "../../../src/shared/api/execution-gateway-error";
 import { MemoryWorkspacePreferences } from "../../../src/shared/api/memory-workspace-preferences";
+import { WorkspaceEventsConnectionError } from "../../../src/shared/api/workspace-events-connection-error";
 import { WorkspaceEventsGateway } from "../../../src/shared/api/workspace-events-gateway";
 import { LocalStorageWorkspacePreferences } from "../../../src/shared/api/workspace-preferences";
+import { RetryScheduler } from "../../../src/shared/retry/retry-scheduler";
 
 const scope = {
   file: "main.ts",
@@ -124,6 +126,25 @@ describe("live workspace gateways", () => {
     controller.abort();
     await iterator.return?.();
     expect(new Headers(requestInit?.headers).get("Last-Event-ID")).toBe("7");
+  });
+
+  it("reports unavailable workspace events", async () => {
+    const gateway = new WorkspaceEventsGateway(async () =>
+      response({ error: "Unavailable" }, 503)
+    );
+    await expect(gateway.subscribe(new AbortController().signal).next()).rejects.toBeInstanceOf(
+      WorkspaceEventsConnectionError
+    );
+  });
+
+  it("schedules and cancels retries", () => {
+    vi.useFakeTimers();
+    const task = vi.fn();
+    const cancel = new RetryScheduler().schedule(10, task);
+    cancel();
+    vi.advanceTimersByTime(10);
+    expect(task).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it("accepts only validated saved scopes and clears malformed local storage", () => {

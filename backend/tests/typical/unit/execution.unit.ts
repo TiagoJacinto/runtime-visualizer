@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Execution } from "../../../src/modules/execution/execution.ts";
+import { Execution } from "../../../src/modules/execution/index.ts";
 
 const initial = {
   executionId: "execution-1",

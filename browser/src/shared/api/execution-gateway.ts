@@ -27,7 +27,7 @@ export class ExecutionGateway {
   private readonly fetcher: typeof fetch;
 
   constructor(fetcher: typeof fetch = fetch) {
-    this.fetcher = fetcher;
+    this.fetcher = fetcher.bind(globalThis);
   }
   async start(input: ExecutionRequest, signal?: AbortSignal): Promise<string> {
     const response = await this.fetcher("/api/execute", {

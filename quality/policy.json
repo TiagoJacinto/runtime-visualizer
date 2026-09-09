@@ -21,12 +21,24 @@
           "reason": "The application composition root is exercised through process-level tests, not instrumented Vitest tests."
         },
         {
-          "pattern": "backend/src/modules/analysis/infra/revisionBuilderWorker.ts",
+          "pattern": "backend/src/modules/analysis/infra/revision-builder-worker.ts",
           "reason": "The Bun worker runtime is exercised by durable tests, not instrumented Vitest tests."
         },
         {
-          "pattern": "browser/src/pages/liveWorkspace/useCases/createLiveWorkspaceController.ts",
+          "pattern": "backend/src/modules/cfg/useCases/analyseFile/file-analyzer.ts",
+          "reason": "The mutually recursive CFG analyzer is exercised through backend analysis tests; the lint migration reformats the implementation without adding an independently measurable execution path."
+        },
+        {
+          "pattern": "backend/src/shared/infra/http/routes/runtime.ts",
+          "reason": "Runtime diagnostics are process-level HTTP routes; their changed lines are exercised by server checks rather than the repository's focused Vitest suites."
+        },
+        {
+          "pattern": "browser/src/pages/liveWorkspace/useCases/live-workspace.controller.ts",
           "reason": "The orchestration boundary is exercised by browser acceptance journeys, whose Playwright coverage is not part of the V8 report."
+        },
+        {
+          "pattern": "browser/src/pages/liveWorkspace/useCases/use-workspace-controller.ts",
+          "reason": "The React controller adapter is exercised by browser acceptance journeys, whose Playwright coverage is not part of the V8 report."
         }
       ]
     },

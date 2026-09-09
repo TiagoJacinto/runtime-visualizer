@@ -13,7 +13,7 @@ import {
 import type { RevisionHistory } from "../../../modules/analysis/index.ts";
 import { cfgRoutes } from "../../../modules/cfg/http.ts";
 import { executeRoutes } from "../../../modules/execution/http.ts";
-import { DefaultExecutionManager } from "../../../modules/execution/useCases/execution-manager.ts";
+import { DefaultExecutionManager } from "../../../modules/execution/index.ts";
 import {
   eventsRoutes,
   filesRoutes,

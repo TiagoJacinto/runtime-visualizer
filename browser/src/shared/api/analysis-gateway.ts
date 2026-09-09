@@ -24,7 +24,7 @@ export class AnalysisGateway {
   private readonly fetcher: typeof fetch;
 
   constructor(fetcher: typeof fetch = fetch) {
-    this.fetcher = fetcher;
+    this.fetcher = fetcher.bind(globalThis);
   }
   private static async parseAnalysis(
     response: Response

@@ -37,7 +37,7 @@ export class WorkspaceEventsGateway {
   private readonly fetcher: typeof fetch;
 
   constructor(fetcher: typeof fetch = fetch) {
-    this.fetcher = fetcher;
+    this.fetcher = fetcher.bind(globalThis);
   }
   async *subscribe(
     signal: AbortSignal,

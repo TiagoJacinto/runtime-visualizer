@@ -10,8 +10,8 @@ import type {
   ExecutionObserver,
   ExecutionOptions,
   ExecutionResult,
-} from "../../../src/modules/execution/useCases/executeProcedure/runner.ts";
-import { createExecutionManager } from "../../../src/modules/execution/useCases/execution-manager.ts";
+} from "../../../src/modules/execution/index.ts";
+import { createExecutionManager } from "../../../src/modules/execution/index.ts";
 
 type Runner = {
   node: (id: string) => void;
