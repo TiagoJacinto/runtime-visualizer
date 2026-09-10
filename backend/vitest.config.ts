@@ -5,13 +5,13 @@ import { coveragePolicy } from "../quality/coverage-policy.mjs";
 export default defineConfig({
   test: {
     coverage: {
+      provider: "v8",
+      include: ["src/**/*.ts"],
       exclude: [
         "src/**/*.d.ts",
         "src/modules/analysis/infra/sqlite-revision-history.ts",
         "src/modules/execution/useCases/executeProcedure/execution-worker.ts",
       ],
-      include: ["src/**/*.ts"],
-      provider: "v8",
       reporter: ["text", "json-summary", "json"],
       thresholds: coveragePolicy.packages.backend.thresholds,
     },
