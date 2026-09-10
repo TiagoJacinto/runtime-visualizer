@@ -6,7 +6,7 @@
 
 ## Platform
 
-web *(inferred from the React/Vite browser application)*
+web _(inferred from the React/Vite browser application)_
 
 ## Users
 

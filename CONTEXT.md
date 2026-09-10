@@ -14,13 +14,9 @@ A bounded piece of code with an identifiable start and end. A Procedure may be a
 
 ### Analysis history
 
-**Analysis revision**:
-An immutable, content-addressed snapshot of one Procedure's analyzed source context, dependencies, control-flow graph, and diagnostics. An Analysis revision is the unit an Operator can inspect or run, even after the source workspace changes.
-_Avoid_: version, build
+**Analysis revision**: An immutable, content-addressed snapshot of one Procedure's analyzed source context, dependencies, control-flow graph, and diagnostics. An Analysis revision is the unit an Operator can inspect or run, even after the source workspace changes. _Avoid_: version, build
 
-**Revision history**:
-The retained set of Analysis revisions for a Procedure, including revisions whose source file or Procedure is no longer present in the current workspace.
-_Avoid_: execution history
+**Revision history**: The retained set of Analysis revisions for a Procedure, including revisions whose source file or Procedure is no longer present in the current workspace. _Avoid_: execution history
 
 ### Entry
 
@@ -36,8 +32,7 @@ One attempt to run a Procedure from its initial state to a terminal Result. Whil
 
 ### Active Execution
 
-An Execution that has started but has not reached a terminal Result. The Workspace labels collections of Active Executions as “Runs.”
-_Avoid_: job, task
+An Execution that has started but has not reached a terminal Result. The Workspace labels collections of Active Executions as “Runs.” _Avoid_: job, task
 
 ### Execution highlighting
 
