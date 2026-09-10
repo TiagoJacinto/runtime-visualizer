@@ -150,9 +150,7 @@ The palette is a deep green-black neutral field with one cool emerald signal and
 
 ## Typography
 
-**Display Font:** Inter (with sans-serif)
-**Body Font:** Inter (with sans-serif)
-**Label/Mono Font:** IBM Plex Mono (with monospace)
+**Display Font:** Inter (with sans-serif) **Body Font:** Inter (with sans-serif) **Label/Mono Font:** IBM Plex Mono (with monospace)
 
 **Character:** Inter keeps the dense workspace readable and neutral. IBM Plex Mono gives source and runtime metadata a precise instrument-panel voice without turning the whole interface into code.
 

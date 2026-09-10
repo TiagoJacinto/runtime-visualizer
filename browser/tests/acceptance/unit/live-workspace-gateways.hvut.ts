@@ -132,9 +132,9 @@ describe("live workspace gateways", () => {
     const gateway = new WorkspaceEventsGateway(async () =>
       response({ error: "Unavailable" }, 503)
     );
-    await expect(gateway.subscribe(new AbortController().signal).next()).rejects.toBeInstanceOf(
-      WorkspaceEventsConnectionError
-    );
+    await expect(
+      gateway.subscribe(new AbortController().signal).next()
+    ).rejects.toBeInstanceOf(WorkspaceEventsConnectionError);
   });
 
   it("schedules and cancels retries", () => {

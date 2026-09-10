@@ -1,6 +1,7 @@
 import { cpSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "@playwright/test";
 import { defineBddConfig } from "playwright-bdd";
 
@@ -23,45 +24,45 @@ writeFileSync(resolve(testWorkspace, "hve2e-cancel.ts"), slowSource);
 const testDatabase = resolve(testWorkspace, "revisions.sqlite");
 
 const testDir = defineBddConfig({
-	featuresRoot: "../features",
-	features: "../features/**/*.feature",
-	// The old domain feature contracts stay available to backend acceptance suites.
-	tags: "not @legacy-ui",
-	steps: "tests/acceptance/e2e/live-workspace.hve2e.ts",
-	outputDir: ".features-gen",
-	missingSteps: "fail-on-gen",
+  featuresRoot: "../features",
+  features: "../features/**/*.feature",
+  // The old domain feature contracts stay available to backend acceptance suites.
+  tags: "not @legacy-ui",
+  steps: "tests/acceptance/e2e/live-workspace.hve2e.ts",
+  outputDir: ".features-gen",
+  missingSteps: "fail-on-gen",
 });
 
 export default defineConfig({
-	testDir,
-	fullyParallel: false,
-	timeout: 90_000,
-	expect: { timeout: 15_000 },
-	workers: 1,
-	reporter: "list",
-	use: {
-		baseURL: "http://127.0.0.1:4173",
-		trace: "on-first-retry",
-	},
-	webServer: [
-		{
-			command: `RUNTIME_VISUALIZER_FILES_FOLDER=${testWorkspace} RUNTIME_VISUALIZER_DATABASE_PATH=${testDatabase} PORT=4301 bun run backend:dev`,
-			cwd: "..",
-			url: "http://127.0.0.1:4301/api/health",
-			reuseExistingServer: false,
-		},
-		{
-			command:
-				"VITE_API_PORT=4301 bun run frontend:dev -- --host 127.0.0.1 --port 4173",
-			cwd: "..",
-			url: "http://127.0.0.1:4173",
-			reuseExistingServer: false,
-		},
-	],
-	projects: [
-		{
-			name: "chromium",
-			use: { browserName: "chromium" },
-		},
-	],
+  testDir,
+  fullyParallel: false,
+  timeout: 90_000,
+  expect: { timeout: 15_000 },
+  workers: 1,
+  reporter: "list",
+  use: {
+    baseURL: "http://127.0.0.1:4173",
+    trace: "on-first-retry",
+  },
+  webServer: [
+    {
+      command: `RUNTIME_VISUALIZER_FILES_FOLDER=${testWorkspace} RUNTIME_VISUALIZER_DATABASE_PATH=${testDatabase} PORT=4301 bun run backend:dev`,
+      cwd: "..",
+      url: "http://127.0.0.1:4301/api/health",
+      reuseExistingServer: false,
+    },
+    {
+      command:
+        "VITE_API_PORT=4301 bun run frontend:dev -- --host 127.0.0.1 --port 4173",
+      cwd: "..",
+      url: "http://127.0.0.1:4173",
+      reuseExistingServer: false,
+    },
+  ],
+  projects: [
+    {
+      name: "chromium",
+      use: { browserName: "chromium" },
+    },
+  ],
 });
