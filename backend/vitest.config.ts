@@ -1,7 +1,9 @@
+// oxlint-disable sort-keys
 import { defineConfig } from "vitest/config";
 
 import { coveragePolicy } from "../quality/coverage-policy.mjs";
 
+// Coverage policy verification requires this property order.
 export default defineConfig({
   test: {
     coverage: {
