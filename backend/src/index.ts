@@ -1,4 +1,5 @@
-import { createApp } from "./shared/infra/http/index.ts";
+import { listenWithPortFallback } from "./shared/index.ts";
+import { createApp } from "./shared/infra/http/app.ts";
 
 const PORT = Math.trunc(Number(process.env.PORT ?? "3000"));
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -12,8 +13,8 @@ const app = await createApp({
   filesFolder: process.env.RUNTIME_VISUALIZER_FILES_FOLDER,
 });
 
-await app.listen({ host: HOST, port: PORT });
-console.log(`[server] listening on http://${HOST}:${PORT}`);
+const listening = await listenWithPortFallback(app, { host: HOST, port: PORT });
+console.log(`[server] listening on ${listening.address}`);
 
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   console.log(`[server] received ${signal}, shutting down`);
