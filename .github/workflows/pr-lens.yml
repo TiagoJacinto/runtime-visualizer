@@ -1,0 +1,28 @@
+name: PR Lens
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-lens-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: TiagoJacinto/pr-lens/packages/action@feat/clickable-source-nodes
+        with:
+          api-key: ${{ secrets.GEMINI_API_KEY }}
+          model: ${{ vars.PR_LENS_MODEL }}
+          cli-source: workspace
+          canvas-url: ${{ vars.PR_LENS_CANVAS_URL }}
+          canvas-publish-token: ${{ secrets.PR_LENS_CANVAS_PUBLISH_TOKEN }}
