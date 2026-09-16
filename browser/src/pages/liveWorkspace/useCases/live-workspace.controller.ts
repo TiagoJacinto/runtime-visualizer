@@ -351,7 +351,7 @@ export class LiveWorkspaceController implements WorkspaceController {
           errorMessage: next.errorMessage,
         }),
       retry,
-      subscribe: ports.workspaceEvents.subscribe,
+      subscribe: ports.workspaceEvents.subscribe.bind(ports.workspaceEvents),
     });
     const runEffect = async (effect: {
       type: "cancel-execution";

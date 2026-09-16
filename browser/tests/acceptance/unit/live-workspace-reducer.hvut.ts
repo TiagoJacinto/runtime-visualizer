@@ -137,5 +137,9 @@ describe("live workspace local interaction reducer", () => {
     expect(next.completedExecutions).toEqual([
       { ...execution, error: "boom", status: "failed" },
     ]);
+    expect(next.notifications[0]).toMatchObject({
+      level: "error",
+      message: "Execution executio Failed.",
+    });
   });
 });

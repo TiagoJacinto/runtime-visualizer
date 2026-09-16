@@ -92,6 +92,16 @@ const transition = (
   state: { ...state, ...patch },
 });
 
+const addNotification = (
+  state: LiveWorkspaceState,
+  message: string,
+  level: "info" | "error"
+): LiveWorkspaceState["notifications"] =>
+  [
+    ...state.notifications,
+    { id: `${Date.now()}-${state.notifications.length}`, level, message },
+  ].slice(-20);
+
 const workspaceEvent = (
   state: LiveWorkspaceState,
   event: Extract<LiveWorkspaceEvent, { type: "workspace-event" }>
@@ -201,6 +211,9 @@ export const reduceWorkspace = (
     case "execution-finished": {
       const { [event.execution.executionId]: _pending, ...pendingById } =
         state.cancellation.pendingById;
+      const statusLabel =
+        event.execution.status.charAt(0).toUpperCase() +
+        event.execution.status.slice(1);
       return transition(state, {
         cancellation: {
           armedExecutionId:
@@ -215,6 +228,11 @@ export const reduceWorkspace = (
           ),
           event.execution,
         ],
+        notifications: addNotification(
+          state,
+          `Execution ${event.execution.executionId.slice(0, 8)} ${statusLabel}.`,
+          event.execution.status === "failed" ? "error" : "info"
+        ),
       });
     }
     case "workspace-event": {

@@ -1,8 +1,8 @@
-import type { RetryScheduler } from "../../../shared/retry/retry-scheduler";
 import type {
   WorkspaceEventRecord,
   WorkspaceEventsGatewayPort,
 } from "../../../shared/api/workspace-events-gateway";
+import type { RetryScheduler } from "../../../shared/retry/retry-scheduler";
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_DELAY_MS = 250;
