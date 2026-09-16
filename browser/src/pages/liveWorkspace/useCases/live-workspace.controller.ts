@@ -9,13 +9,19 @@ import type {
   LiveWorkspacePorts,
   WorkspaceController,
 } from "./live-workspace.ports";
-import { createLiveWorkspaceQueries } from './live-workspace.query';
-import type { LiveWorkspaceQueries } from './live-workspace.query';
+import { createLiveWorkspaceQueries } from "./live-workspace.query";
+import type { LiveWorkspaceQueries } from "./live-workspace.query";
 import type { LiveWorkspaceEvent, Transition } from "./live-workspace.reducer";
 import { reduceWorkspace } from "./live-workspace.reducer";
 import { publish } from "./live-workspace.state";
-import { executionRecordFromActive, initialLiveWorkspaceState } from './live-workspace.types';
-import type { ExecutionRecord, LiveWorkspaceState } from './live-workspace.types';
+import {
+  executionRecordFromActive,
+  initialLiveWorkspaceState,
+} from "./live-workspace.types";
+import type {
+  ExecutionRecord,
+  LiveWorkspaceState,
+} from "./live-workspace.types";
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_DELAY_MS = 250;
@@ -98,7 +104,7 @@ export class LiveWorkspaceController implements WorkspaceController {
         analysis: ports.analysis,
         execution: ports.execution,
       });
-    const {queries} = this;
+    const { queries } = this;
     let state = initialLiveWorkspaceState;
     let eventsController: AbortController | undefined;
     let reconnectCancel: (() => void) | undefined;
@@ -108,25 +114,29 @@ export class LiveWorkspaceController implements WorkspaceController {
     const retry = ports.retry ?? new RetryScheduler();
     const listeners = new Set<(state: LiveWorkspaceState) => void>();
 
-    const set = (next: LiveWorkspaceState): void => {
-      if (disposed) {return;}
+    const publishState = (next: LiveWorkspaceState): void => {
+      if (disposed) {
+        return;
+      }
       state = next;
       publish(listeners, state);
     };
-    const apply = (transition: Transition): void => {
-      set(transition.state);
+    const applyTransition = (transition: Transition): void => {
+      publishState(transition.state);
       for (const effect of transition.effects) {
         // oxlint-disable-next-line eslint/no-use-before-define
         void runEffect(effect);
       }
     };
     const dispatch = (event: LiveWorkspaceEvent): void => {
-      apply(reduceWorkspace(state, event));
+      applyTransition(reduceWorkspace(state, event));
     };
     const loadExact = async (key: RevisionKey): Promise<void> => {
       try {
         await queries.fetchAnalysis(key);
-        if (!disposed) {dispatch({ type: "clear-resource-error" });}
+        if (!disposed) {
+          dispatch({ type: "clear-resource-error" });
+        }
       } catch (error) {
         if (!disposed) {
           dispatch({ error: errorMessage(error), type: "resource-error" });
@@ -151,10 +161,14 @@ export class LiveWorkspaceController implements WorkspaceController {
           file,
           requestedProcedureId(file, procedureId)
         );
-        if (disposed) {return;}
+        if (disposed) {
+          return;
+        }
         const scope = { file: current.file, procedureId: current.procedureId };
         const revisions = await queries.fetchRevisions(scope);
-        if (disposed) {return;}
+        if (disposed) {
+          return;
+        }
         const revision =
           preferredRevision !== undefined &&
           revisions.some((item) => item.revision === preferredRevision)
@@ -173,8 +187,9 @@ export class LiveWorkspaceController implements WorkspaceController {
       try {
         return await queries.fetchFiles();
       } catch (error) {
-        if (!disposed)
-          {dispatch({ error: errorMessage(error), type: "resource-error" });}
+        if (!disposed) {
+          dispatch({ error: errorMessage(error), type: "resource-error" });
+        }
         return [];
       }
     };
@@ -182,13 +197,16 @@ export class LiveWorkspaceController implements WorkspaceController {
       try {
         await queries.fetchActiveExecutions();
       } catch (error) {
-        if (!disposed)
-          {dispatch({ error: errorMessage(error), type: "resource-error" });}
+        if (!disposed) {
+          dispatch({ error: errorMessage(error), type: "resource-error" });
+        }
       }
     };
     const loadInitial = async (): Promise<void> => {
       const files = await loadFiles();
-      if (disposed || files.length === 0) {return;}
+      if (disposed || files.length === 0) {
+        return;
+      }
       const selected = state.selectedScope;
       if (selected !== null && files.includes(selected.file)) {
         await bootstrapFile(
@@ -218,13 +236,16 @@ export class LiveWorkspaceController implements WorkspaceController {
           await bootstrapFile(scope.file, scope.procedureId);
         }
       } catch (error) {
-        if (!disposed)
-          {dispatch({ error: errorMessage(error), type: "resource-error" });}
+        if (!disposed) {
+          dispatch({ error: errorMessage(error), type: "resource-error" });
+        }
       }
     };
     const refreshQueued = async (): Promise<void> => {
       const selected = state.selectedScope;
-      if (selected !== null && activeForScope(queries, selected)) {return;}
+      if (selected !== null && activeForScope(queries, selected)) {
+        return;
+      }
       if (state.fileDeleted) {
         const nextFile = queries.getFiles()?.[0];
         if (nextFile === undefined) {
@@ -306,8 +327,12 @@ export class LiveWorkspaceController implements WorkspaceController {
       }
     };
     const scheduleReconnect = (): void => {
-      if (disposed || reconnectCancel !== undefined) {return;}
-      if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {return;}
+      if (disposed || reconnectCancel !== undefined) {
+        return;
+      }
+      if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
+        return;
+      }
       const delay = Math.min(
         BASE_RECONNECT_DELAY_MS * 2 ** reconnectAttempt,
         MAX_RECONNECT_DELAY_MS
@@ -324,7 +349,7 @@ export class LiveWorkspaceController implements WorkspaceController {
       const controller = new AbortController();
       eventsController = controller;
       try {
-        set({
+        publishState({
           ...state,
           connectionState: { ...state.connectionState, status: "connected" },
           errorMessage: null,
@@ -336,15 +361,19 @@ export class LiveWorkspaceController implements WorkspaceController {
           state.connectionState.cursor
         ) as WorkspaceStream;
         for await (const record of stream) {
-          if (disposed) {return;}
+          if (disposed) {
+            return;
+          }
           handleWorkspaceEvent(record.id, record.event);
         }
         if (!disposed && !controller.signal.aborted) {
           throw new Error("Workspace event stream ended");
         }
       } catch (error) {
-        if (disposed || controller.signal.aborted) {return;}
-        set({
+        if (disposed || controller.signal.aborted) {
+          return;
+        }
+        publishState({
           ...state,
           connectionState: {
             cursor: state.connectionState.cursor,
@@ -354,7 +383,9 @@ export class LiveWorkspaceController implements WorkspaceController {
         });
         scheduleReconnect();
       } finally {
-        if (eventsController === controller) {eventsController = undefined;}
+        if (eventsController === controller) {
+          eventsController = undefined;
+        }
       }
     };
     const runEffect = async (effect: {
@@ -389,8 +420,9 @@ export class LiveWorkspaceController implements WorkspaceController {
       try {
         await queries.startExecution(scope);
       } catch (error) {
-        if (!disposed)
-          {dispatch({ error: errorMessage(error), type: "resource-error" });}
+        if (!disposed) {
+          dispatch({ error: errorMessage(error), type: "resource-error" });
+        }
       }
     };
 
@@ -441,7 +473,9 @@ export class LiveWorkspaceController implements WorkspaceController {
         );
         const execution =
           active === undefined ? completed : executionRecordFromActive(active);
-        if (execution === undefined) {return;}
+        if (execution === undefined) {
+          return;
+        }
         dispatch({ executionId, type: "select-execution" });
         dispatch({ key: execution.scope, type: "select-scope" });
         if (queries.getAnalysis(execution.scope) === undefined) {
@@ -477,8 +511,9 @@ export class LiveWorkspaceController implements WorkspaceController {
         void bootstrapFile(state.selectedScope.file, procedureId);
       },
       selectRevision: (key: RevisionKey | null) => {
-        if (key === null || state.connectionState.status === "reconnecting")
-          {return;}
+        if (key === null || state.connectionState.status === "reconnecting") {
+          return;
+        }
         dispatch({ key, type: "select-scope" });
         void loadExact(key);
       },
@@ -492,7 +527,9 @@ export class LiveWorkspaceController implements WorkspaceController {
         }
       },
       start: () => {
-        if (started) {return;}
+        if (started) {
+          return;
+        }
         started = true;
         disposed = false;
         const saved = ports.preferences?.load();

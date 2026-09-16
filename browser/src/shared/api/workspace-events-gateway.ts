@@ -7,7 +7,10 @@ export interface WorkspaceEventRecord {
   id: number;
   event: WorkspaceEvent;
 }
-const parseRecord = (record: string): WorkspaceEventRecord | undefined => {
+const parseRecord = (
+  record: string,
+  previousEventId: number | undefined
+): WorkspaceEventRecord | undefined => {
   const data = record
     .split("\n")
     .filter((line) => line.startsWith("data:"))
@@ -27,7 +30,10 @@ const parseRecord = (record: string): WorkspaceEventRecord | undefined => {
     throw new WorkspaceEventsConnectionError("Invalid workspace event");
   }
   const idLine = record.split("\n").find((line) => line.startsWith("id:"));
-  const id = Number(idLine?.slice("id:".length).trim() ?? 0);
+  const id =
+    idLine === undefined
+      ? (previousEventId ?? 0)
+      : Number(idLine.slice("id:".length).trim());
   if (!Number.isSafeInteger(id) || id < 0) {
     throw new WorkspaceEventsConnectionError("Invalid workspace event ID");
   }
@@ -64,6 +70,7 @@ export class WorkspaceEventsGateway {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let previousEventId: number | undefined = lastEventId ?? undefined;
     try {
       while (!signal.aborted) {
         // SAFETY: stream chunks must be consumed in order.
@@ -76,8 +83,9 @@ export class WorkspaceEventsGateway {
         const records = buffer.split("\n\n");
         buffer = records.pop() ?? "";
         for (const record of records) {
-          const parsed = parseRecord(record);
+          const parsed = parseRecord(record, previousEventId);
           if (parsed !== undefined) {
+            previousEventId = parsed.id;
             yield parsed;
           }
         }

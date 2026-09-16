@@ -6,13 +6,21 @@ import type {
   RevisionSummary,
   WorkspaceEvent,
 } from "@runtime-visualizer/contracts";
-import { QueryClient, keepPreviousData, useQuery } from '@tanstack/react-query';
-import type { QueryClientConfig, QueryFunctionContext } from '@tanstack/react-query';
+import { QueryClient, keepPreviousData, useQuery } from "@tanstack/react-query";
+import type {
+  QueryClientConfig,
+  QueryFunctionContext,
+} from "@tanstack/react-query";
 
 import type { AnalysisGatewayPort } from "../../../shared/api/analysis-gateway";
 import type { ExecutionGatewayPort } from "../../../shared/api/execution-gateway";
-import { executionRecordFromActive } from './live-workspace.types';
-import type { ExecutionRecord, LiveWorkspaceState, LiveWorkspaceView, WorkspaceResourceState } from './live-workspace.types';
+import { executionRecordFromActive } from "./live-workspace.types";
+import type {
+  ExecutionRecord,
+  LiveWorkspaceState,
+  LiveWorkspaceView,
+  WorkspaceResourceState,
+} from "./live-workspace.types";
 
 const queryRoot = ["live-workspace"] as const;
 
@@ -83,6 +91,7 @@ export interface LiveWorkspaceQueries {
     scope?: Pick<RevisionKey, "file" | "procedureId">
   ) => Promise<void>;
   invalidateActiveExecutions: () => Promise<void>;
+  invalidateMutableResources: () => Promise<void>;
 }
 
 export interface UseLiveWorkspaceResourcesResult {
@@ -177,6 +186,18 @@ export const createLiveWorkspaceQueries = (
       executions
     );
   };
+  const invalidateMutableResources = async (): Promise<void> => {
+    await Promise.all([
+      client.invalidateQueries({ queryKey: liveWorkspaceQueryKeys.files() }),
+      client.invalidateQueries({
+        queryKey: [...queryRoot, "current-analysis"],
+      }),
+      client.invalidateQueries({ queryKey: [...queryRoot, "revisions"] }),
+      client.invalidateQueries({
+        queryKey: liveWorkspaceQueryKeys.activeExecutions(),
+      }),
+    ]);
+  };
 
   const options = {
     activeExecutions: activeExecutionsOptions,
@@ -268,12 +289,7 @@ export const createLiveWorkspaceQueries = (
         return {};
       }
       if (event.type === "resync-required") {
-        void client.invalidateQueries({
-          queryKey: liveWorkspaceQueryKeys.files(),
-        });
-        void client.invalidateQueries({
-          queryKey: liveWorkspaceQueryKeys.activeExecutions(),
-        });
+        void invalidateMutableResources();
       }
       return {};
     },
@@ -284,8 +300,7 @@ export const createLiveWorkspaceQueries = (
       await ports.execution.cancel(executionId);
     },
     client,
-    fetchActiveExecutions: () =>
-      client.fetchQuery(options.activeExecutions()),
+    fetchActiveExecutions: () => client.fetchQuery(options.activeExecutions()),
     fetchAnalysis: (key) => client.fetchQuery(options.analysis(key)),
     fetchCurrentAnalysis: async (file, procedureId) => {
       const analysis = await client.fetchQuery(
@@ -320,6 +335,7 @@ export const createLiveWorkspaceQueries = (
       }),
     invalidateFiles: () =>
       client.invalidateQueries({ queryKey: liveWorkspaceQueryKeys.files() }),
+    invalidateMutableResources,
     invalidateRevisions: (scope) =>
       client.invalidateQueries({
         queryKey: scope
@@ -416,12 +432,12 @@ export const projectLiveWorkspaceView = (
   state: LiveWorkspaceState,
   resources: UseLiveWorkspaceResourcesResult
 ): LiveWorkspaceView => {
-  const {activeExecutions} = resources;
+  const { activeExecutions } = resources;
   const executions = sortActiveExecutions([
     ...activeExecutions,
     ...state.completedExecutions,
   ]);
-  const {analysis} = resources;
+  const { analysis } = resources;
   const analysisError = resources.analysisError ?? resources.filesError;
   const error = state.errorMessage ?? analysisError;
   let pane: LiveWorkspaceView["pane"];

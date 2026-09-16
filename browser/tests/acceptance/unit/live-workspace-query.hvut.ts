@@ -109,6 +109,37 @@ describe("live workspace query ownership", () => {
     expect(listRevisions).toHaveBeenCalledTimes(2);
   });
 
+  it("invalidates every mutable resource during resynchronization", async () => {
+    const { queries } = createQueries();
+    await queries.fetchFiles();
+    await queries.fetchCurrentAnalysis(scope.file, scope.procedureId);
+    await queries.fetchRevisions(scope);
+    await queries.fetchActiveExecutions();
+
+    queries.applyWorkspaceEvent({ type: "resync-required" });
+    await queries.invalidateMutableResources();
+
+    expect(
+      queries.client.getQueryState(liveWorkspaceQueryKeys.files())?.isInvalidated
+    ).toBe(true);
+    expect(
+      queries.client.getQueryState(
+        liveWorkspaceQueryKeys.currentAnalysis(
+          scope.file,
+          scope.procedureId
+        )
+      )?.isInvalidated
+    ).toBe(true);
+    expect(
+      queries.client.getQueryState(liveWorkspaceQueryKeys.revisions(scope))
+        ?.isInvalidated
+    ).toBe(true);
+    expect(
+      queries.client.getQueryState(liveWorkspaceQueryKeys.activeExecutions())
+        ?.isInvalidated
+    ).toBe(true);
+  });
+
   it("owns active execution updates and returns terminal results to local history", () => {
     const { queries } = createQueries();
     queries.applyWorkspaceEvent({

@@ -114,6 +114,21 @@ describe("live workspace local interaction reducer", () => {
     expect(rolledBack.errorMessage).toBe("Network unavailable");
   });
 
+  it("keeps the stream connected while resources resynchronize", () => {
+    const next = reduce(
+      {
+        ...initialLiveWorkspaceState,
+        connectionState: { cursor: 8, status: "connected" },
+      },
+      {
+        event: { type: "resync-required" },
+        id: 8,
+        type: "workspace-event",
+      }
+    );
+    expect(next.connectionState).toEqual({ cursor: 8, status: "connected" });
+  });
+
   it("retains terminal results locally after the query removes the active run", () => {
     const next = reduce(initialLiveWorkspaceState, {
       execution: { ...execution, error: "boom", status: "failed" },

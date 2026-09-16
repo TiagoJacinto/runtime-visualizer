@@ -125,9 +125,7 @@ const workspaceEvent = (
     }
   }
   if (workspace.type === "resync-required") {
-    return transition(state, {
-      connectionState: { cursor: event.id, status: "reconnecting" },
-    });
+    return transition(state, { connectionState });
   }
   return transition(state, { connectionState });
 };
