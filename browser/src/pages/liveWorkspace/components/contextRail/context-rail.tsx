@@ -6,12 +6,12 @@ import type {
 import { Activity, X } from "lucide-react";
 
 import type { WorkspaceController } from "../../useCases/live-workspace.ports";
-import type { LiveWorkspaceState } from "../../useCases/live-workspace.types";
+import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
 import { ActiveRuns } from "./active-runs";
 import { ScopeNavigation } from "./scope-navigation";
 
 interface ContextRailProps {
-  state: LiveWorkspaceState;
+  state: LiveWorkspaceView;
   controller: WorkspaceController;
   analysis: AnalysisResponse | null;
   selectedScope: RevisionKey | null;
@@ -88,7 +88,7 @@ export const ContextRail = ({
           <Activity className="h-3 w-3 text-emerald-300" />
           Runs
           <span className="text-slate-600">
-            {Object.keys(state.activeExecutionsById).length}
+            {state.activeExecutions.length}
           </span>
         </button>
       </div>

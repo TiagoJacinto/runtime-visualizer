@@ -6,10 +6,10 @@ import type {
 import { ChevronDown, Play } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
 
-import type { LiveWorkspaceState } from "../../useCases/live-workspace.types";
+import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
 
 interface ScopeNavigationProps {
-  state: LiveWorkspaceState;
+  state: LiveWorkspaceView;
   analysis: AnalysisResponse | null;
   selectedScope: RevisionKey | null;
   revisions: readonly RevisionSummary[];

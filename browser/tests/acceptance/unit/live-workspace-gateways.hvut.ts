@@ -98,6 +98,13 @@ describe("live workspace gateways", () => {
     );
   });
 
+  it("validates the complete active-execution response envelope", async () => {
+    const gateway = new ExecutionGateway(async () =>
+      response({ executions: [{ executionId: "missing-fields" }] })
+    );
+    await expect(gateway.list()).rejects.toThrow();
+  });
+
   it("decodes typed workspace events and sends the cursor", async () => {
     const controller = new AbortController();
     let requestInit: RequestInit | undefined;

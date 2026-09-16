@@ -26,9 +26,11 @@ export {
 
 export {
   ActiveExecutionSchema,
+  ActiveExecutionsResponseSchema,
   ExecutionUpdateSchema,
   WorkspaceEventSchema,
   type ActiveExecution,
+  type ActiveExecutionsResponse,
   type ExecutionUpdate,
   type WorkspaceEvent,
 } from "./workspace-events.ts";

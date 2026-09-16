@@ -25,6 +25,7 @@
   "dependencies": {
     "@runtime-visualizer/contracts": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-query": "^5.102.8",
     "@xyflow/react": "^12.11.6",
     "dompurify": "^3.4.12",
     "elkjs": "^0.12.0",

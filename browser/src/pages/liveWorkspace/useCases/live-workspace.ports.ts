@@ -3,12 +3,14 @@ import type { ExecutionGatewayPort } from "../../../shared/api/execution-gateway
 import type { WorkspaceEventsGatewayPort } from "../../../shared/api/workspace-events-gateway";
 import type { WorkspacePreferences } from "../../../shared/api/workspace-preferences";
 import type { RetryScheduler } from "../../../shared/retry/retry-scheduler";
+import type { LiveWorkspaceQueries } from "./live-workspace.query";
 import type { LiveWorkspaceEvent } from "./live-workspace.reducer";
 import type { LiveWorkspaceState } from "./live-workspace.types";
 
 export type ExecutionPort = ExecutionGatewayPort;
 
 export interface WorkspaceController {
+  readonly queries: LiveWorkspaceQueries;
   getState: () => LiveWorkspaceState;
   dispatch: (intent: LiveWorkspaceEvent) => void;
   start: () => void;
@@ -33,4 +35,5 @@ export interface LiveWorkspacePorts {
   workspaceEvents: WorkspaceEventsGatewayPort;
   preferences?: WorkspacePreferences;
   retry?: RetryScheduler;
+  queries?: LiveWorkspaceQueries;
 }

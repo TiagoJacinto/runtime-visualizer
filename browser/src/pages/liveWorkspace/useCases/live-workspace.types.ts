@@ -1,18 +1,16 @@
 import type {
-  AnalysisResponse,
   ActiveExecution,
+  AnalysisResponse,
   RevisionKey,
   RevisionSummary,
 } from "@runtime-visualizer/contracts";
 
-type ProcedureResource = AnalysisResponse["procedures"][number];
 export type AnalysisPaneState =
   | {
       status: "empty";
     }
   | {
       status: "loading";
-      requestId: string;
       previous?: AnalysisResponse;
     }
   | {
@@ -58,14 +56,13 @@ export interface ExecutionRecord {
   procedure: string | null;
   revision: string;
 }
+
+/**
+ * Local interaction state only. Request-response resources live in the query
+ * cache and are combined with this state at the rendering boundary.
+ */
 export interface LiveWorkspaceState {
-  files: readonly string[];
-  proceduresByFile: Readonly<Record<string, readonly ProcedureResource[]>>;
   selectedScope: RevisionKey | null;
-  revisionsByScope: Readonly<Record<string, readonly RevisionSummary[]>>;
-  pane: AnalysisPaneState;
-  activeExecutionsById: Readonly<Record<string, ExecutionRecord>>;
-  completedExecutions: readonly ExecutionRecord[];
   focus: FocusTarget | null;
   contextTab: "scope" | "runs";
   cancellation: CancellationState;
@@ -73,52 +70,51 @@ export interface LiveWorkspaceState {
   notifications: readonly WorkspaceNotification[];
   importsVisible: boolean;
   errorMessage: string | null;
-  // Derived projections retained while the pre-shell page is migrated.
-  status: "loading" | "ready" | "empty" | "error";
-  selectedFile: string | null;
-  selectedProcedure: string | null;
-  analysis: AnalysisResponse | null;
-  snapshots: Readonly<Record<string, AnalysisResponse>>;
-  executions: readonly ExecutionRecord[];
+  completedExecutions: readonly ExecutionRecord[];
   selectedExecutionId: string | null;
-  error: string | null;
-  connection: "connected" | "reconnecting";
   queuedRevision: string | null;
   fileDeleted: boolean;
 }
+
+export interface WorkspaceResourceState {
+  files: readonly string[];
+  analysis: AnalysisResponse | null;
+  analysisStatus: "loading" | "ready" | "failed" | "empty";
+  analysisError: string | null;
+  revisions: readonly RevisionSummary[];
+  activeExecutions: readonly ExecutionRecord[];
+}
+
+/** Ephemeral view model composed from local interaction state and query data. */
+export interface LiveWorkspaceView extends LiveWorkspaceState {
+  files: readonly string[];
+  analysis: AnalysisResponse | null;
+  revisions: readonly RevisionSummary[];
+  activeExecutions: readonly ExecutionRecord[];
+  executions: readonly ExecutionRecord[];
+  pane: AnalysisPaneState;
+  status: "loading" | "ready" | "empty" | "error";
+  selectedFile: string | null;
+  selectedProcedure: string | null;
+  error: string | null;
+  connection: "connected" | "reconnecting";
+}
+
 export const initialLiveWorkspaceState: LiveWorkspaceState = {
-  activeExecutionsById: {},
-  analysis: null,
   cancellation: { armedExecutionId: null, pendingById: {} },
   completedExecutions: [],
-  connection: "connected",
   connectionState: { cursor: null, status: "connected" },
   contextTab: "scope",
-  error: null,
   errorMessage: null,
-  executions: [],
   fileDeleted: false,
-  files: [],
   focus: null,
   importsVisible: true,
   notifications: [],
-  pane: { status: "empty" },
-  proceduresByFile: {},
   queuedRevision: null,
-  revisionsByScope: {},
   selectedExecutionId: null,
-  selectedFile: null,
-  selectedProcedure: null,
   selectedScope: null,
-  snapshots: {},
-  status: "loading",
 };
-export const scopeKey = (
-  scope: Pick<RevisionKey, "file" | "procedureId">
-): string => `${scope.file}\0${scope.procedureId}`;
-export const snapshotKey = (
-  analysis: Pick<AnalysisResponse, "file" | "procedureId" | "revision">
-): string => `${analysis.file}\0${analysis.procedureId}\0${analysis.revision}`;
+
 export const executionRecordFromActive = (
   execution: ActiveExecution
 ): ExecutionRecord => ({
