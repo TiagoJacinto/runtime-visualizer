@@ -71,7 +71,6 @@ export const createWorkspaceEventStream = ({
     const nextController = new AbortController();
     controller = nextController;
     onState({ cursor, errorMessage: null, status: "connected" });
-    reconnectAttempt = 0;
     try {
       const stream = subscribe(nextController.signal, cursor);
       for await (const record of stream) {
@@ -79,6 +78,7 @@ export const createWorkspaceEventStream = ({
           return;
         }
         cursor = record.id;
+        reconnectAttempt = 0;
         onEvent(record);
       }
       if (!stopped && !nextController.signal.aborted) {
