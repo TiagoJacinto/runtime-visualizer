@@ -211,6 +211,10 @@ export class LiveWorkspaceController implements WorkspaceController {
         await bootstrapFile(files[0]);
       }
     };
+    const refreshWorkspaceResources = (): void => {
+      void loadInitial();
+      void loadActiveExecutions();
+    };
     const refreshRevisionHistory = async (
       scope: Pick<RevisionKey, "file" | "procedureId">
     ): Promise<void> => {
@@ -332,8 +336,7 @@ export class LiveWorkspaceController implements WorkspaceController {
           void refreshRevisionHistory(event.revision);
         }
       } else if (event.type === "resync-required") {
-        void loadInitial();
-        void loadActiveExecutions();
+        refreshWorkspaceResources();
       }
     };
     const eventStream = createWorkspaceEventStream({
@@ -412,8 +415,7 @@ export class LiveWorkspaceController implements WorkspaceController {
       getState: () => state,
       retry: () => {
         void queries.invalidateMutableResources();
-        void loadInitial();
-        void loadActiveExecutions();
+        refreshWorkspaceResources();
         eventStream.retry();
       },
       runProcedure: () => {
@@ -500,8 +502,7 @@ export class LiveWorkspaceController implements WorkspaceController {
             type: "preferences-loaded",
           });
         }
-        void loadInitial();
-        void loadActiveExecutions();
+        refreshWorkspaceResources();
         eventStream.start(state.connectionState.cursor);
       },
       subscribe: (listener: (state: LiveWorkspaceState) => void) => {

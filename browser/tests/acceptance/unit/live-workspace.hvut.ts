@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { LiveWorkspaceController } from "../../../src/pages/liveWorkspace/useCases/live-workspace.controller";
 import type { LiveWorkspaceState } from "../../../src/pages/liveWorkspace/useCases/live-workspace.types";
-import type { LiveWorkspacePorts } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.ports";
+import type { LiveWorkspacePorts } from "../../../src/pages/liveWorkspace/useCases/live-workspace.ports";
 
 const analysis: AnalysisResponse = {
   file: "main.ts",
