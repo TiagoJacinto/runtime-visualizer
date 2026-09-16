@@ -5,6 +5,7 @@ import type {
 } from "@runtime-visualizer/contracts";
 
 import { RetryScheduler } from "../../../shared/retry/retry-scheduler";
+import { createWorkspaceEventStream } from "./live-workspace.event-stream";
 import type {
   LiveWorkspacePorts,
   WorkspaceController,
@@ -22,11 +23,6 @@ import type {
   ExecutionRecord,
   LiveWorkspaceState,
 } from "./live-workspace.types";
-
-const MAX_RECONNECT_ATTEMPTS = 5;
-const BASE_RECONNECT_DELAY_MS = 250;
-const MAX_RECONNECT_DELAY_MS = 4000;
-type WorkspaceStream = AsyncIterable<{ id: number; event: WorkspaceEvent }>;
 
 // SAFETY: caught values are normalized at this controller async boundary.
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
@@ -106,11 +102,8 @@ export class LiveWorkspaceController implements WorkspaceController {
       });
     const { queries } = this;
     let state = initialLiveWorkspaceState;
-    let eventsController: AbortController | undefined;
-    let reconnectCancel: (() => void) | undefined;
     let disposed = false;
     let started = false;
-    let reconnectAttempt = 0;
     const retry = ports.retry ?? new RetryScheduler();
     const listeners = new Set<(state: LiveWorkspaceState) => void>();
 
@@ -259,6 +252,21 @@ export class LiveWorkspaceController implements WorkspaceController {
         await bootstrapFile(selected.file, selected.procedureId);
       }
     };
+    const handleDeletedSourceChange = (
+      file: string,
+      selected: RevisionKey | null,
+      activeFile: boolean
+    ): void => {
+      if (selected?.file !== file || activeFile) {
+        return;
+      }
+      const nextFile = queries.getFiles()?.[0];
+      if (nextFile === undefined) {
+        dispatch({ type: "clear-selection" });
+      } else {
+        void bootstrapFile(nextFile);
+      }
+    };
     const handleWorkspaceEvent = (id: number, event: WorkspaceEvent): void => {
       const selected = state.selectedScope;
       const before = queries.getActiveExecutions();
@@ -305,9 +313,11 @@ export class LiveWorkspaceController implements WorkspaceController {
             procedureId: selected.procedureId,
           });
         } else if (event.change.change === "deleted") {
-          if (selected?.file === event.change.file && !activeFile) {
-            void refreshQueued();
-          }
+          handleDeletedSourceChange(
+            event.change.file,
+            selected,
+            activeFile === true
+          );
         } else if (
           event.change.change === "added" &&
           state.selectedScope === null
@@ -326,68 +336,20 @@ export class LiveWorkspaceController implements WorkspaceController {
         void loadActiveExecutions();
       }
     };
-    const scheduleReconnect = (): void => {
-      if (disposed || reconnectCancel !== undefined) {
-        return;
-      }
-      if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
-        return;
-      }
-      const delay = Math.min(
-        BASE_RECONNECT_DELAY_MS * 2 ** reconnectAttempt,
-        MAX_RECONNECT_DELAY_MS
-      );
-      reconnectAttempt += 1;
-      reconnectCancel = retry.schedule(delay, () => {
-        reconnectCancel = undefined;
-        // oxlint-disable-next-line eslint/no-use-before-define
-        void observeEvents();
-      });
-    };
-    const observeEvents = async (): Promise<void> => {
-      eventsController?.abort();
-      const controller = new AbortController();
-      eventsController = controller;
-      try {
-        publishState({
-          ...state,
-          connectionState: { ...state.connectionState, status: "connected" },
-          errorMessage: null,
-        });
-        reconnectAttempt = 0;
-        // SAFETY: the workspace-events port guarantees the async stream shape.
-        const stream = ports.workspaceEvents.subscribe(
-          controller.signal,
-          state.connectionState.cursor
-        ) as WorkspaceStream;
-        for await (const record of stream) {
-          if (disposed) {
-            return;
-          }
-          handleWorkspaceEvent(record.id, record.event);
-        }
-        if (!disposed && !controller.signal.aborted) {
-          throw new Error("Workspace event stream ended");
-        }
-      } catch (error) {
-        if (disposed || controller.signal.aborted) {
-          return;
-        }
+    const eventStream = createWorkspaceEventStream({
+      onEvent: (record) => handleWorkspaceEvent(record.id, record.event),
+      onState: (next) =>
         publishState({
           ...state,
           connectionState: {
-            cursor: state.connectionState.cursor,
-            status: "reconnecting",
+            cursor: next.cursor,
+            status: next.status,
           },
-          errorMessage: errorMessage(error),
-        });
-        scheduleReconnect();
-      } finally {
-        if (eventsController === controller) {
-          eventsController = undefined;
-        }
-      }
-    };
+          errorMessage: next.errorMessage,
+        }),
+      retry,
+      subscribe: ports.workspaceEvents.subscribe,
+    });
     const runEffect = async (effect: {
       type: "cancel-execution";
       executionId: string;
@@ -442,23 +404,17 @@ export class LiveWorkspaceController implements WorkspaceController {
       dispose: () => {
         disposed = true;
         started = false;
-        eventsController?.abort();
-        reconnectCancel?.();
-        reconnectCancel = undefined;
+        eventStream.stop();
         listeners.clear();
       },
       focus: (target: LiveWorkspaceState["focus"]) =>
         dispatch({ target, type: "focus" }),
       getState: () => state,
       retry: () => {
-        reconnectCancel?.();
-        reconnectCancel = undefined;
-        reconnectAttempt = 0;
-        void queries.invalidateFiles();
-        void queries.invalidateActiveExecutions();
+        void queries.invalidateMutableResources();
         void loadInitial();
         void loadActiveExecutions();
-        void observeEvents();
+        eventStream.retry();
       },
       runProcedure: () => {
         // oxlint-disable-next-line eslint/no-void
@@ -546,7 +502,7 @@ export class LiveWorkspaceController implements WorkspaceController {
         }
         void loadInitial();
         void loadActiveExecutions();
-        void observeEvents();
+        eventStream.start(state.connectionState.cursor);
       },
       subscribe: (listener: (state: LiveWorkspaceState) => void) => {
         listeners.add(listener);

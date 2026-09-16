@@ -254,6 +254,21 @@ describe("live workspace server event observation", () => {
     controller.dispose();
   });
 
+  it("clears the selected workspace when an idle file is deleted", async () => {
+    const { ports, events } = createPorts();
+    const controller = new LiveWorkspaceController(ports);
+    controller.start();
+    await settle();
+    events.push({
+      type: "source-change",
+      change: { type: "file-changed", file: "main.ts", change: "deleted" },
+    });
+    await settle();
+    expect(controller.queries.getFiles()).toEqual([]);
+    expect(controller.getState().selectedScope).toBeNull();
+    controller.dispose();
+  });
+
   it("reconnects after the workspace event stream fails", async () => {
     const events = new WorkspaceEventsSpy();
     const { ports } = createPorts(events);
