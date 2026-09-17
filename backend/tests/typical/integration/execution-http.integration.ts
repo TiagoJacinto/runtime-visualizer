@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { setupExecutionFixture } from "../integration/fixtures/execution-fixture.ts";
-import type { ExecutionFixture } from "../integration/fixtures/execution-fixture.ts";
+import { setupExecutionFixture } from "./fixtures/execution-fixture.ts";
+import type { ExecutionFixture } from "./fixtures/execution-fixture.ts";
 
-describe("execution incoming adapter", () => {
+describe("execution HTTP composition", () => {
   let fixture: ExecutionFixture | undefined;
 
   afterEach(async () => {

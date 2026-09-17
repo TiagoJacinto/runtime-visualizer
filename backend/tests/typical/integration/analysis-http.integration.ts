@@ -1,17 +1,18 @@
 import { afterEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
-import * as path from "node:path";
+import path from "node:path";
 import { createApp } from "../../../src/shared/infra/http/app.ts";
 
-describe("analysis incoming adapter", () => {
+describe("analysis HTTP composition", () => {
 	let app: Awaited<ReturnType<typeof createApp>> | undefined;
 	let folder: string | undefined;
 
 	afterEach(async () => {
 		await app?.close();
-		if (folder !== undefined)
-			await fs.rm(folder, { recursive: true, force: true });
+		if (folder !== undefined) {
+			await fs.rm(folder, { force: true, recursive: true });
+		}
 		app = undefined;
 		folder = undefined;
 	});
@@ -32,10 +33,8 @@ describe("analysis incoming adapter", () => {
 		expect(response.statusCode).toBe(200);
 		const body = response.json();
 		expect(body).toHaveProperty("file", "main.ts");
-		expect(body).toHaveProperty("revision");
-		expect(typeof body.revision).toBe("string");
-		expect(body).toHaveProperty("source");
-		expect(typeof body.source).toBe("string");
+		expect(body.revision).toEqual(expect.any(String));
+		expect(body.source).toEqual(expect.any(String));
 		expect(body).toHaveProperty("procedure");
 		expect(body.procedure).toHaveProperty("name", "greet");
 		expect(body.procedure).toHaveProperty("kind", "Function");
@@ -67,8 +66,7 @@ describe("analysis incoming adapter", () => {
 		expect(body).toHaveProperty("error", "Analysis failed");
 		expect(body).toHaveProperty("file", "broken.ts");
 		expect(body).toHaveProperty("revision");
-		expect(body).toHaveProperty("source");
-		expect(typeof body.source).toBe("string");
+		expect(body.source).toEqual(expect.any(String));
 		expect(body).toHaveProperty("procedures");
 		expect(Array.isArray(body.procedures)).toBe(true);
 		expect(body).toHaveProperty("diagnostics");
@@ -104,12 +102,10 @@ describe("analysis incoming adapter", () => {
 			method: "GET",
 			url: "/api/analysis?file=main.ts&name=run&showImports=true",
 		});
-		const analysisBody = analysis.json() as {
-			revision: string;
+		const { procedureId, revision } = analysis.json<{
 			procedureId: string;
-		};
-		const revision = analysisBody.revision;
-		const procedureId = analysisBody.procedureId;
+			revision: string;
+		}>();
 		const history = await app.inject({
 			method: "GET",
 			url: `/api/analysis/revisions?file=main.ts&procedureId=${procedureId}`,

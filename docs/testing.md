@@ -31,11 +31,11 @@ Classify an integration test from the application core's perspective. Integratio
 
 ### Incoming adapter integration tests
 
-An incoming adapter translates an external stimulus into an application-layer operation. Exercise the real incoming mechanism and replace the invoked use case or application API with a stub or mock because use-case behavior belongs in HVUTs. Verify that the adapter parses the input, calls the correct operation with the correct values, and translates the application response back through the mechanism.
+An incoming adapter translates an external stimulus into an application operation. Drive the real incoming mechanism, replace the application collaborator with the test runner's native mock (`vi.fn()` under Vitest), and verify the attempted communication. The test ends at that boundary: application behavior, retained application state, outgoing effects, and collaborator correctness belong to other tests.
 
-Backend examples include making a real HTTP request against the configured server, sending a GraphQL operation, or delivering a webhook while stubbing the called use case. Prefer the framework's in-process request facility when it traverses the real router, middleware, validation, and handler stack; use a socket only when socket behavior is itself relevant.
+For an HTTP handler, send a real request through the router, middleware, validation, and handler stack while mocking the invoked use case or application API. Verify that the mock receives the expected operation and values. Use a socket only when socket behavior itself is relevant. Apply the same pattern to GraphQL operations, webhooks, and other incoming mechanisms.
 
-Frontend incoming integration tests are possible because the UI is an incoming adapter. Mount the real React component in a browser, provide a `WorkspaceController` spy, perform a real DOM interaction, and verify the application operation:
+The UI is also an incoming adapter. Mount the real React component in a browser, provide a mocked `WorkspaceController`, perform a real DOM interaction, and verify the attempted application operation:
 
 ```tsx
 render(<LiveWorkspacePage controller={controllerSpy} />)
@@ -46,7 +46,7 @@ await page.getByRole("button", { name: "Run Procedure" }).click()
 expect(controllerSpy.runProcedure).toHaveBeenCalledOnce()
 ```
 
-This tests browser event → React handler → application port. It does not test `runProcedure` behavior, TanStack Query, or the backend. A router integration can similarly perform a real navigation and verify that the routed page invokes the expected application operation.
+This is communication verification across browser event → React handler → application port. It does not test `runProcedure` behavior, TanStack Query, or the backend. A router integration can similarly perform a real navigation and verify that the routed page invokes the expected application operation.
 
 ### Outgoing adapter integration tests
 
