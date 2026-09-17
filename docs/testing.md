@@ -24,6 +24,19 @@ The HVIT and backend HVE2E commands remain valid even when no files currently ma
 
 Classify an integration test from the application core's perspective. Integration tests exercise either an incoming adapter or an outgoing adapter through a real communication mechanism. Merely constructing platform values such as `Request`, `Response`, `Headers`, or `ReadableStream` around an injected function does not create an integration test; that remains an isolated adapter unit test.
 
+### File conventions and commands
+
+Directional integration suites use non-overlapping suffixes and directories:
+
+| Direction | Backend files | Browser files | Focused command |
+| --- | --- | --- | --- |
+| Existing composition integration | `backend/tests/typical/integration/**/*.integration.ts` | `browser/tests/typical/integration/**/*.integration.ts` | `bun run backend:test:integration:composition` / `bun run frontend:test:integration:composition` |
+| Incoming adapter | `**/tests/typical/incoming/**/*.incoming.integration.ts` | `**/tests/typical/incoming/**/*.incoming.integration.ts` | `bun run backend:test:integration:incoming` / `bun run frontend:test:integration:incoming` |
+| Outgoing managed dependency | `**/tests/typical/outgoing/managed/**/*.managed.integration.ts` | `**/tests/typical/outgoing/managed/**/*.managed.integration.ts` | `bun run backend:test:integration:outgoing-managed` / `bun run frontend:test:integration:outgoing-managed` |
+| Outgoing unmanaged dependency | `**/tests/typical/outgoing/unmanaged/**/*.unmanaged.integration.ts` | `**/tests/typical/outgoing/unmanaged/**/*.unmanaged.integration.ts` | `bun run backend:test:integration:outgoing-unmanaged` / `bun run frontend:test:integration:outgoing-unmanaged` |
+
+The aggregate integration commands run every integration project. The focused commands are the smallest stable entry point for a changed adapter direction; empty future-facing projects pass with no tests.
+
 ### Incoming adapter integration tests
 
 An incoming adapter translates an external stimulus into an application-layer operation. Exercise the real incoming mechanism and replace the invoked use case or application API with a stub or mock because use-case behavior belongs in HVUTs. Verify that the adapter parses the input, calls the correct operation with the correct values, and translates the application response back through the mechanism.
