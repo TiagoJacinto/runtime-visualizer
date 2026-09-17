@@ -142,4 +142,31 @@ describe("live workspace local interaction reducer", () => {
       message: "Execution executio Failed.",
     });
   });
+
+  it("stores graph, source, and failure focus as one neutral target", () => {
+    const graphFocus = reduceWorkspace(initialLiveWorkspaceState, {
+      type: "focus",
+      target: { scope, nodeId: "return", origin: "graph" },
+    }).state;
+    const sourceFocus = reduceWorkspace(graphFocus, {
+      type: "focus",
+      target: { scope, nodeId: "return", origin: "source" },
+    }).state;
+    const failureFocus = reduceWorkspace(sourceFocus, {
+      type: "focus",
+      target: { scope, nodeId: "return", origin: "failure" },
+    }).state;
+
+    expect(graphFocus.focus?.nodeId).toBe("return");
+    expect(sourceFocus.focus).toEqual({
+      scope,
+      nodeId: "return",
+      origin: "source",
+    });
+    expect(failureFocus.focus).toEqual({
+      scope,
+      nodeId: "return",
+      origin: "failure",
+    });
+  });
 });

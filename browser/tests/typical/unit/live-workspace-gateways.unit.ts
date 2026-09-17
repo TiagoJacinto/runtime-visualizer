@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it, vi } from "vitest";
 
 import { AnalysisGateway } from "../../../src/shared/api/analysis-gateway";

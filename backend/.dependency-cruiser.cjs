@@ -60,7 +60,7 @@ module.exports = {
       from: {
         path: "^tests/",
         pathNot:
-          "^tests/(?:acceptance/(?!unit/)|typical/(?:integration/|e2e/))",
+          "^tests/(?:acceptance/(?!unit/)|typical/(?:integration/|incoming/|e2e/))",
       },
       to: { path: "^src/shared/infra/http/app\\.ts$" },
     },

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   setupExecutionFixture,
   type ExecutionFixture,
-} from "./fixtures/execution-fixture.ts";
+} from "../integration/fixtures/execution-fixture.ts";
 
 describe("execution incoming adapter", () => {
   let fixture: ExecutionFixture | undefined;

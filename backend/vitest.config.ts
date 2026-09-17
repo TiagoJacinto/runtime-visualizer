@@ -30,7 +30,10 @@ export default defineConfig({
         extends: true,
         test: {
           environment: "node",
-          include: ["tests/typical/integration/**/*.integration.ts"],
+          include: [
+            "tests/typical/integration/**/*.integration.ts",
+            "tests/typical/incoming/**/*.integration.ts",
+          ],
           name: "backend-integration",
           testTimeout: 30_000,
         },

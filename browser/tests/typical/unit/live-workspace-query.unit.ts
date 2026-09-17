@@ -186,7 +186,10 @@ describe("live workspace query ownership", () => {
       type: "source-change",
     });
     await queries.fetchRevisions(scope);
-    queries.applyWorkspaceEvent({ revision: revisionSummary, type: "revision-ready" });
+    queries.applyWorkspaceEvent({
+      revision: revisionSummary,
+      type: "revision-ready",
+    });
     queries.applyWorkspaceEvent({
       error: "build failed",
       paths: [scope.file],
@@ -239,9 +242,16 @@ describe("live workspace query ownership", () => {
   it("projects query resources into the expected workspace panes", () => {
     const loading = projectLiveWorkspaceView(
       initialLiveWorkspaceState,
-      makeResources({ files: [scope.file], filesLoading: true, analysisStatus: "loading" })
+      makeResources({
+        files: [scope.file],
+        filesLoading: true,
+        analysisStatus: "loading",
+      })
     );
-    expect(loading).toMatchObject({ pane: { status: "loading" }, status: "loading" });
+    expect(loading).toMatchObject({
+      pane: { status: "loading" },
+      status: "loading",
+    });
 
     const ready = projectLiveWorkspaceView(
       initialLiveWorkspaceState,
@@ -260,7 +270,11 @@ describe("live workspace query ownership", () => {
 
     const failed = projectLiveWorkspaceView(
       initialLiveWorkspaceState,
-      makeResources({ analysisError: null, analysisStatus: "failed", files: [scope.file] })
+      makeResources({
+        analysisError: null,
+        analysisStatus: "failed",
+        files: [scope.file],
+      })
     );
     expect(failed).toMatchObject({
       pane: { error: "Analysis unavailable.", status: "failed" },
@@ -272,9 +286,10 @@ describe("live workspace query ownership", () => {
       makeResources({ files: [scope.file] })
     );
     expect(errored.error).toBe("Workspace unavailable");
-    expect(projectLiveWorkspaceView(initialLiveWorkspaceState, makeResources()).status).toBe(
-      "empty"
-    );
+    expect(
+      projectLiveWorkspaceView(initialLiveWorkspaceState, makeResources())
+        .status
+    ).toBe("empty");
   });
 
   it("owns active execution updates and returns terminal results to local history", () => {
