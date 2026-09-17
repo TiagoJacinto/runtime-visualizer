@@ -16,7 +16,7 @@
     "test:integration:incoming": "vitest run --config vitest.config.ts --project backend-incoming-integration --maxWorkers=1 --no-file-parallelism --passWithNoTests",
     "test:integration:outgoing-managed": "vitest run --config vitest.config.ts --project backend-outgoing-managed-integration --maxWorkers=1 --no-file-parallelism --passWithNoTests",
     "test:integration:outgoing-unmanaged": "vitest run --config vitest.config.ts --project backend-outgoing-unmanaged-integration --maxWorkers=1 --no-file-parallelism --passWithNoTests",
-    "test:e2e": "vitest run --config vitest.config.ts --project backend-e2e --passWithNoTests",
+    "test:e2e": "vitest run --config vitest.config.ts --project backend-e2e --maxWorkers=1 --no-file-parallelism --passWithNoTests",
     "test:durable": "bun test tests/typical/e2e/durable-live-workspace.bun.test.ts",
     "test:acceptance": "vitest run --config vitest.config.ts --project backend-hvut --project backend-hvit --project backend-hve2e --passWithNoTests",
     "test:hvut": "vitest run --config vitest.config.ts --project backend-hvut",

@@ -72,6 +72,7 @@ export default defineConfig({
           environment: "node",
           include: ["tests/typical/e2e/**/*.e2e.ts"],
           name: "backend-e2e",
+          testTimeout: 30_000,
         },
       },
 

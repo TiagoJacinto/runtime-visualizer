@@ -15,7 +15,10 @@ Test types form a hierarchy rather than a flat list:
     - **Outgoing integration tests** exercise an adapter that communicates through an application-owned port.
       - **Managed-dependency contract tests** run one reusable port contract against every adapter implementation. A contract test is therefore a typical outgoing integration test, which is itself a typical integration test.
       - **Unmanaged-dependency integration tests** verify compatibility with an external service or shared dependency.
-  - **End-to-end tests** exercise a technical path through a complete process or runtime. Durable E2E is the backend specialization that uses the real Bun process, SQLite, workers, and workspace lifecycle.
+  - **End-to-end tests** exercise a technical path through a composed application from one of its public entry points.
+    - **UI E2E tests** enter through the frontend UI and traverse the composed frontend and its connected system.
+    - **API E2E tests** enter through a backend's public API and traverse its composed application. Framework-provided in-process HTTP injection still counts as API E2E when it crosses the real router, middleware, handlers, use cases, and adapters.
+      - **Durable API E2E tests** additionally use the real Bun process, SQLite, workers, and workspace lifecycle.
 - **High-value acceptance tests** bind an acceptance example at one of those levels.
   - **HVUT** binds the example to a use case or application interface with controlled adapters.
   - **HVIT** binds the example at an integration seam.

@@ -133,6 +133,11 @@ export const coveragePolicy = {
       name: "backend integration",
     },
     {
+      command: "backend:test:e2e",
+      files: "backend/tests/typical/e2e/**/*.e2e.ts",
+      name: "backend API end-to-end",
+    },
+    {
       command: "backend:test:durable",
       files: "backend/tests/typical/e2e/**/*.bun.test.ts",
       name: "backend durable runtime",
