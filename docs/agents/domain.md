@@ -6,6 +6,7 @@ How engineering skills should consume this repository's domain documentation.
 
 - `CONTEXT.md` at the repository root.
 - Relevant ADRs under `docs/adr/`.
+- Standing engineering principles in `docs/principles.md`.
 
 If these files do not exist, proceed silently. Create them lazily only when domain terminology or architectural decisions are resolved.
 
