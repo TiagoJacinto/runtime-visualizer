@@ -27,7 +27,7 @@ const testDir = defineBddConfig({
   featuresRoot: "../features",
   features: "../features/**/*.feature",
   // The old domain feature contracts stay available to backend acceptance suites.
-  tags: "not @legacy-ui and not @test-only",
+  tags: "not @legacy-ui and not @hvut",
   steps: "tests/acceptance/e2e/live-workspace.hve2e.ts",
   outputDir: ".features-gen",
   missingSteps: "fail-on-gen",

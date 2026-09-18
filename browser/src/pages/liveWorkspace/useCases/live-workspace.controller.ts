@@ -29,8 +29,8 @@ import type {
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Backend unavailable";
 
-const sameScope = (a: RevisionKey | null, b: RevisionKey): boolean =>
-  a?.file === b.file &&
+const sameScope = (a: RevisionKey, b: RevisionKey): boolean =>
+  a.file === b.file &&
   a.procedureId === b.procedureId &&
   a.revision === b.revision;
 

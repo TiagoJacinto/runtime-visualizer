@@ -71,7 +71,7 @@ An unmanaged dependency is not owned exclusively by this application, such as an
 2. A sandbox supplied by the provider.
 3. A protocol-faithful fake server or containerized installation.
 
-Verify requests, authentication, serialization, provider responses, errors, and retry-relevant behavior at the adapter boundary. Keep these tests focused on compatibility with the external protocol; application decisions made from adapter results belong in HVUTs.
+Verify requests, authentication, serialization, provider responses, errors, and retry-relevant behavior at the adapter boundary. Apply the [retry policy](retry-policy.md) to decide when a dependency failure is transient and safe to repeat. Keep these tests focused on compatibility with the external protocol; application decisions made from adapter results belong in HVUTs.
 
 ## Gate routing
 

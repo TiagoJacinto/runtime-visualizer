@@ -1,4 +1,4 @@
-@test-only
+@hvut
 Feature: Keep live workspace resources synchronized
   The workspace preserves the selected Procedure while it is running and refreshes after the Execution finishes.
 
