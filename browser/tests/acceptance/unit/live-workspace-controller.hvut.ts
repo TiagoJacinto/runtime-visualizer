@@ -167,7 +167,10 @@ describeFeature(feature, ({ Scenario }) => {
         controller = new LiveWorkspaceController(createPorts(events));
         controller.start();
         await settle();
-        expect(controller.getState().selectedScope?.revision).toBe(firstRevision);
+        expect(controller.getState().selection).toMatchObject({
+          scope: { revision: firstRevision },
+          status: "selected",
+        });
       });
 
       And('an Execution is active for revision "revision-1"', async () => {
@@ -197,7 +200,10 @@ describeFeature(feature, ({ Scenario }) => {
       });
 
       Then('the displayed Procedure remains at revision "revision-1"', () => {
-        expect(controller?.getState().selectedScope?.revision).toBe(firstRevision);
+        expect(controller?.getState().selection).toMatchObject({
+          scope: { revision: firstRevision },
+          status: "selected",
+        });
         expect(
           controller?.queries.getAnalysis({ ...scope, revision: firstRevision })
             ?.revision
@@ -221,9 +227,10 @@ describeFeature(feature, ({ Scenario }) => {
       });
 
       Then('revision "revision-2" is available for the selected Procedure', () => {
-        expect(controller?.getState().selectedScope?.revision).toBe(
-          newestRevision
-        );
+        expect(controller?.getState().selection).toMatchObject({
+          scope: { revision: newestRevision },
+          status: "selected",
+        });
       });
     }
   );

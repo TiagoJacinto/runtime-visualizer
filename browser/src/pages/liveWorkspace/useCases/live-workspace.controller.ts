@@ -34,6 +34,9 @@ const sameScope = (a: RevisionKey, b: RevisionKey): boolean =>
   a.procedureId === b.procedureId &&
   a.revision === b.revision;
 
+const selectedScope = (state: LiveWorkspaceState): RevisionKey | null =>
+  state.selection.status === "selected" ? state.selection.scope : null;
+
 const activeForScope = (
   queries: LiveWorkspaceQueries,
   scope: RevisionKey
@@ -139,11 +142,11 @@ export class LiveWorkspaceController implements WorkspaceController {
     const requestedProcedureId = (
       file: string,
       procedureId: string | undefined
-    ): string | undefined =>
-      procedureId ??
-      (state.selectedScope?.file === file
-        ? state.selectedScope.procedureId
-        : undefined);
+    ): string | undefined => {
+      const selected = selectedScope(state);
+      return procedureId ??
+        (selected?.file === file ? selected.procedureId : undefined);
+    };
     const bootstrapFile = async (
       file: string,
       procedureId?: string,
@@ -200,7 +203,7 @@ export class LiveWorkspaceController implements WorkspaceController {
       if (disposed || files.length === 0) {
         return;
       }
-      const selected = state.selectedScope;
+      const selected = selectedScope(state);
       if (selected !== null && files.includes(selected.file)) {
         await bootstrapFile(
           selected.file,
@@ -220,7 +223,7 @@ export class LiveWorkspaceController implements WorkspaceController {
     ): Promise<void> => {
       try {
         const revisions = await queries.fetchRevisions(scope);
-        const selected = state.selectedScope;
+        const selected = selectedScope(state);
         const [first] = revisions;
         if (
           first !== undefined &&
@@ -239,7 +242,7 @@ export class LiveWorkspaceController implements WorkspaceController {
       }
     };
     const refreshQueued = async (): Promise<void> => {
-      const selected = state.selectedScope;
+      const selected = selectedScope(state);
       if (selected !== null && activeForScope(queries, selected)) {
         return;
       }
@@ -272,7 +275,7 @@ export class LiveWorkspaceController implements WorkspaceController {
       }
     };
     const handleWorkspaceEvent = (id: number, event: WorkspaceEvent): void => {
-      const selected = state.selectedScope;
+      const selected = selectedScope(state);
       const before = queries.getActiveExecutions();
       const activeFile =
         event.type === "source-change"
@@ -324,7 +327,7 @@ export class LiveWorkspaceController implements WorkspaceController {
           );
         } else if (
           event.change.change === "added" &&
-          state.selectedScope === null
+          state.selection.status === "unselected"
         ) {
           void bootstrapFile(event.change.file);
         }
@@ -370,7 +373,7 @@ export class LiveWorkspaceController implements WorkspaceController {
       }
     };
     const runProcedure = async (): Promise<void> => {
-      const scope = state.selectedScope;
+      const scope = selectedScope(state);
       const analysis = scope === null ? undefined : queries.getAnalysis(scope);
       if (
         scope === null ||
@@ -460,13 +463,14 @@ export class LiveWorkspaceController implements WorkspaceController {
         void bootstrapFile(file);
       },
       selectProcedure: (procedureId: string) => {
+        const { selection } = state;
         if (
           state.connectionState.status === "reconnecting" ||
-          state.selectedScope === null
+          selection.status === "unselected"
         ) {
           return;
         }
-        void bootstrapFile(state.selectedScope.file, procedureId);
+        void bootstrapFile(selection.scope.file, procedureId);
       },
       selectRevision: (key: RevisionKey | null) => {
         if (key === null || state.connectionState.status === "reconnecting") {
@@ -477,9 +481,10 @@ export class LiveWorkspaceController implements WorkspaceController {
       },
       setImportsVisible: (visible: boolean) => {
         dispatch({ type: "set-imports-visible", visible });
-        if (state.selectedScope !== null && ports.preferences !== undefined) {
+        const selected = selectedScope(state);
+        if (selected !== null && ports.preferences !== undefined) {
           ports.preferences.save({
-            ...state.selectedScope,
+            ...selected,
             importsVisible: visible,
           });
         }

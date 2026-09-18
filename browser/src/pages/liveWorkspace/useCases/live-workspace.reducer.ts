@@ -114,7 +114,8 @@ const workspaceEvent = (
   if (workspace.type === "source-change") {
     if (
       workspace.change.change === "deleted" &&
-      workspace.change.file === state.selectedScope?.file &&
+      state.selection.status === "selected" &&
+      workspace.change.file === state.selection.scope.file &&
       event.activeForFile
     ) {
       return transition(state, {
@@ -125,7 +126,8 @@ const workspaceEvent = (
     }
     if (
       workspace.change.change === "modified" &&
-      workspace.change.file === state.selectedScope?.file &&
+      state.selection.status === "selected" &&
+      workspace.change.file === state.selection.scope.file &&
       event.activeForScope
     ) {
       return transition(state, {
@@ -148,7 +150,10 @@ export const reduceWorkspace = (
     case "preferences-loaded": {
       return transition(state, {
         importsVisible: event.importsVisible,
-        selectedScope: event.scope ?? null,
+        selection:
+          event.scope === undefined
+            ? { status: "unselected" }
+            : { scope: event.scope, status: "selected" },
       });
     }
     case "select-scope": {
@@ -156,7 +161,10 @@ export const reduceWorkspace = (
         errorMessage: null,
         fileDeleted: false,
         queuedRevision: null,
-        selectedScope: event.key,
+        selection:
+          event.key === null
+            ? { status: "unselected" }
+            : { scope: event.key, status: "selected" },
       });
     }
     case "select-execution": {
@@ -249,7 +257,7 @@ export const reduceWorkspace = (
         fileDeleted: false,
         queuedRevision: null,
         selectedExecutionId: null,
-        selectedScope: null,
+        selection: { status: "unselected" },
       });
     }
     case "clear-completed": {

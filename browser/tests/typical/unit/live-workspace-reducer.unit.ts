@@ -41,7 +41,7 @@ describe("live workspace local interaction reducer", () => {
       scope,
       type: "preferences-loaded",
     });
-    expect(next.selectedScope).toEqual(scope);
+    expect(next.selection).toEqual({ scope, status: "selected" });
     expect(next.importsVisible).toBe(false);
     expect(next).not.toHaveProperty("files");
     expect(next).not.toHaveProperty("revisions");
@@ -68,7 +68,7 @@ describe("live workspace local interaction reducer", () => {
       type: "workspace-event",
     });
     expect(changed.queuedRevision).toBe("revision-2");
-    expect(changed.selectedScope).toEqual(scope);
+    expect(changed.selection).toEqual({ scope, status: "selected" });
   });
 
   it("marks a selected file deleted while one of its runs is active", () => {

@@ -1,4 +1,8 @@
-import type { AnalysisGatewayPort } from "../../../shared/api/analysis-gateway";
+import type { RevisionKey } from "@runtime-visualizer/contracts";
+
+import type {
+  AnalysisGatewayPort,
+} from "../../../shared/api/analysis-gateway";
 import type { ExecutionGatewayPort } from "../../../shared/api/execution-gateway";
 import type { WorkspaceEventsGatewayPort } from "../../../shared/api/workspace-events-gateway";
 import type { WorkspacePreferences } from "../../../shared/api/workspace-preferences";
@@ -17,7 +21,7 @@ export interface WorkspaceController {
   subscribe: (listener: (state: LiveWorkspaceState) => void) => () => void;
   selectFile: (file: string) => void;
   selectProcedure: (procedureId: string) => void;
-  selectRevision: (key: LiveWorkspaceState["selectedScope"]) => void;
+  selectRevision: (key: RevisionKey | null) => void;
   setImportsVisible: (visible: boolean) => void;
   focus: (target: LiveWorkspaceState["focus"]) => void;
   runProcedure: () => void;

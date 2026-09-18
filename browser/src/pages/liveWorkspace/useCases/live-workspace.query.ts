@@ -440,6 +440,8 @@ export const projectLiveWorkspaceView = (
   const { analysis } = resources;
   const analysisError = resources.analysisError ?? resources.filesError;
   const error = state.errorMessage ?? analysisError;
+  const selectedScope =
+    state.selection.status === "selected" ? state.selection.scope : null;
   let pane: LiveWorkspaceView["pane"];
   if (resources.analysisStatus === "ready" && analysis !== null) {
     pane = { status: "ready", value: analysis };
@@ -472,8 +474,9 @@ export const projectLiveWorkspaceView = (
     files: resources.files,
     pane,
     revisions: resources.revisions,
-    selectedFile: state.selectedScope?.file ?? null,
-    selectedProcedure: state.selectedScope?.procedureId ?? null,
+    selectedFile: selectedScope?.file ?? null,
+    selectedProcedure: selectedScope?.procedureId ?? null,
+    selectedScope,
     status,
   };
 };

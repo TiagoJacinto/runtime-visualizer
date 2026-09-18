@@ -40,6 +40,10 @@ export interface WorkspaceConnectionState {
   status: "connected" | "reconnecting";
   cursor: number | null;
 }
+/** A workspace has either no selected scope or one complete revision key. */
+export type WorkspaceSelection =
+  | { status: "unselected" }
+  | { status: "selected"; scope: RevisionKey };
 export type ExecutionStatus = "running" | "succeeded" | "failed" | "cancelled";
 /** Browser projection of a server-owned execution. `scope` is authoritative. */
 export interface ExecutionRecord {
@@ -62,7 +66,7 @@ export interface ExecutionRecord {
  * cache and are combined with this state at the rendering boundary.
  */
 export interface LiveWorkspaceState {
-  selectedScope: RevisionKey | null;
+  selection: WorkspaceSelection;
   focus: FocusTarget | null;
   contextTab: "scope" | "runs";
   cancellation: CancellationState;
@@ -87,6 +91,8 @@ export interface WorkspaceResourceState {
 
 /** Ephemeral view model composed from local interaction state and query data. */
 export interface LiveWorkspaceView extends LiveWorkspaceState {
+  /** Rendering convenience derived from the closed local selection state. */
+  selectedScope: RevisionKey | null;
   files: readonly string[];
   analysis: AnalysisResponse | null;
   revisions: readonly RevisionSummary[];
@@ -112,7 +118,7 @@ export const initialLiveWorkspaceState: LiveWorkspaceState = {
   notifications: [],
   queuedRevision: null,
   selectedExecutionId: null,
-  selectedScope: null,
+  selection: { status: "unselected" },
 };
 
 export const executionRecordFromActive = (

@@ -30,10 +30,9 @@ const LiveWorkspaceContent = ({
   disposeOnUnmount: boolean;
 }) => {
   const state = useWorkspaceController(controller, disposeOnUnmount);
-  const resources = useLiveWorkspaceResources(
-    controller.queries,
-    state.selectedScope
-  );
+  const selectedScope =
+    state.selection.status === "selected" ? state.selection.scope : null;
+  const resources = useLiveWorkspaceResources(controller.queries, selectedScope);
   const view = projectLiveWorkspaceView(state, resources);
   const [railOpen, setRailOpen] = useState(false);
   const displayedScope = view.analysis

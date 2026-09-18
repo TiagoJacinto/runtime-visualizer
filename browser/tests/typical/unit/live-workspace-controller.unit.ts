@@ -232,10 +232,13 @@ describe("live workspace server event observation", () => {
       },
     });
     await settle();
-    expect(
-      controller.queries.getAnalysis(controller.getState().selectedScope!)
-        ?.revision
-    ).toBe("revision-1");
+    const selection = controller.getState().selection;
+    expect(selection).toMatchObject({ status: "selected" });
+    if (selection.status === "selected") {
+      expect(controller.queries.getAnalysis(selection.scope)?.revision).toBe(
+        "revision-1"
+      );
+    }
     controller.dispose();
   });
 
@@ -250,7 +253,10 @@ describe("live workspace server event observation", () => {
     });
     await settle();
     expect(controller.queries.getFiles()).toEqual(["main.ts", "new.ts"]);
-    expect(controller.getState().selectedScope?.file).toBe("main.ts");
+    expect(controller.getState().selection).toMatchObject({
+      scope: { file: "main.ts" },
+      status: "selected",
+    });
     controller.dispose();
   });
 
@@ -265,7 +271,9 @@ describe("live workspace server event observation", () => {
     });
     await settle();
     expect(controller.queries.getFiles()).toEqual([]);
-    expect(controller.getState().selectedScope).toBeNull();
+    expect(controller.getState().selection).toEqual({
+      status: "unselected",
+    });
     controller.dispose();
   });
 
