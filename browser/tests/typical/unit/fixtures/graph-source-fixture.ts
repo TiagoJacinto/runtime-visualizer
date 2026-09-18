@@ -61,6 +61,4 @@ export const analysis: AnalysisResponse = {
     "import { value } from './value';\nfunction run() {\n  return value;\n}",
 };
 
-if (analysis.cfg === null) throw new Error("test fixture must include a graph");
-
 export const cfg = analysis.cfg;
