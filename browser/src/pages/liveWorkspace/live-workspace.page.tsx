@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 
 import { AnalysisGateway } from "../../shared/api/analysis-gateway";
 import { ExecutionGateway } from "../../shared/api/execution-gateway";
@@ -12,10 +13,88 @@ import { WorkspaceHeader } from "./components/workspaceHeader/workspace-header";
 import { LiveWorkspaceController } from "./useCases/live-workspace.controller";
 import type { WorkspaceController } from "./useCases/live-workspace.ports";
 import {
+  projectLiveWorkspaceView,
+  useLiveWorkspaceResources,
+} from "./useCases/live-workspace.query";
+import {
   selectRevisionBadge,
   selectVisibleExecutions,
 } from "./useCases/live-workspace.selectors";
-import type { LiveWorkspaceState } from "./useCases/live-workspace.types";
+import { useWorkspaceController } from "./useCases/use-workspace-controller";
+
+const LiveWorkspaceContent = ({
+  controller,
+  disposeOnUnmount,
+}: {
+  controller: WorkspaceController;
+  disposeOnUnmount: boolean;
+}) => {
+  const state = useWorkspaceController(controller, disposeOnUnmount);
+  const selectedScope =
+    state.selection.status === "selected" ? state.selection.scope : null;
+  const resources = useLiveWorkspaceResources(controller.queries, selectedScope);
+  const view = projectLiveWorkspaceView(state, resources);
+  const [railOpen, setRailOpen] = useState(false);
+  const displayedScope = view.analysis
+    ? {
+        file: view.analysis.file,
+        procedureId: view.analysis.procedureId,
+        revision: view.analysis.revision,
+      }
+    : view.selectedScope;
+  const visibleExecutions = selectVisibleExecutions(view, displayedScope);
+  const revisionBadge = selectRevisionBadge(view, displayedScope);
+  return (
+    <div
+      className="h-screen w-full overflow-hidden bg-[#07110E] text-slate-100"
+      data-testid="live-workspace"
+    >
+      <div className="flex h-full w-full flex-col">
+        <WorkspaceHeader
+          state={view}
+          scope={displayedScope}
+          onOpenRail={() => setRailOpen(true)}
+        />
+        <div className="relative flex min-h-0 flex-1">
+          {railOpen ? (
+            <button
+              type="button"
+              aria-label="Close workspace navigation overlay"
+              onClick={() => setRailOpen(false)}
+              className="absolute inset-0 z-20 bg-black/60 focus-visible:outline-2 focus-visible:outline-emerald-200 lg:hidden"
+            />
+          ) : null}
+          <ContextRail
+            state={view}
+            controller={controller}
+            analysis={view.analysis}
+            selectedScope={view.selectedScope}
+            revisions={view.revisions}
+            revisionBadge={revisionBadge}
+            open={railOpen}
+            onClose={() => setRailOpen(false)}
+          />
+          <main className="flex min-w-0 flex-1 flex-col overflow-auto bg-[#07110E]">
+            <WorkspaceNotifications state={view} controller={controller} />
+            {view.status === "empty" ? (
+              <output className="px-4 pt-6 text-xs text-slate-500 sm:px-6">
+                No supported TypeScript files found.
+              </output>
+            ) : null}
+            <ProcedureWorkspace
+              state={view}
+              controller={controller}
+              analysis={view.analysis}
+              scope={displayedScope}
+              visibleExecutions={visibleExecutions}
+              revisionBadge={revisionBadge}
+            />
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const LiveWorkspacePage = ({
   controller: provided,
@@ -34,82 +113,12 @@ export const LiveWorkspacePage = ({
       }),
     [provided]
   );
-  const [state, setState] = useState<LiveWorkspaceState>(controller.getState());
-  const [railOpen, setRailOpen] = useState(false);
-  useEffect(() => {
-    const unsubscribe = controller.subscribe(setState);
-    controller.start();
-    return () => {
-      unsubscribe();
-      if (!provided) {
-        controller.dispose();
-      }
-    };
-  }, [controller, provided]);
-  const { analysis } = state;
-  const { selectedScope } = state;
-  const displayedScope = analysis
-    ? {
-        file: analysis.file,
-        procedureId: analysis.procedureId,
-        revision: analysis.revision,
-      }
-    : selectedScope;
-  const visibleExecutions = selectVisibleExecutions(state, displayedScope);
-  const revisionBadge = selectRevisionBadge(state, displayedScope);
-  const revisions = selectedScope
-    ? (state.revisionsByScope[
-        `${selectedScope.file}\0${selectedScope.procedureId}`
-      ] ?? [])
-    : [];
   return (
-    <div
-      className="h-screen w-full overflow-hidden bg-[#07110E] text-slate-100"
-      data-testid="live-workspace"
-    >
-      <div className="flex h-full w-full flex-col">
-        <WorkspaceHeader
-          state={state}
-          scope={displayedScope}
-          onOpenRail={() => setRailOpen(true)}
-        />
-        <div className="relative flex min-h-0 flex-1">
-          {railOpen ? (
-            <button
-              type="button"
-              aria-label="Close workspace navigation overlay"
-              onClick={() => setRailOpen(false)}
-              className="absolute inset-0 z-20 bg-black/60 focus-visible:outline-2 focus-visible:outline-emerald-200 lg:hidden"
-            />
-          ) : null}
-          <ContextRail
-            state={state}
-            controller={controller}
-            analysis={analysis}
-            selectedScope={selectedScope}
-            revisions={revisions}
-            revisionBadge={revisionBadge}
-            open={railOpen}
-            onClose={() => setRailOpen(false)}
-          />
-          <main className="flex min-w-0 flex-1 flex-col overflow-auto bg-[#07110E]">
-            <WorkspaceNotifications state={state} controller={controller} />
-            {state.status === "empty" ? (
-              <output className="px-4 pt-6 text-xs text-slate-500 sm:px-6">
-                No supported TypeScript files found.
-              </output>
-            ) : null}
-            <ProcedureWorkspace
-              state={state}
-              controller={controller}
-              analysis={analysis}
-              scope={displayedScope}
-              visibleExecutions={visibleExecutions}
-              revisionBadge={revisionBadge}
-            />
-          </main>
-        </div>
-      </div>
-    </div>
+    <QueryClientProvider client={controller.queries.client}>
+      <LiveWorkspaceContent
+        controller={controller}
+        disposeOnUnmount={provided === undefined}
+      />
+    </QueryClientProvider>
   );
 };

@@ -25,6 +25,11 @@ export const coveragePolicy = {
       report: "backend/coverage/integration/coverage-summary.json",
     },
     {
+      command: "frontend:test:coverage:unit",
+      name: "browser unit",
+      report: "browser/coverage/typical-unit/coverage-summary.json",
+    },
+    {
       command: "frontend:test:coverage:hvut",
       name: "browser acceptance unit",
       report: "browser/coverage/unit/coverage-summary.json",
@@ -124,13 +129,23 @@ export const coveragePolicy = {
     },
     {
       command: "backend:test:integration",
-      files: "backend/tests/typical/integration/**/*.integration.ts",
+      files: "backend/tests/typical/**/*.integration.ts",
       name: "backend integration",
+    },
+    {
+      command: "backend:test:e2e",
+      files: "backend/tests/typical/e2e/**/*.e2e.ts",
+      name: "backend API end-to-end",
     },
     {
       command: "backend:test:durable",
       files: "backend/tests/typical/e2e/**/*.bun.test.ts",
       name: "backend durable runtime",
+    },
+    {
+      command: "frontend:test:unit",
+      files: "browser/tests/typical/unit/**/*.unit.ts",
+      name: "browser unit",
     },
     {
       command: "backend:test:hvut",

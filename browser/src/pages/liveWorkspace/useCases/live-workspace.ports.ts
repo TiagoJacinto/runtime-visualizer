@@ -1,21 +1,27 @@
-import type { AnalysisGatewayPort } from "../../../shared/api/analysis-gateway";
+import type { RevisionKey } from "@runtime-visualizer/contracts";
+
+import type {
+  AnalysisGatewayPort,
+} from "../../../shared/api/analysis-gateway";
 import type { ExecutionGatewayPort } from "../../../shared/api/execution-gateway";
 import type { WorkspaceEventsGatewayPort } from "../../../shared/api/workspace-events-gateway";
 import type { WorkspacePreferences } from "../../../shared/api/workspace-preferences";
 import type { RetryScheduler } from "../../../shared/retry/retry-scheduler";
+import type { LiveWorkspaceQueries } from "./live-workspace.query";
 import type { LiveWorkspaceEvent } from "./live-workspace.reducer";
 import type { LiveWorkspaceState } from "./live-workspace.types";
 
 export type ExecutionPort = ExecutionGatewayPort;
 
 export interface WorkspaceController {
+  readonly queries: LiveWorkspaceQueries;
   getState: () => LiveWorkspaceState;
   dispatch: (intent: LiveWorkspaceEvent) => void;
   start: () => void;
   subscribe: (listener: (state: LiveWorkspaceState) => void) => () => void;
   selectFile: (file: string) => void;
   selectProcedure: (procedureId: string) => void;
-  selectRevision: (key: LiveWorkspaceState["selectedScope"]) => void;
+  selectRevision: (key: RevisionKey | null) => void;
   setImportsVisible: (visible: boolean) => void;
   focus: (target: LiveWorkspaceState["focus"]) => void;
   runProcedure: () => void;
@@ -33,4 +39,5 @@ export interface LiveWorkspacePorts {
   workspaceEvents: WorkspaceEventsGatewayPort;
   preferences?: WorkspacePreferences;
   retry?: RetryScheduler;
+  queries?: LiveWorkspaceQueries;
 }

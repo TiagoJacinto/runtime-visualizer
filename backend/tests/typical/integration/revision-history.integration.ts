@@ -1,77 +1,77 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { rm, writeFile } from "node:fs/promises";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+
 import type { AnalysisSnapshot } from "../../../src/modules/analysis/index.ts";
-import { createApp } from "../../../src/shared/infra/http/app.ts";
 
 const procedure = {
   id: "procedure:prepare",
   kind: "Function" as const,
-  name: "prepare",
   label: "prepare",
+  name: "prepare",
 };
-function snapshot(
+
+const snapshot = (
   revision: string,
   analyzedAt: string,
   diagnostics: readonly { procedure: string; reason: string }[] = [],
-): AnalysisSnapshot {
-  return {
-    file: "main.ts",
-    procedure,
-    revision,
-    source: `function prepare() { return ${revision}; }`,
-    files: { "main.ts": "source" },
-    procedures: [procedure],
-    cfg: diagnostics.length === 0 ? null : null,
-    diagnostics,
-    analyzedAt,
-  };
-}
+): AnalysisSnapshot => ({
+  analyzedAt,
+  cfg: null,
+  diagnostics,
+  file: "main.ts",
+  files: { "main.ts": "source" },
+  procedure,
+  procedures: [procedure],
+  revision,
+  source: `function prepare() { return ${revision}; }`,
+});
 
-const sqliteAvailable = typeof globalThis.Bun !== "undefined";
+const sqliteAvailable = globalThis.Bun !== undefined;
 const suite = sqliteAvailable ? describe : describe.skip;
 
-type History = {
-  save(snapshot: AnalysisSnapshot): Promise<"inserted" | "existing">;
-  list(scope: { file: string; procedureId: string }): Promise<
+interface History {
+  acquire: (key: {
+    file: string;
+    procedureId: string;
+    revision: string;
+  }) => Promise<{ release: () => void } | undefined>;
+  close: () => void;
+  list: (scope: { file: string; procedureId: string }) => Promise<
     readonly {
-      revision: string;
-      procedureId: string;
-      runnable: boolean;
       diagnosticCount: number;
+      procedureId: string;
+      revision: string;
+      runnable: boolean;
     }[]
   >;
-  load(key: {
+  load: (key: {
     file: string;
     procedureId: string;
     revision: string;
-  }): Promise<AnalysisSnapshot | undefined>;
-  acquire(key: {
-    file: string;
-    procedureId: string;
-    revision: string;
-  }): Promise<{ release(): void } | undefined>;
-  close(): void;
+  }) => Promise<AnalysisSnapshot | undefined>;
+  save: (snapshot: AnalysisSnapshot) => Promise<"inserted" | "existing">;
+}
+
+const createHistory = async (
+  database: string,
+  clock?: () => Date,
+): Promise<History> => {
+  const { SqliteRevisionHistory } = await import(
+    "../../../src/modules/analysis/persistence.ts"
+  );
+  return new SqliteRevisionHistory(database, clock);
 };
 
 suite("SQLite revision history", () => {
   let directory: string | undefined;
   let history: History | undefined;
-  async function createHistory(
-    database: string,
-    clock?: () => Date,
-  ): Promise<History> {
-    const { SqliteRevisionHistory } = await import(
-      "../../../src/modules/analysis/persistence.ts"
-    );
-    return new SqliteRevisionHistory(database, clock);
-  }
+
   afterEach(() => {
     history?.close();
     return directory
-      ? rm(directory, { recursive: true, force: true })
+      ? rm(directory, { force: true, recursive: true })
       : undefined;
   });
 
@@ -84,48 +84,46 @@ suite("SQLite revision history", () => {
       path.join(directory, "main.ts"),
       "function prepare() { return 1; }\n",
     );
-    history = await createHistory(database);
-    await history!.save(snapshot("one", new Date().toISOString()));
-    const summaries = await history!.list({
+    let current = await createHistory(database);
+    history = current;
+    await current.save(snapshot("one", new Date().toISOString()));
+    const summaries = await current.list({
       file: "main.ts",
       procedureId: procedure.id,
     });
     expect(summaries[0]).toMatchObject({
-      revision: "one",
-      procedureId: procedure.id,
       diagnosticCount: 0,
+      procedureId: procedure.id,
+      revision: "one",
     });
-    history!.close();
+    current.close();
     history = undefined;
-    history = await createHistory(database);
+    current = await createHistory(database);
+    history = current;
     await rm(path.join(directory, "main.ts"));
-    expect(
-      (
-        await history!.load({
-          file: "main.ts",
-          procedureId: procedure.id,
-          revision: "one",
-        })
-      )?.source,
-    ).toContain("return one");
+    const saved = await current.load({
+      file: "main.ts",
+      procedureId: procedure.id,
+      revision: "one",
+    });
+    expect(saved?.source).toContain("return one");
     const diagnostic = snapshot("diagnostic", new Date().toISOString(), [
       { procedure: procedure.id, reason: "missing dependency" },
     ]);
-    await history!.save(diagnostic);
+    await current.save(diagnostic);
+    const listed = await current.list({
+      file: "main.ts",
+      procedureId: procedure.id,
+    });
     expect(
-      (
-        await history!.list({ file: "main.ts", procedureId: procedure.id })
-      ).find((item) => item.revision === "diagnostic"),
-    ).toMatchObject({ runnable: false, diagnosticCount: 1 });
-    expect(
-      (
-        await history!.load({
-          file: "main.ts",
-          procedureId: procedure.id,
-          revision: "diagnostic",
-        })
-      )?.diagnostics,
-    ).toHaveLength(1);
+      listed.find((item) => item.revision === "diagnostic"),
+    ).toMatchObject({ diagnosticCount: 1, runnable: false });
+    const loadedDiagnostic = await current.load({
+      file: "main.ts",
+      procedureId: procedure.id,
+      revision: "diagnostic",
+    });
+    expect(loadedDiagnostic?.diagnostics).toHaveLength(1);
   });
 
   it("saves idempotently and retains newest 20 plus leased expired rows", async () => {
@@ -133,22 +131,25 @@ suite("SQLite revision history", () => {
     directory = await mkdtemp(
       path.join(os.tmpdir(), "runtime-visualizer-retention-"),
     );
-    history = await createHistory(
+    const current = await createHistory(
       path.join(directory, "revisions.sqlite"),
       () => now,
     );
+    history = current;
     const old = new Date("2024-01-01T00:00:00.000Z").toISOString();
     const first = snapshot("r-0", old);
-    expect(await history.save(first)).toBe("inserted");
-    expect(await history!.save(first)).toBe("existing");
-    const lease = await history!.acquire({
+    expect(await current.save(first)).toBe("inserted");
+    expect(await current.save(first)).toBe("existing");
+    const lease = await current.acquire({
       file: "main.ts",
       procedureId: procedure.id,
       revision: "r-0",
     });
-    for (let index = 1; index <= 21; index++)
-      await history!.save(snapshot(`r-${index}`, old));
-    const retained = await history!.list({
+    for (let index = 1; index <= 21; index += 1) {
+      // oxlint-disable-next-line no-await-in-loop -- SQLite writes must remain ordered.
+      await current.save(snapshot(`r-${index}`, old));
+    }
+    const retained = await current.list({
       file: "main.ts",
       procedureId: procedure.id,
     });
@@ -156,31 +157,12 @@ suite("SQLite revision history", () => {
     expect(retained.map((item) => item.revision)).toContain("r-0");
     lease?.release();
     now = new Date("2025-02-01T00:00:00.000Z");
-    await history!.save(snapshot("trigger", old));
-    expect(
-      await history!.load({
-        file: "main.ts",
-        procedureId: procedure.id,
-        revision: "r-0",
-      }),
-    ).toBeUndefined();
-  });
-
-  it("does not re-analyze an explicitly unavailable revision", async () => {
-    directory = await mkdtemp(
-      path.join(os.tmpdir(), "runtime-visualizer-http-"),
-    );
-    await writeFile(
-      path.join(directory, "main.ts"),
-      "function prepare() { return 1; }\n",
-    );
-    const app = await createApp({ filesFolder: directory });
-    const response = await app.inject({
-      method: "GET",
-      url: "/api/analysis?file=main.ts&procedureId=missing&revision=gone",
+    await current.save(snapshot("trigger", old));
+    const pruned = await current.load({
+      file: "main.ts",
+      procedureId: procedure.id,
+      revision: "r-0",
     });
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({ error: "Revision unavailable" });
-    await app.close();
+    expect(pruned).toBeUndefined();
   });
 });

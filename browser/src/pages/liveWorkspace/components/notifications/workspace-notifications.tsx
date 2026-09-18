@@ -1,10 +1,10 @@
 import { AlertCircle, GitBranch, RefreshCw } from "lucide-react";
 
 import type { WorkspaceController } from "../../useCases/live-workspace.ports";
-import type { LiveWorkspaceState } from "../../useCases/live-workspace.types";
+import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
 
 interface WorkspaceNotificationsProps {
-  state: LiveWorkspaceState;
+  state: LiveWorkspaceView;
   controller: WorkspaceController;
 }
 export const WorkspaceNotifications = ({

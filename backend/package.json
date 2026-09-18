@@ -9,10 +9,14 @@
     "dev": "bun --hot run src/index.ts",
     "typecheck": "tsc --noEmit",
     "lint:boundaries": "depcruise src tests",
-    "test:typical": "vitest run --config vitest.config.ts --project backend-unit --project backend-integration --project backend-e2e --passWithNoTests",
+    "test:typical": "bun run test:unit && bun run test:integration && bun run test:e2e",
     "test:unit": "vitest run --config vitest.config.ts --project backend-unit",
-    "test:integration": "vitest run --config vitest.config.ts --project backend-integration --maxWorkers=1 --no-file-parallelism",
-    "test:e2e": "vitest run --config vitest.config.ts --project backend-e2e --passWithNoTests",
+    "test:integration": "bun run test:integration:composition && bun run test:integration:incoming && bun run test:integration:outgoing-managed && bun run test:integration:outgoing-unmanaged",
+    "test:integration:composition": "vitest run --config vitest.config.ts --project backend-composition-integration --maxWorkers=1 --no-file-parallelism",
+    "test:integration:incoming": "vitest run --config vitest.config.ts --project backend-incoming-integration --maxWorkers=1 --no-file-parallelism --passWithNoTests",
+    "test:integration:outgoing-managed": "vitest run --config vitest.config.ts --project backend-outgoing-managed-integration --maxWorkers=1 --no-file-parallelism --passWithNoTests",
+    "test:integration:outgoing-unmanaged": "vitest run --config vitest.config.ts --project backend-outgoing-unmanaged-integration --maxWorkers=1 --no-file-parallelism --passWithNoTests",
+    "test:e2e": "vitest run --config vitest.config.ts --project backend-e2e --maxWorkers=1 --no-file-parallelism --passWithNoTests",
     "test:durable": "bun test tests/typical/e2e/durable-live-workspace.bun.test.ts",
     "test:acceptance": "vitest run --config vitest.config.ts --project backend-hvut --project backend-hvit --project backend-hve2e --passWithNoTests",
     "test:hvut": "vitest run --config vitest.config.ts --project backend-hvut",
@@ -20,14 +24,14 @@
     "test:hve2e": "vitest run --config vitest.config.ts --project backend-hve2e --passWithNoTests",
     "test:coverage": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --passWithNoTests",
     "test:coverage:unit": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --project backend-unit --coverage.reportsDirectory=coverage/unit --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0",
-    "test:coverage:integration": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --no-file-parallelism --project backend-integration --coverage.reportsDirectory=coverage/integration --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0",
+    "test:coverage:integration": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --no-file-parallelism --project backend-composition-integration --project backend-incoming-integration --project backend-outgoing-managed-integration --project backend-outgoing-unmanaged-integration --coverage.reportsDirectory=coverage/integration --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests",
     "test:coverage:acceptance": "vitest run --config vitest.config.ts --coverage --maxWorkers=1 --testTimeout=60000 --project backend-hvut --project backend-hvit --project backend-hve2e --coverage.thresholds.lines=0 --coverage.thresholds.branches=0 --coverage.thresholds.functions=0 --coverage.thresholds.statements=0 --passWithNoTests"
   },
   "dependencies": {
     "fastify": "^5.0.0",
     "typescript": "^5.6.3",
     "ws": "^8.18.0",
-    "zod": "^4.4.3"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@amiceli/vitest-cucumber": "^7.0.0",

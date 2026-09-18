@@ -60,7 +60,7 @@ When("I run the displayed Procedure", async ({ page }) => {
 });
 
 When("the selected file changes during the Execution", async ({ page }) => {
-  await expect(page.getByText("Running", { exact: true })).toBeVisible({
+  await expect(page.getByText("Running", { exact: true }).first()).toBeVisible({
     timeout: 5_000,
   });
   await writeFile(queueFile, `${slowSource}// updated while running\n`, "utf8");

@@ -5,11 +5,11 @@ import type {
 
 import type {
   ExecutionRecord,
-  LiveWorkspaceState,
+  LiveWorkspaceView,
 } from "./live-workspace.types";
 
 export const selectVisibleExecutions = (
-  state: LiveWorkspaceState,
+  state: LiveWorkspaceView,
   scope: RevisionKey | null = state.selectedScope
 ): readonly ExecutionRecord[] => {
   if (scope === null) {
@@ -23,7 +23,7 @@ export const selectVisibleExecutions = (
   );
 };
 export const selectVisibleMarkers = (
-  state: LiveWorkspaceState,
+  state: LiveWorkspaceView,
   nodeId: string,
   scope: RevisionKey | null = state.selectedScope
 ): readonly ExecutionRecord[] =>
@@ -31,15 +31,14 @@ export const selectVisibleMarkers = (
     (execution) => execution.currentNodeId === nodeId
   );
 export const selectRevisionBadge = (
-  state: LiveWorkspaceState,
+  state: LiveWorkspaceView,
   scope: RevisionKey | null = state.selectedScope
 ): RevisionSummary | null => {
   if (scope === null) {
     return null;
   }
   return (
-    state.revisionsByScope[`${scope.file}\0${scope.procedureId}`]?.find(
-      (revision) => revision.revision === scope.revision
-    ) ?? null
+    state.revisions.find((revision) => revision.revision === scope.revision) ??
+    null
   );
 };

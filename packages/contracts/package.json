@@ -12,7 +12,7 @@
     "test:coverage:unit": "vitest run --config vitest.config.ts --coverage --coverage.reportsDirectory=coverage/unit"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",

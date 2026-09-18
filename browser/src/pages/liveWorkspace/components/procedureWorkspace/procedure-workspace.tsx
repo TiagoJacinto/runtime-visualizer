@@ -5,16 +5,16 @@ import type {
 } from "@runtime-visualizer/contracts";
 
 import type { WorkspaceController } from "../../useCases/live-workspace.ports";
-import type { LiveWorkspaceState } from "../../useCases/live-workspace.types";
+import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
 import { GraphPane } from "../controlFlowGraph/graph-pane";
 import { SourcePane } from "../source/source-pane";
 
 interface ProcedureWorkspaceProps {
-  state: LiveWorkspaceState;
+  state: LiveWorkspaceView;
   controller: WorkspaceController;
   analysis: AnalysisResponse | null;
   scope: RevisionKey | null;
-  visibleExecutions: LiveWorkspaceState["executions"];
+  visibleExecutions: LiveWorkspaceView["executions"];
   revisionBadge: RevisionSummary | null;
 }
 export const ProcedureWorkspace = ({

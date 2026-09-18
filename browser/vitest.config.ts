@@ -30,8 +30,36 @@ export default defineConfig({
       {
         extends: true,
         test: {
-          name: "browser-integration",
+          name: "browser-composition-integration",
           include: ["tests/typical/integration/**/*.integration.ts"],
+          environment: "node",
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "browser-incoming-integration",
+          include: ["tests/typical/incoming/**/*.incoming.integration.ts"],
+          environment: "node",
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "browser-outgoing-managed-integration",
+          include: [
+            "tests/typical/outgoing/managed/**/*.managed.integration.ts",
+          ],
+          environment: "node",
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "browser-outgoing-unmanaged-integration",
+          include: [
+            "tests/typical/outgoing/unmanaged/**/*.unmanaged.integration.ts",
+          ],
           environment: "node",
         },
       },

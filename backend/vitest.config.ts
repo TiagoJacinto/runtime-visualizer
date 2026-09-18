@@ -31,7 +31,38 @@ export default defineConfig({
         test: {
           environment: "node",
           include: ["tests/typical/integration/**/*.integration.ts"],
-          name: "backend-integration",
+          name: "backend-composition-integration",
+          testTimeout: 30_000,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          environment: "node",
+          include: ["tests/typical/incoming/**/*.incoming.integration.ts"],
+          name: "backend-incoming-integration",
+          testTimeout: 30_000,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          environment: "node",
+          include: [
+            "tests/typical/outgoing/managed/**/*.managed.integration.ts",
+          ],
+          name: "backend-outgoing-managed-integration",
+          testTimeout: 30_000,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          environment: "node",
+          include: [
+            "tests/typical/outgoing/unmanaged/**/*.unmanaged.integration.ts",
+          ],
+          name: "backend-outgoing-unmanaged-integration",
           testTimeout: 30_000,
         },
       },
@@ -41,6 +72,7 @@ export default defineConfig({
           environment: "node",
           include: ["tests/typical/e2e/**/*.e2e.ts"],
           name: "backend-e2e",
+          testTimeout: 30_000,
         },
       },
 

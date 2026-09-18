@@ -1,5 +1,5 @@
 import {
-  ActiveExecutionSchema,
+  ActiveExecutionsResponseSchema,
   ExecuteProcedureResponseSchema,
 } from "@runtime-visualizer/contracts";
 import type {
@@ -53,10 +53,8 @@ export class ExecutionGateway {
         response.status
       );
     }
-    const value = z
-      .object({ executions: z.array(ActiveExecutionSchema) })
-      .parse(await response.json());
-    return value.executions;
+    return ActiveExecutionsResponseSchema.parse(await response.json())
+      .executions;
   }
   async cancel(executionId: string, signal?: AbortSignal): Promise<void> {
     const response = await this.fetcher(

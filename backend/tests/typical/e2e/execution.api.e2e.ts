@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  setupExecutionFixture,
-  type ExecutionFixture,
-} from "./fixtures/execution-fixture.ts";
+import { setupExecutionFixture } from "./fixtures/execution-fixture.ts";
+import type { ExecutionFixture } from "./fixtures/execution-fixture.ts";
 
-describe("execution incoming adapter", () => {
+describe("execution HTTP composition", () => {
   let fixture: ExecutionFixture | undefined;
 
   afterEach(async () => {
@@ -20,8 +18,8 @@ describe("execution incoming adapter", () => {
     const { app, scope } = current;
     const response = await app.inject({
       method: "POST",
-      url: "/api/execute",
       payload: scope,
+      url: "/api/execute",
     });
     expect(response.statusCode).toBe(202);
     expect(response.json()).toEqual({ executionId: expect.any(String) });
@@ -36,10 +34,10 @@ describe("execution incoming adapter", () => {
     const { app, scope, active, waitForEmpty } = current;
     const started = await app.inject({
       method: "POST",
-      url: "/api/execute",
       payload: scope,
+      url: "/api/execute",
     });
-    const executionId = (started.json() as { executionId: string }).executionId;
+    const { executionId } = started.json<{ executionId: string }>();
     expect(await active()).toEqual({
       executions: [
         expect.objectContaining({
@@ -62,22 +60,20 @@ describe("execution incoming adapter", () => {
     const { app, scope } = current;
     const started = await app.inject({
       method: "POST",
-      url: "/api/execute",
       payload: scope,
+      url: "/api/execute",
     });
-    const executionId = (started.json() as { executionId: string }).executionId;
-    expect(
-      (
-        await app.inject({
-          method: "DELETE",
-          url: `/api/execute/${executionId}`,
-        })
-      ).statusCode,
-    ).toBe(202);
-    expect(
-      (await app.inject({ method: "DELETE", url: "/api/execute/unknown" }))
-        .statusCode,
-    ).toBe(404);
+    const { executionId } = started.json<{ executionId: string }>();
+    const cancelled = await app.inject({
+      method: "DELETE",
+      url: `/api/execute/${executionId}`,
+    });
+    expect(cancelled.statusCode).toBe(202);
+    const unknown = await app.inject({
+      method: "DELETE",
+      url: "/api/execute/unknown",
+    });
+    expect(unknown.statusCode).toBe(404);
   });
 
   it("rejects an unavailable exact revision without name-based fallback", async () => {
@@ -88,8 +84,8 @@ describe("execution incoming adapter", () => {
     const { app, scope } = current;
     const response = await app.inject({
       method: "POST",
-      url: "/api/execute",
       payload: { ...scope, revision: "missing" },
+      url: "/api/execute",
     });
     expect(response.statusCode).toBe(409);
     expect(response.json()).toEqual({ error: "Revision unavailable" });

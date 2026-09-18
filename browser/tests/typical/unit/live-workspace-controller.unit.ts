@@ -6,8 +6,8 @@ import type {
 import { describe, expect, it } from "vitest";
 
 import { LiveWorkspaceController } from "../../../src/pages/liveWorkspace/useCases/live-workspace.controller";
+import type { LiveWorkspacePorts } from "../../../src/pages/liveWorkspace/useCases/live-workspace.ports";
 import type { LiveWorkspaceState } from "../../../src/pages/liveWorkspace/useCases/live-workspace.types";
-import type { LiveWorkspacePorts } from "../../../src/pages/liveWorkspace/useCases/liveWorkspace.ports";
 
 const analysis: AnalysisResponse = {
   file: "main.ts",
@@ -114,7 +114,9 @@ function createPorts(events = new WorkspaceEventsSpy()) {
 }
 
 async function settle(): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  for (let index = 0; index < 5; index += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 describe("live workspace server event observation", () => {
@@ -140,9 +142,9 @@ describe("live workspace server event observation", () => {
     });
     await settle();
     expect(
-      controller
-        .getState()
-        .executions.map((execution) => execution.currentNodeId)
+      controller.queries
+        .getActiveExecutions()
+        .map((execution) => execution.currentNodeId)
     ).toEqual([null, "work"]);
     controller.dispose();
   });
@@ -173,13 +175,14 @@ describe("live workspace server event observation", () => {
       },
     });
     await settle();
-    expect(controller.getState().executions[0]).toMatchObject({
+    expect(controller.getState().completedExecutions[0]).toMatchObject({
       status: "failed",
       currentNodeId: null,
       error: "boom",
     });
+    expect(controller.queries.getActiveExecutions()).toHaveLength(0);
     controller.clearCompleted();
-    expect(controller.getState().executions).toHaveLength(0);
+    expect(controller.getState().completedExecutions).toHaveLength(0);
     controller.dispose();
   });
 
@@ -201,8 +204,7 @@ describe("live workspace server event observation", () => {
       observed = state;
     });
     expect(observed).not.toBeNull();
-    expect(observed!.status).toBe("error");
-    expect(observed!.error).toBe("Invalid source");
+    expect(observed!.errorMessage).toBe("Invalid source");
     unsubscribe();
     controller.dispose();
   });
@@ -230,7 +232,13 @@ describe("live workspace server event observation", () => {
       },
     });
     await settle();
-    expect(controller.getState().analysis?.revision).toBe("revision-1");
+    const selection = controller.getState().selection;
+    expect(selection).toMatchObject({ status: "selected" });
+    if (selection.status === "selected") {
+      expect(controller.queries.getAnalysis(selection.scope)?.revision).toBe(
+        "revision-1"
+      );
+    }
     controller.dispose();
   });
 
@@ -244,8 +252,28 @@ describe("live workspace server event observation", () => {
       change: { type: "file-changed", file: "new.ts", change: "added" },
     });
     await settle();
-    expect(controller.getState().files).toEqual(["main.ts", "new.ts"]);
-    expect(controller.getState().selectedFile).toBe("main.ts");
+    expect(controller.queries.getFiles()).toEqual(["main.ts", "new.ts"]);
+    expect(controller.getState().selection).toMatchObject({
+      scope: { file: "main.ts" },
+      status: "selected",
+    });
+    controller.dispose();
+  });
+
+  it("clears the selected workspace when an idle file is deleted", async () => {
+    const { ports, events } = createPorts();
+    const controller = new LiveWorkspaceController(ports);
+    controller.start();
+    await settle();
+    events.push({
+      type: "source-change",
+      change: { type: "file-changed", file: "main.ts", change: "deleted" },
+    });
+    await settle();
+    expect(controller.queries.getFiles()).toEqual([]);
+    expect(controller.getState().selection).toEqual({
+      status: "unselected",
+    });
     controller.dispose();
   });
 
@@ -264,11 +292,11 @@ describe("live workspace server event observation", () => {
     await settle();
     events.close();
     await settle();
-    expect(controller.getState().connection).toBe("reconnecting");
+    expect(controller.getState().connectionState.status).toBe("reconnecting");
     events.closed = false;
     scheduled.shift()?.();
     await settle();
-    expect(controller.getState().connection).toBe("connected");
+    expect(controller.getState().connectionState.status).toBe("connected");
     controller.dispose();
   });
 });

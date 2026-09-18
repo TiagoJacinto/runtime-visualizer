@@ -1,88 +1,84 @@
 import type {
+  ExecutionUpdate,
   RevisionKey,
   WorkspaceEvent,
 } from "@runtime-visualizer/contracts";
 
 import { RetryScheduler } from "../../../shared/retry/retry-scheduler";
-import type { WorkspaceEffect } from "./live-workspace.effects";
+import { createWorkspaceEventStream } from "./live-workspace.event-stream";
 import type {
   LiveWorkspacePorts,
   WorkspaceController,
 } from "./live-workspace.ports";
-import {
-  deriveWorkspaceState,
-  reduceWorkspace,
-} from "./live-workspace.reducer";
+import { createLiveWorkspaceQueries } from "./live-workspace.query";
+import type { LiveWorkspaceQueries } from "./live-workspace.query";
 import type { LiveWorkspaceEvent, Transition } from "./live-workspace.reducer";
+import { reduceWorkspace } from "./live-workspace.reducer";
 import { publish } from "./live-workspace.state";
-import { initialLiveWorkspaceState, snapshotKey } from "./live-workspace.types";
+import {
+  executionRecordFromActive,
+  initialLiveWorkspaceState,
+} from "./live-workspace.types";
 import type {
   ExecutionRecord,
   LiveWorkspaceState,
 } from "./live-workspace.types";
 
-// Effects are declared after the state-machine closures and invoked after construction.
-// oxlint-disable eslint/no-use-before-define
-
-const MAX_RECONNECT_ATTEMPTS = 5;
-const BASE_RECONNECT_DELAY_MS = 250;
-const MAX_RECONNECT_DELAY_MS = 4000;
-type WorkspaceStream = AsyncIterable<{
-  id: number;
-  event: WorkspaceEvent;
-}>;
-type Revisions = Awaited<
-  ReturnType<LiveWorkspacePorts["analysis"]["listRevisions"]>
->;
-// SAFETY: errors are normalized at this internal async boundary.
+// SAFETY: caught values are normalized at this controller async boundary.
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Backend unavailable";
-const requestedProcedureId = (
-  state: LiveWorkspaceState,
-  procedureId: string | undefined
-): string | undefined => {
-  if (
-    procedureId !== undefined &&
-    state.analysis?.procedure.kind === "TopLevel" &&
-    procedureId === state.analysis.procedure.id
-  ) {
-    return undefined;
-  }
-  return procedureId;
-};
-const executionUpdate = (
-  record: ExecutionRecord,
-  status: "Running" | "Succeeded" | "Failed" | "Cancelled",
-  currentNodeId: string | null,
-  error?: string
-): Extract<
-  WorkspaceEvent,
-  {
-    type: "execution-update";
-  }
->["update"] => {
-  const update = {
-    currentNodeId,
-    displayNumber: record.displayNumber ?? 1,
-    executionId: record.executionId,
-    scope: record.scope,
-    status,
-  };
-  return error === undefined ? update : { ...update, error };
-};
+
+const sameScope = (a: RevisionKey, b: RevisionKey): boolean =>
+  a.file === b.file &&
+  a.procedureId === b.procedureId &&
+  a.revision === b.revision;
+
+const selectedScope = (state: LiveWorkspaceState): RevisionKey | null =>
+  state.selection.status === "selected" ? state.selection.scope : null;
+
 const activeForScope = (
-  state: LiveWorkspaceState,
+  queries: LiveWorkspaceQueries,
   scope: RevisionKey
 ): boolean =>
-  Object.values(state.activeExecutionsById).some(
-    (execution) =>
-      execution.status === "running" &&
-      execution.scope.file === scope.file &&
-      execution.scope.procedureId === scope.procedureId &&
-      execution.scope.revision === scope.revision
-  );
+  queries
+    .getActiveExecutions()
+    .some((execution) => sameScope(execution.scope, scope));
+
+const executionStatus = (
+  status: ExecutionUpdate["status"]
+): ExecutionRecord["status"] => {
+  if (status === "Succeeded") {
+    return "succeeded";
+  }
+  if (status === "Failed") {
+    return "failed";
+  }
+  if (status === "Cancelled") {
+    return "cancelled";
+  }
+  return "running";
+};
+
+const recordFromUpdate = (
+  update: ExecutionUpdate,
+  previous: ExecutionRecord | undefined
+): ExecutionRecord => ({
+  currentNodeId: update.currentNodeId,
+  displayNumber: update.displayNumber,
+  error: update.error ?? null,
+  executionId: update.executionId,
+  failedNodeId: update.failedNodeId,
+  file: update.scope.file,
+  procedure: update.scope.procedureId,
+  revision: update.scope.revision,
+  scope: update.scope,
+  startedAt: previous?.startedAt,
+  status: executionStatus(update.status),
+});
+
 export class LiveWorkspaceController implements WorkspaceController {
+  readonly queries: LiveWorkspaceQueries;
   getState!: WorkspaceController["getState"];
   dispatch!: WorkspaceController["dispatch"];
   start!: WorkspaceController["start"];
@@ -99,324 +95,161 @@ export class LiveWorkspaceController implements WorkspaceController {
   clearCompleted!: WorkspaceController["clearCompleted"];
   retry!: WorkspaceController["retry"];
   dispose!: WorkspaceController["dispose"];
+
   constructor(ports: LiveWorkspacePorts) {
-    let state: LiveWorkspaceState = initialLiveWorkspaceState;
-    let requestSequence = 0;
-    let eventSequence = 0;
-    let analysisController: AbortController | undefined;
-    let eventsController: AbortController | undefined;
-    let reconnectCancel: (() => void) | undefined;
+    this.queries =
+      ports.queries ??
+      createLiveWorkspaceQueries({
+        analysis: ports.analysis,
+        execution: ports.execution,
+      });
+    const { queries } = this;
+    let state = initialLiveWorkspaceState;
     let disposed = false;
     let started = false;
-    let reconnectAttempt = 0;
-    const nextRequestId = (): string => {
-      requestSequence += 1;
-      return String(requestSequence);
-    };
-    const nextEventId = (): number => {
-      eventSequence += 1;
-      return eventSequence;
-    };
     const retry = ports.retry ?? new RetryScheduler();
     const listeners = new Set<(state: LiveWorkspaceState) => void>();
-    const set = (next: LiveWorkspaceState): void => {
+
+    const publishState = (next: LiveWorkspaceState): void => {
       if (disposed) {
         return;
       }
-      state = deriveWorkspaceState(next);
+      state = next;
       publish(listeners, state);
     };
-    const savePreferences = (): void => {
-      if (state.selectedScope === null || ports.preferences === undefined) {
-        return;
-      }
-      ports.preferences.save({
-        ...state.selectedScope,
-        importsVisible: state.importsVisible,
-      });
-    };
-    const apply = (transition: Transition): void => {
-      set(transition.state);
+    const applyTransition = (transition: Transition): void => {
+      publishState(transition.state);
       for (const effect of transition.effects) {
+        // oxlint-disable-next-line eslint/no-use-before-define
         void runEffect(effect);
       }
     };
     const dispatch = (event: LiveWorkspaceEvent): void => {
-      const before = state;
-      apply(reduceWorkspace(state, event));
-      if (event.type === "analysis-loaded") {
-        savePreferences();
-      }
-      if (
-        event.type === "workspace-event" &&
-        event.event.type === "execution-update" &&
-        event.event.update.status !== "Running"
-      ) {
-        void refreshQueued();
-      }
-      if (before !== state && event.type === "workspace-event") {
-        eventSequence = Math.max(eventSequence, event.id);
+      applyTransition(reduceWorkspace(state, event));
+    };
+    const loadExact = async (key: RevisionKey): Promise<void> => {
+      try {
+        await queries.fetchAnalysis(key);
+        if (!disposed) {
+          dispatch({ type: "clear-resource-error" });
+        }
+      } catch (error) {
+        if (!disposed) {
+          dispatch({ error: errorMessage(error), type: "resource-error" });
+        }
       }
     };
-    const loadExact = async (
-      key: RevisionKey,
-      requestId = nextRequestId()
-    ): Promise<void> => {
-      if (
-        state.pane.status !== "loading" ||
-        state.pane.requestId !== requestId
-      ) {
-        dispatch({ key, requestId, type: "analysis-loading" });
-      }
-      const signal = analysisController?.signal;
-      try {
-        const analysis = await ports.analysis.load(key, signal);
-        if (disposed) {
-          return;
-        }
-        dispatch({ key, requestId, type: "analysis-loaded", value: analysis });
-      } catch (error) {
-        if (disposed || signal?.aborted) {
-          return;
-        }
-        dispatch({
-          error: errorMessage(error),
-          requestId,
-          type: "analysis-failed",
-        });
-      }
+    const requestedProcedureId = (
+      file: string,
+      procedureId: string | undefined
+    ): string | undefined => {
+      const selected = selectedScope(state);
+      return procedureId ??
+        (selected?.file === file ? selected.procedureId : undefined);
     };
     const bootstrapFile = async (
       file: string,
       procedureId?: string,
       preferredRevision?: string
     ): Promise<void> => {
-      analysisController?.abort();
-      const controller = new AbortController();
-      analysisController = controller;
       try {
-        const current = await ports.analysis.analyse(
+        const current = await queries.fetchCurrentAnalysis(
           file,
-          requestedProcedureId(state, procedureId),
-          controller.signal
+          requestedProcedureId(file, procedureId)
         );
-        if (disposed || controller.signal.aborted) {
+        if (disposed) {
           return;
         }
-        dispatch({
-          file: current.file,
-          procedures: current.procedures,
-          type: "procedures-loaded",
-        });
         const scope = { file: current.file, procedureId: current.procedureId };
-        let revisions: Revisions = [];
-        try {
-          revisions = await ports.analysis.listRevisions(
-            scope,
-            controller.signal
-          );
-        } catch {
-          if (controller.signal.aborted) {
-            return;
-          }
-          // A test double or a backend without persisted history can still show
-          // the current diagnostic/analysis response.
-          revisions = [];
-        }
-        if (disposed || controller.signal.aborted) {
+        const revisions = await queries.fetchRevisions(scope);
+        if (disposed) {
           return;
         }
-        const requested =
+        const revision =
           preferredRevision !== undefined &&
-          revisions.some((revision) => revision.revision === preferredRevision)
+          revisions.some((item) => item.revision === preferredRevision)
             ? preferredRevision
             : (revisions[0]?.revision ?? current.revision);
-        const key: RevisionKey = { ...scope, revision: requested };
-        const id = nextRequestId();
-        dispatch({ key, requestId: id, type: "analysis-loading" });
-        dispatch({ revisions, scope, type: "revisions-loaded" });
-        if (requested === current.revision) {
-          dispatch({
-            key,
-            requestId: id,
-            type: "analysis-loaded",
-            value: current,
-          });
-        } else {
-          await loadExact(key, id);
-        }
+        const key = { ...scope, revision };
+        dispatch({ key, type: "select-scope" });
+        await loadExact(key);
       } catch (error) {
-        if (disposed || controller.signal.aborted) {
-          return;
+        if (!disposed) {
+          dispatch({ error: errorMessage(error), type: "resource-error" });
         }
-        const id = nextRequestId();
-        const key: RevisionKey = {
-          file,
-          procedureId: procedureId ?? "top-level",
-          revision: preferredRevision ?? "unavailable",
-        };
-        dispatch({ key, requestId: id, type: "analysis-loading" });
-        dispatch({
-          error: errorMessage(error),
-          requestId: id,
-          type: "analysis-failed",
-        });
       }
     };
-    const loadFiles = async (): Promise<void> => {
+    const loadFiles = async (): Promise<readonly string[]> => {
       try {
-        const files = await ports.analysis.listFiles();
-        if (!disposed) {
-          dispatch({ files, type: "files-loaded" });
-        }
+        return await queries.fetchFiles();
       } catch (error) {
         if (!disposed) {
-          set({ ...state, errorMessage: errorMessage(error) });
+          dispatch({ error: errorMessage(error), type: "resource-error" });
         }
+        return [];
       }
     };
     const loadActiveExecutions = async (): Promise<void> => {
-      if (ports.execution.list === undefined) {
-        return;
-      }
       try {
-        const executions = await ports.execution.list();
-        if (disposed) {
-          return;
-        }
-        const id = Math.max(eventSequence + 1, 1);
-        dispatch({
-          event: { executions: [...executions], type: "active-executions" },
-          id,
-          type: "workspace-event",
-        });
+        await queries.fetchActiveExecutions();
       } catch (error) {
         if (!disposed) {
-          set({ ...state, errorMessage: errorMessage(error) });
+          dispatch({ error: errorMessage(error), type: "resource-error" });
         }
       }
     };
-    const scheduleReconnect = (): void => {
-      if (disposed || reconnectCancel !== undefined) {
+    const loadInitial = async (): Promise<void> => {
+      const files = await loadFiles();
+      if (disposed || files.length === 0) {
         return;
       }
-      if (reconnectAttempt >= MAX_RECONNECT_ATTEMPTS) {
-        return;
+      const selected = selectedScope(state);
+      if (selected !== null && files.includes(selected.file)) {
+        await bootstrapFile(
+          selected.file,
+          selected.procedureId,
+          selected.revision
+        );
+      } else if (selected === null) {
+        await bootstrapFile(files[0]);
       }
-      const delay = Math.min(
-        BASE_RECONNECT_DELAY_MS * 2 ** reconnectAttempt,
-        MAX_RECONNECT_DELAY_MS
-      );
-      reconnectAttempt += 1;
-      reconnectCancel = retry.schedule(delay, () => {
-        reconnectCancel = undefined;
-        void observeEvents();
-      });
     };
-    const observeEvents = async (): Promise<void> => {
-      eventsController?.abort();
-      const events = new AbortController();
-      eventsController = events;
+    const refreshWorkspaceResources = (): void => {
+      void loadInitial();
+      void loadActiveExecutions();
+    };
+    const refreshRevisionHistory = async (
+      scope: Pick<RevisionKey, "file" | "procedureId">
+    ): Promise<void> => {
       try {
-        set({
-          ...state,
-          connectionState: { ...state.connectionState, status: "connected" },
-          errorMessage: null,
-        });
-        reconnectAttempt = 0;
-        // SAFETY: the gateway port guarantees the workspace event record shape.
-        const stream = ports.workspaceEvents.subscribe(
-          events.signal,
-          state.connectionState.cursor
-        ) as WorkspaceStream;
-        for await (const record of stream) {
-          if (disposed) {
-            return;
-          }
-          dispatch({
-            event: record.event,
-            id: record.id,
-            type: "workspace-event",
-          });
+        const revisions = await queries.fetchRevisions(scope);
+        const selected = selectedScope(state);
+        const [first] = revisions;
+        if (
+          first !== undefined &&
+          selected !== null &&
+          selected.file === scope.file &&
+          selected.procedureId === scope.procedureId &&
+          first.revision !== selected.revision &&
+          !activeForScope(queries, selected)
+        ) {
+          await bootstrapFile(scope.file, scope.procedureId);
         }
-        if (!disposed && !events.signal.aborted) {
-          throw new Error("Workspace event stream ended");
-        }
-      } catch (error) {
-        if (disposed || events.signal.aborted) {
-          return;
-        }
-        set({
-          ...state,
-          connectionState: {
-            cursor: state.connectionState.cursor,
-            status: "reconnecting",
-          },
-          errorMessage: errorMessage(error),
-        });
-        scheduleReconnect();
-      } finally {
-        if (eventsController === events) {
-          eventsController = undefined;
-        }
-      }
-    };
-    const runProcedure = async (): Promise<void> => {
-      const { analysis } = state;
-      const scope = state.selectedScope;
-      if (
-        analysis === null ||
-        analysis.cfg === null ||
-        state.pane.status !== "ready" ||
-        scope === null ||
-        state.connection === "reconnecting" ||
-        state.fileDeleted
-      ) {
-        return;
-      }
-      try {
-        const executionId = await ports.execution.start(scope);
-        if (disposed) {
-          return;
-        }
-        const record: ExecutionRecord = {
-          currentNodeId: null,
-          error: null,
-          executionId,
-          file: scope.file,
-          procedure: scope.procedureId,
-          revision: scope.revision,
-          scope,
-          status: "running",
-        };
-        dispatch({
-          event: {
-            type: "execution-update",
-            update: executionUpdate(record, "Running", null),
-          },
-          id: nextEventId(),
-          type: "workspace-event",
-        });
       } catch (error) {
         if (!disposed) {
-          set({ ...state, errorMessage: errorMessage(error) });
+          dispatch({ error: errorMessage(error), type: "resource-error" });
         }
       }
     };
     const refreshQueued = async (): Promise<void> => {
-      const selected = state.selectedScope;
-      if (selected !== null && activeForScope(state, selected)) {
+      const selected = selectedScope(state);
+      if (selected !== null && activeForScope(queries, selected)) {
         return;
       }
       if (state.fileDeleted) {
-        const [nextFile] = state.files;
+        const nextFile = queries.getFiles()?.[0];
         if (nextFile === undefined) {
-          set({
-            ...state,
-            fileDeleted: false,
-            pane: { status: "empty" },
-            selectedScope: null,
-          });
+          dispatch({ type: "clear-selection" });
         } else {
           await bootstrapFile(nextFile);
         }
@@ -426,119 +259,189 @@ export class LiveWorkspaceController implements WorkspaceController {
         await bootstrapFile(selected.file, selected.procedureId);
       }
     };
-    const runEffect = async (effect: WorkspaceEffect): Promise<void> => {
-      if (disposed) {
+    const handleDeletedSourceChange = (
+      file: string,
+      selected: RevisionKey | null,
+      activeFile: boolean
+    ): void => {
+      if (selected?.file !== file || activeFile) {
         return;
       }
-      if (effect.type === "bootstrap-file") {
-        await bootstrapFile(effect.file, effect.procedureId, effect.revision);
-        return;
+      const nextFile = queries.getFiles()?.[0];
+      if (nextFile === undefined) {
+        dispatch({ type: "clear-selection" });
+      } else {
+        void bootstrapFile(nextFile);
       }
-      if (effect.type === "load-analysis") {
-        await loadExact(effect.key, effect.requestId);
-        return;
+    };
+    const handleWorkspaceEvent = (id: number, event: WorkspaceEvent): void => {
+      const selected = selectedScope(state);
+      const before = queries.getActiveExecutions();
+      const activeFile =
+        event.type === "source-change"
+          ? before.some(
+              (execution) => execution.scope.file === event.change.file
+            )
+          : undefined;
+      const activeScope =
+        event.type === "source-change" && selected !== null
+          ? before.some((execution) => sameScope(execution.scope, selected))
+          : undefined;
+      const result = queries.applyWorkspaceEvent(event);
+      dispatch({
+        activeForFile: activeFile,
+        activeForScope: activeScope,
+        event,
+        id,
+        type: "workspace-event",
+      });
+      if (result.terminal !== undefined) {
+        const previous = before.find(
+          (execution) => execution.executionId === result.terminal?.executionId
+        );
+        dispatch({
+          execution: recordFromUpdate(
+            result.terminal,
+            previous === undefined
+              ? undefined
+              : executionRecordFromActive(previous)
+          ),
+          type: "execution-finished",
+        });
+        void refreshQueued();
       }
-      if (effect.type === "load-files") {
-        await loadFiles();
-        return;
-      }
-      if (effect.type === "load-revisions") {
-        try {
-          const revisions = await ports.analysis.listRevisions(effect.scope);
-          if (!disposed) {
-            dispatch({
-              revisions,
-              scope: effect.scope,
-              type: "revisions-loaded",
-            });
+      if (event.type === "source-change") {
+        if (event.change.change === "modified" && selected !== null) {
+          if (activeScope) {
+            return;
           }
-        } catch (error) {
-          if (!disposed) {
-            set({ ...state, errorMessage: errorMessage(error) });
-          }
+          void refreshRevisionHistory({
+            file: selected.file,
+            procedureId: selected.procedureId,
+          });
+        } else if (event.change.change === "deleted") {
+          handleDeletedSourceChange(
+            event.change.file,
+            selected,
+            activeFile === true
+          );
+        } else if (
+          event.change.change === "added" &&
+          state.selection.status === "unselected"
+        ) {
+          void bootstrapFile(event.change.file);
         }
-        return;
+      } else if (event.type === "revision-ready") {
+        if (
+          selected?.file === event.revision.file &&
+          selected.procedureId === event.revision.procedureId
+        ) {
+          void refreshRevisionHistory(event.revision);
+        }
+      } else if (event.type === "resync-required") {
+        refreshWorkspaceResources();
       }
-      if (effect.type === "load-active-executions") {
-        await loadActiveExecutions();
-        return;
-      }
-      if (effect.type === "cancel-execution") {
-        try {
-          if (ports.execution.cancel === undefined) {
-            throw new Error("Execution cancellation is unavailable");
-          }
-          await ports.execution.cancel(effect.executionId);
-        } catch (error) {
-          if (!disposed) {
-            dispatch({
-              error: errorMessage(error),
-              executionId: effect.executionId,
-              type: "cancel-failed",
-            });
-          }
+    };
+    const eventStream = createWorkspaceEventStream({
+      onEvent: (record) => handleWorkspaceEvent(record.id, record.event),
+      onState: (next) =>
+        publishState({
+          ...state,
+          connectionState: {
+            cursor: next.cursor,
+            status: next.status,
+          },
+          errorMessage: next.errorMessage,
+        }),
+      retry,
+      subscribe: ports.workspaceEvents.subscribe.bind(ports.workspaceEvents),
+    });
+    const runEffect = async (effect: {
+      type: "cancel-execution";
+      executionId: string;
+    }): Promise<void> => {
+      try {
+        await queries.cancelExecution(effect.executionId);
+      } catch (error) {
+        if (!disposed) {
+          dispatch({
+            error: errorMessage(error),
+            executionId: effect.executionId,
+            type: "cancel-failed",
+          });
         }
       }
     };
+    const runProcedure = async (): Promise<void> => {
+      const scope = selectedScope(state);
+      const analysis = scope === null ? undefined : queries.getAnalysis(scope);
+      if (
+        scope === null ||
+        analysis?.cfg === null ||
+        analysis === undefined ||
+        analysis.diagnostics.length > 0 ||
+        state.connectionState.status === "reconnecting" ||
+        state.fileDeleted
+      ) {
+        return;
+      }
+      try {
+        await queries.startExecution(scope);
+      } catch (error) {
+        if (!disposed) {
+          dispatch({ error: errorMessage(error), type: "resource-error" });
+        }
+      }
+    };
+
     Object.assign(this, {
-      armCancel: (executionId) => dispatch({ executionId, type: "arm-cancel" }),
+      armCancel: (executionId: string) =>
+        dispatch({ executionId, type: "arm-cancel" }),
       clearCompleted: () => dispatch({ type: "clear-completed" }),
-      confirmCancel: (executionId) =>
-        dispatch({ executionId, type: "confirm-cancel" }),
+      confirmCancel: (executionId: string) =>
+        dispatch({
+          active: queries
+            .getActiveExecutions()
+            .some((execution) => execution.executionId === executionId),
+          executionId,
+          type: "confirm-cancel",
+        }),
       dispatch,
       dispose: () => {
         disposed = true;
         started = false;
-        analysisController?.abort();
-        eventsController?.abort();
-        reconnectCancel?.();
-        reconnectCancel = undefined;
+        eventStream.stop();
         listeners.clear();
       },
-      focus: (target) => dispatch({ target, type: "focus" }),
+      focus: (target: LiveWorkspaceState["focus"]) =>
+        dispatch({ target, type: "focus" }),
       getState: () => state,
       retry: () => {
-        reconnectCancel?.();
-        reconnectCancel = undefined;
-        reconnectAttempt = 0;
-        void loadFiles();
-        void observeEvents();
-        void loadActiveExecutions();
+        void queries.invalidateMutableResources();
+        refreshWorkspaceResources();
+        eventStream.retry();
       },
       runProcedure: () => {
-        runProcedure();
+        // oxlint-disable-next-line eslint/no-void
+        void runProcedure();
       },
-      selectExecution: (executionId) => {
-        const execution = state.executions.find(
-          (item) => item.executionId === executionId
+      selectExecution: (executionId: string) => {
+        const active = queries
+          .getActiveExecutions()
+          .find((execution) => execution.executionId === executionId);
+        const completed = state.completedExecutions.find(
+          (execution) => execution.executionId === executionId
         );
+        const execution =
+          active === undefined ? completed : executionRecordFromActive(active);
         if (execution === undefined) {
           return;
         }
-        const analysis =
-          state.snapshots[
-            snapshotKey({
-              file: execution.scope.file,
-              procedureId: execution.scope.procedureId,
-              revision: execution.scope.revision,
-            })
-          ];
-        if (analysis === undefined) {
-          analysisController?.abort();
-          analysisController = new AbortController();
-          dispatch({
-            key: execution.scope,
-            requestId: nextRequestId(),
-            type: "select-scope",
-          });
-        } else {
-          dispatch({
-            key: execution.scope,
-            type: "view-analysis",
-            value: analysis,
-          });
+        dispatch({ executionId, type: "select-execution" });
+        dispatch({ key: execution.scope, type: "select-scope" });
+        if (queries.getAnalysis(execution.scope) === undefined) {
+          void loadExact(execution.scope);
         }
-        set({ ...state, selectedExecutionId: executionId });
         if (execution.failedNodeId !== undefined) {
           dispatch({
             target: {
@@ -550,39 +453,41 @@ export class LiveWorkspaceController implements WorkspaceController {
           });
         }
       },
-      selectFile: (file) => {
+      selectFile: (file: string) => {
         if (
-          state.connection === "reconnecting" ||
-          !state.files.includes(file)
+          state.connectionState.status === "reconnecting" ||
+          !queries.getFiles()?.includes(file)
         ) {
           return;
         }
         void bootstrapFile(file);
       },
-      selectProcedure: (procedureId) => {
+      selectProcedure: (procedureId: string) => {
+        const { selection } = state;
         if (
-          state.connection === "reconnecting" ||
-          state.selectedFile === null
+          state.connectionState.status === "reconnecting" ||
+          selection.status === "unselected"
         ) {
           return;
         }
-        void bootstrapFile(state.selectedFile, procedureId);
+        void bootstrapFile(selection.scope.file, procedureId);
       },
-      selectRevision: (key) => {
-        if (key === null || state.connection === "reconnecting") {
+      selectRevision: (key: RevisionKey | null) => {
+        if (key === null || state.connectionState.status === "reconnecting") {
           return;
         }
-        analysisController?.abort();
-        analysisController = new AbortController();
-        dispatch({
-          key,
-          requestId: nextRequestId(),
-          type: "select-scope",
-        });
+        dispatch({ key, type: "select-scope" });
+        void loadExact(key);
       },
-      setImportsVisible: (visible) => {
+      setImportsVisible: (visible: boolean) => {
         dispatch({ type: "set-imports-visible", visible });
-        savePreferences();
+        const selected = selectedScope(state);
+        if (selected !== null && ports.preferences !== undefined) {
+          ports.preferences.save({
+            ...selected,
+            importsVisible: visible,
+          });
+        }
       },
       start: () => {
         if (started) {
@@ -602,11 +507,10 @@ export class LiveWorkspaceController implements WorkspaceController {
             type: "preferences-loaded",
           });
         }
-        void loadFiles();
-        void observeEvents();
-        void loadActiveExecutions();
+        refreshWorkspaceResources();
+        eventStream.start(state.connectionState.cursor);
       },
-      subscribe: (listener) => {
+      subscribe: (listener: (state: LiveWorkspaceState) => void) => {
         listeners.add(listener);
         listener(state);
         return () => listeners.delete(listener);

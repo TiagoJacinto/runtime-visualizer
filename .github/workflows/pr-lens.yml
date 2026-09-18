@@ -16,13 +16,34 @@ jobs:
   lens:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - uses: TiagoJacinto/pr-lens/packages/action@main
+      - name: Generate PR Lens diagrams
+        id: primary_lens
+        continue-on-error: true
+        # main at 32a9297
+        uses: >-
+          TiagoJacinto/pr-lens/packages/action@32a9297371e4383e88e4ae2bc75d3fb4b831e20c
         with:
           api-key: ${{ secrets.GEMINI_API_KEY }}
           model: ${{ vars.PR_LENS_MODEL }}
           cli-source: workspace
           canvas-url: ${{ vars.PR_LENS_CANVAS_URL }}
           canvas-publish-token: ${{ secrets.PR_LENS_CANVAS_PUBLISH_TOKEN }}
+      - name: Retry PR Lens diagrams
+        id: retry_lens
+        if: steps.primary_lens.outcome == 'failure'
+        continue-on-error: true
+        # main at 32a9297
+        uses: >-
+          TiagoJacinto/pr-lens/packages/action@32a9297371e4383e88e4ae2bc75d3fb4b831e20c
+        with:
+          api-key: ${{ secrets.GEMINI_API_KEY }}
+          model: ${{ vars.PR_LENS_MODEL }}
+          cli-source: workspace
+          canvas-url: ${{ vars.PR_LENS_CANVAS_URL }}
+          canvas-publish-token: ${{ secrets.PR_LENS_CANVAS_PUBLISH_TOKEN }}
+      - name: Report unavailable PR Lens diagrams
+        if: steps.retry_lens.outcome == 'failure'
+        run: echo "::warning::PR Lens remained unavailable after one retry."

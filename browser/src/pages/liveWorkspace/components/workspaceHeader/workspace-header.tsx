@@ -1,10 +1,10 @@
 import type { RevisionKey } from "@runtime-visualizer/contracts";
 import { Code2, Menu, Radio, RefreshCw } from "lucide-react";
 
-import type { LiveWorkspaceState } from "../../useCases/live-workspace.types";
+import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
 
 interface WorkspaceHeaderProps {
-  state: LiveWorkspaceState;
+  state: LiveWorkspaceView;
   scope: RevisionKey | null;
   onOpenRail: () => void;
 }

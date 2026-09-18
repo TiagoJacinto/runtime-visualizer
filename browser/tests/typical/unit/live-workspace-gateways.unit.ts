@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it, vi } from "vitest";
 
 import { AnalysisGateway } from "../../../src/shared/api/analysis-gateway";
@@ -98,6 +100,13 @@ describe("live workspace gateways", () => {
     );
   });
 
+  it("validates the complete active-execution response envelope", async () => {
+    const gateway = new ExecutionGateway(async () =>
+      response({ executions: [{ executionId: "missing-fields" }] })
+    );
+    await expect(gateway.list()).rejects.toThrow();
+  });
+
   it("decodes typed workspace events and sends the cursor", async () => {
     const controller = new AbortController();
     let requestInit: RequestInit | undefined;
@@ -106,6 +115,7 @@ describe("live workspace gateways", () => {
       return new Response(
         ": connected\n\n" +
           'id: 8\nevent: source-change\ndata: {"type":"source-change","change":{"type":"file-changed","file":"main.ts","change":"modified"}}\n\n' +
+          'event: resync-required\ndata: {"type":"resync-required"}\n\n' +
           'id: 9\nevent: active-executions\ndata: {"type":"active-executions","executions":[]}\n\n',
         { headers: { "content-type": "text/event-stream" } }
       );
@@ -122,6 +132,10 @@ describe("live workspace gateways", () => {
           change: { type: "file-changed", file: "main.ts", change: "modified" },
         },
       },
+    });
+    await expect(iterator.next()).resolves.toEqual({
+      done: false,
+      value: { id: 8, event: { type: "resync-required" } },
     });
     controller.abort();
     await iterator.return?.();
