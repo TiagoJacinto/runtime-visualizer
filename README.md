@@ -7,10 +7,10 @@ Runtime Visualizer is a graph-first workspace for inspecting and running saved T
 ```bash
 bun install
 bun run frontend:install:playwright # once; required for browser acceptance tests
-bun run dev                 # frontend (:5173) + backend (:3000)
+bun run dev                 # coordinated frontend (:5173) + backend (selected from :3000)
 ```
 
-Run either side independently with `bun run frontend:dev` or `bun run backend:dev`.
+`bun run dev` selects one available backend port, waits for `/api/health`, and passes that port to Vite as `VITE_API_PORT` before starting the frontend. Run either side independently with `bun run frontend:dev` or `bun run backend:dev`; those commands use port `3000` unless you provide `VITE_API_PORT` or `PORT`.
 
 The backend observes the source workspace configured by `settings.json` (`filesFolder`, defaulting to `./target`). Durable analysis snapshots are stored in `.runtime-visualizer/revisions.sqlite` at the repository root. The directory is local state and is ignored by git. Set `databasePath` when constructing `createApp` to use an isolated database in tests or tooling.
 

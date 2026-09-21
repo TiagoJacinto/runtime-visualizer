@@ -34,7 +34,7 @@
     "prototype:workspace-management": "bun run --filter runtime-visualizer-browser dev",
     "cibuild": "bun run quality",
     "prepare": "lefthook install",
-    "dev": "bun run --parallel backend:dev frontend:dev",
+    "dev": "bun run scripts/dev.ts",
     "backend:start": "bun run --filter runtime-visualizer-backend start",
     "backend:dev": "bun run --filter runtime-visualizer-backend dev",
     "backend:typecheck": "bun run --filter runtime-visualizer-backend typecheck",
