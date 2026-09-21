@@ -151,7 +151,9 @@ export const createLiveWorkspaceQueries = (
   client = makeQueryClient()
 ): LiveWorkspaceQueries => {
   const filesOptions = () => ({
-    queryFn: ({ signal }) => ports.analysis.listFiles(signal),
+    // Keep this small bootstrap query alive through StrictMode's development
+    // observer cycle so the result can populate the shared query cache.
+    queryFn: () => ports.analysis.listFiles(),
     queryKey: liveWorkspaceQueryKeys.files(),
     staleTime: 30_000,
   });
@@ -173,8 +175,9 @@ export const createLiveWorkspaceQueries = (
     staleTime: 0,
   });
   const activeExecutionsOptions = () => ({
-    queryFn: ({ signal }) =>
-      ports.execution.list?.(signal) ?? Promise.resolve([]),
+    // Keep this small bootstrap query alive through StrictMode's development
+    // observer cycle so the result can populate the shared query cache.
+    queryFn: () => ports.execution.list?.() ?? Promise.resolve([]),
     queryKey: liveWorkspaceQueryKeys.activeExecutions(),
     staleTime: 0,
   });

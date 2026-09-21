@@ -29,6 +29,12 @@ import type {
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : "Backend unavailable";
 
+// SAFETY: TanStack Query cancellation errors extend Error and use a stable message.
+// oxlint-disable-next-line anti-slop/no-unknown-parameters
+const isCancellationError = (error: unknown): boolean =>
+  error instanceof Error &&
+  (error.name === "CancelledError" || error.message === "CancelledError");
+
 const sameScope = (a: RevisionKey, b: RevisionKey): boolean =>
   a.file === b.file &&
   a.procedureId === b.procedureId &&
@@ -134,7 +140,7 @@ export class LiveWorkspaceController implements WorkspaceController {
           dispatch({ type: "clear-resource-error" });
         }
       } catch (error) {
-        if (!disposed) {
+        if (!disposed && !isCancellationError(error)) {
           dispatch({ error: errorMessage(error), type: "resource-error" });
         }
       }
@@ -144,8 +150,10 @@ export class LiveWorkspaceController implements WorkspaceController {
       procedureId: string | undefined
     ): string | undefined => {
       const selected = selectedScope(state);
-      return procedureId ??
-        (selected?.file === file ? selected.procedureId : undefined);
+      return (
+        procedureId ??
+        (selected?.file === file ? selected.procedureId : undefined)
+      );
     };
     const bootstrapFile = async (
       file: string,
@@ -174,7 +182,7 @@ export class LiveWorkspaceController implements WorkspaceController {
         dispatch({ key, type: "select-scope" });
         await loadExact(key);
       } catch (error) {
-        if (!disposed) {
+        if (!disposed && !isCancellationError(error)) {
           dispatch({ error: errorMessage(error), type: "resource-error" });
         }
       }
@@ -183,7 +191,7 @@ export class LiveWorkspaceController implements WorkspaceController {
       try {
         return await queries.fetchFiles();
       } catch (error) {
-        if (!disposed) {
+        if (!disposed && !isCancellationError(error)) {
           dispatch({ error: errorMessage(error), type: "resource-error" });
         }
         return [];
@@ -193,7 +201,7 @@ export class LiveWorkspaceController implements WorkspaceController {
       try {
         await queries.fetchActiveExecutions();
       } catch (error) {
-        if (!disposed) {
+        if (!disposed && !isCancellationError(error)) {
           dispatch({ error: errorMessage(error), type: "resource-error" });
         }
       }
@@ -236,7 +244,7 @@ export class LiveWorkspaceController implements WorkspaceController {
           await bootstrapFile(scope.file, scope.procedureId);
         }
       } catch (error) {
-        if (!disposed) {
+        if (!disposed && !isCancellationError(error)) {
           dispatch({ error: errorMessage(error), type: "resource-error" });
         }
       }
