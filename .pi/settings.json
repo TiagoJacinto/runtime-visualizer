@@ -1,0 +1,11 @@
+{
+  "packages": [
+    {
+      "source": "../../../../.pi/agent/packages/jev",
+      "autoload": false,
+      "extensions": [
+        "-extensions/warden.ts"
+      ]
+    }
+  ]
+}

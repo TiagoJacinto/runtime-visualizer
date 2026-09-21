@@ -6,6 +6,7 @@ reviews:
     - "browser/src/**"
     - "browser/tests/**"
     - "packages/contracts/src/**"
+    - "packages/contracts/tests/**"
 
     # Project automation and executable tooling
     - "scripts/**"
