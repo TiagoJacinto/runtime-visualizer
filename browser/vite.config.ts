@@ -15,8 +15,9 @@ export default defineConfig({
   server: {
     allowedHosts: ["thinkcentre.tail4aacd1.ts.net"],
     // Proxy /api/* to the Fastify backend so the React UI can develop against a
-    // single origin. Default port is the Fastify server's default
-    // (3000); set VITE_API_PORT to override.
+    // single origin. The root dev coordinator sets VITE_API_PORT when it
+    // selects a free backend port; standalone frontend development defaults to
+    // the backend's default port (3000).
     proxy: {
       "/api": {
         target: `http://127.0.0.1:${process.env.VITE_API_PORT ?? "3000"}`,
