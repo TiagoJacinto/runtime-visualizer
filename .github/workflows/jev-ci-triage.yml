@@ -36,7 +36,7 @@ jobs:
           PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
         run: |
           gh run view "$RUN_ID" --repo "$REPOSITORY" \
-            --json name,conclusion,event,headBranch,headSha,url,pullRequests \
+            --json name,conclusion,event,headBranch,headSha,url \
             > run.json
           gh run view "$RUN_ID" --repo "$REPOSITORY" --log-failed > failed.log
           : > changed-files.txt
