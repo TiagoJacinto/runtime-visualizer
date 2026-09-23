@@ -1,8 +1,16 @@
 const DEFAULT_BACKEND_PORT = 3000;
-const BACKEND_STARTUP_TIMEOUT_MS = 10_000;
-const HEALTH_CHECK_INTERVAL_MS = 100;
+const BACKEND_STARTUP_TIMEOUT_MS = 30_000;
 
 type ChildProcess = ReturnType<typeof Bun.spawn>;
+
+const definedEnvironment = (
+  environment: Record<string, string | undefined>
+): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(environment).filter(
+      (entry): entry is [string, string] => entry[1] !== undefined
+    )
+  );
 
 const parsePort = (value: string | undefined): number => {
   const port = Math.trunc(Number(value ?? DEFAULT_BACKEND_PORT));
@@ -39,24 +47,33 @@ const findAvailablePort = (startPort: number, host: string): number => {
 
 const waitForBackend = async (
   port: number,
-  backend: ChildProcess
+  backend: ChildProcess,
+  backendReady: Promise<null>
 ): Promise<void> => {
-  const deadline = Date.now() + BACKEND_STARTUP_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/health`);
-      if (response.ok) {
-        return;
-      }
-    } catch {
-      // The backend may still be starting.
-    }
-    await Bun.sleep(HEALTH_CHECK_INTERVAL_MS);
-  }
-  backend.kill();
-  throw new Error(
-    `Backend did not become healthy on port ${port} within ${BACKEND_STARTUP_TIMEOUT_MS}ms`
+  const startupTimeout = Promise.withResolvers<never>();
+  const timeout = setTimeout(
+    () =>
+      startupTimeout.reject(
+        new Error(
+          `Backend did not become ready on port ${port} within ${BACKEND_STARTUP_TIMEOUT_MS}ms`
+        )
+      ),
+    BACKEND_STARTUP_TIMEOUT_MS
   );
+
+  try {
+    await Promise.race([
+      backendReady,
+      backend.exited.then((exitCode) => {
+        throw new Error(
+          `Backend exited with code ${exitCode} before becoming ready on port ${port}`
+        );
+      }),
+      startupTimeout.promise,
+    ]);
+  } finally {
+    clearTimeout(timeout);
+  }
 };
 
 const stop = (child: ChildProcess | undefined): void => {
@@ -68,14 +85,23 @@ const stop = (child: ChildProcess | undefined): void => {
 const main = async (): Promise<void> => {
   const host = process.env.HOST ?? "0.0.0.0";
   const backendPort = findAvailablePort(parsePort(process.env.PORT), host);
-  const backendEnv = {
+  const backendEnv = definedEnvironment({
     ...process.env,
     PORT: String(backendPort),
-  } as Record<string, string>;
+  });
 
   console.log(`[dev] starting backend on port ${backendPort}`);
-  const backend = Bun.spawn(["bun", "run", "backend:dev"], {
+  const {
+    promise: backendReady,
+    resolve: resolveBackendReady,
+  } = Promise.withResolvers<null>();
+  const backend = Bun.spawn(["bun", "--hot", "run", "backend/src/index.ts"], {
     env: backendEnv,
+    ipc(message) {
+      if (message === "backend-ready") {
+        resolveBackendReady(null);
+      }
+    },
     stderr: "inherit",
     stdin: "inherit",
     stdout: "inherit",
@@ -89,15 +115,15 @@ const main = async (): Promise<void> => {
   process.on("SIGTERM", stopChildren);
 
   try {
-    await waitForBackend(backendPort, backend);
+    await waitForBackend(backendPort, backend, backendReady);
     console.log(
-      `[dev] backend is healthy; proxying frontend API to ${backendPort}`
+      `[dev] backend is ready; proxying frontend API to ${backendPort}`
     );
     frontend = Bun.spawn(["bun", "run", "frontend:dev"], {
-      env: {
+      env: definedEnvironment({
         ...process.env,
         VITE_API_PORT: String(backendPort),
-      } as Record<string, string>,
+      }),
       stderr: "inherit",
       stdin: "inherit",
       stdout: "inherit",

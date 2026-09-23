@@ -14,6 +14,7 @@ const app = await createApp({
 
 await app.listen({ host, port });
 console.log(`[server] listening on http://${host}:${port}`);
+process.send?.("backend-ready");
 
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   console.log(`[server] received ${signal}, shutting down`);
