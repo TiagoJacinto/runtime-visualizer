@@ -1,0 +1,33 @@
+{
+  "enabled": true,
+  "maxOutputChars": 4000,
+  "commands": [
+    {
+      "name": "backend incoming integration tests",
+      "pattern": "^bun run backend:test:integration:incoming$",
+      "routes": ["create-incoming-test", "delete-behavior-test", "uncertain"],
+      "testRoots": [
+        "backend/tests",
+        "browser/tests",
+        "packages/contracts/tests"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "id": "create-incoming-test",
+      "label": "Create an incoming integration test",
+      "guidance": "For a 404 endpoint-unreachable failure, recommend this only when endpoint inventory completed and its matchingTestPaths list is empty. The new test should verify attempted communication at the incoming adapter boundary, not application behavior. If a matching test path is listed, do not choose this route."
+    },
+    {
+      "id": "delete-behavior-test",
+      "label": "Delete the failing behavior test",
+      "guidance": "For a 404 endpoint-unreachable failure, recommend this only when endpoint inventory lists one or more existing matchingTestPaths. Cite the matching path as evidence. Do not recommend deletion when the list is empty or the inventory is incomplete."
+    },
+    {
+      "id": "uncertain",
+      "label": "Uncertain — inspect the failure manually",
+      "guidance": "Choose this when no endpoint can be identified, endpoint inventory is incomplete, or the failure evidence does not clearly support create or delete."
+    }
+  ]
+}
