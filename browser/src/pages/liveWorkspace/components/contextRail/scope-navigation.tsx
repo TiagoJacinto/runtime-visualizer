@@ -18,6 +18,7 @@ interface ScopeNavigationProps {
   onSelectProcedure: (procedureId: string) => void;
   onSelectRevision: (scope: RevisionKey) => void;
   onRun: () => void;
+  executionAvailable?: boolean;
 }
 interface SelectFieldProps {
   label: string;
@@ -62,8 +63,10 @@ export const ScopeNavigation = ({
   onSelectProcedure,
   onSelectRevision,
   onRun,
+  executionAvailable = true,
 }: ScopeNavigationProps) => {
   const runnable =
+    executionAvailable &&
     analysis !== null &&
     analysis.cfg !== null &&
     analysis.diagnostics.length === 0 &&

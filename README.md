@@ -6,7 +6,6 @@ Runtime Visualizer is a graph-first workspace for inspecting and running saved T
 
 ```bash
 bun install
-bun run frontend:install:playwright # once; required for browser acceptance tests
 bun run dev                 # coordinated frontend (:5173) + backend (selected from :3000)
 ```
 

@@ -78,36 +78,65 @@ const makeResources = (
   ...overrides,
 });
 
-function createQueries() {
-  const load = vi.fn(async () => analysis);
-  const listRevisions = vi.fn(async () => [
+const createQueries = (
+  projectId?: string,
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+) => {
+  const load = vi.fn(() => Promise.resolve(analysis));
+  const listRevisions = vi.fn(() => Promise.resolve([
     {
       ...scope,
       analyzedAt: "2025-01-01T00:00:00.000Z",
       diagnosticCount: 0,
       runnable: true,
     },
-  ]);
+  ]));
   const queries = createLiveWorkspaceQueries(
     {
       analysis: {
-        analyse: async () => analysis,
-        listFiles: async () => [scope.file],
+        analyse: () => Promise.resolve(analysis),
+        listFiles: () => Promise.resolve([scope.file]),
         listRevisions,
         load,
       },
       execution: {
-        cancel: async () => undefined,
-        list: async () => [],
-        start: async () => "execution-2",
+        cancel: () => Promise.resolve(),
+        list: () => Promise.resolve([]),
+        start: () => Promise.resolve("execution-2"),
       },
+      projectId,
     },
-    new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    client
   );
   return { listRevisions, load, queries };
-}
+};
 
 describe("live workspace query ownership", () => {
+  it("isolates query caches for projects that contain the same source path", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const firstProject = createQueries("project-one", client).queries;
+    const secondProject = createQueries("project-two", client).queries;
+
+    await firstProject.fetchFiles();
+    await secondProject.fetchFiles();
+    await firstProject.fetchCurrentAnalysis(scope.file, scope.procedureId);
+    await secondProject.fetchCurrentAnalysis(scope.file, scope.procedureId);
+
+    expect(firstProject.getFiles()).toEqual([scope.file]);
+    expect(secondProject.getFiles()).toEqual([scope.file]);
+    expect(firstProject.getAnalysis(scope)).toEqual(analysis);
+    expect(secondProject.getAnalysis(scope)).toEqual(analysis);
+    expect(liveWorkspaceQueryKeys.files("project-one")).not.toEqual(
+      liveWorkspaceQueryKeys.files("project-two")
+    );
+    expect(
+      liveWorkspaceQueryKeys.analysis(scope, "project-one")
+    ).not.toEqual(liveWorkspaceQueryKeys.analysis(scope, "project-two"));
+    expect(
+      liveWorkspaceQueryKeys.activeExecutions("project-one")
+    ).not.toEqual(liveWorkspaceQueryKeys.activeExecutions("project-two"));
+  });
+
   it("caches immutable analysis by its content-addressed revision", async () => {
     const { load, queries } = createQueries();
     await queries.fetchAnalysis(scope);
@@ -213,19 +242,19 @@ describe("live workspace query ownership", () => {
   });
 
   it("starts a run with the next display number and forwards cancellation", async () => {
-    const start = vi.fn(async () => "execution-2");
-    const cancel = vi.fn(async () => undefined);
+    const start = vi.fn(() => Promise.resolve("execution-2"));
+    const cancel = vi.fn(() => Promise.resolve());
     const queries = createLiveWorkspaceQueries(
       {
         analysis: {
-          analyse: async () => analysis,
-          listFiles: async () => [scope.file],
-          listRevisions: async () => [revisionSummary],
-          load: async () => analysis,
+          analyse: () => Promise.resolve(analysis),
+          listFiles: () => Promise.resolve([scope.file]),
+          listRevisions: () => Promise.resolve([revisionSummary]),
+          load: () => Promise.resolve(analysis),
         },
         execution: {
           cancel,
-          list: async () => [],
+          list: () => Promise.resolve([]),
           start,
         },
       },
@@ -243,9 +272,9 @@ describe("live workspace query ownership", () => {
     const loading = projectLiveWorkspaceView(
       initialLiveWorkspaceState,
       makeResources({
+        analysisStatus: "loading",
         files: [scope.file],
         filesLoading: true,
-        analysisStatus: "loading",
       })
     );
     expect(loading).toMatchObject({

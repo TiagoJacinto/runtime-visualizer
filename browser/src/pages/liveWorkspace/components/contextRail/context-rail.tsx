@@ -8,6 +8,9 @@ import { Activity, X } from "lucide-react";
 import type { WorkspaceController } from "../../useCases/live-workspace.ports";
 import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
 import { ActiveRuns } from "./active-runs";
+import { ProjectFileTree } from "./project-file-tree";
+import { ProjectSwitcher } from "./project-switcher";
+import type { ProjectNavigationProps } from "./project-switcher";
 import { ScopeNavigation } from "./scope-navigation";
 
 interface ContextRailProps {
@@ -19,6 +22,8 @@ interface ContextRailProps {
   revisionBadge: RevisionSummary | null;
   open: boolean;
   onClose: () => void;
+  projectNavigation?: ProjectNavigationProps;
+  executionAvailable?: boolean;
 }
 export const ContextRail = ({
   state,
@@ -29,6 +34,8 @@ export const ContextRail = ({
   revisionBadge,
   open,
   onClose,
+  projectNavigation,
+  executionAvailable = true,
 }: ContextRailProps) => {
   const selectTab = (tab: "scope" | "runs") => {
     controller.dispatch({ tab, type: "set-tab" });
@@ -60,6 +67,9 @@ export const ContextRail = ({
           <X className="h-4 w-4" />
         </button>
       </div>
+      {projectNavigation === undefined ? null : (
+        <ProjectSwitcher {...projectNavigation} />
+      )}
       <div
         role="tablist"
         aria-label="Workspace context"
@@ -100,6 +110,11 @@ export const ContextRail = ({
             aria-labelledby="workspace-scope-tab"
             className="min-h-0 flex-1 overflow-y-auto"
           >
+            <ProjectFileTree
+              paths={state.files}
+              selectedPath={state.selectedFile}
+              onSelect={handleSelectFile}
+            />
             <ScopeNavigation
               state={state}
               analysis={analysis}
@@ -110,6 +125,7 @@ export const ContextRail = ({
               onSelectProcedure={handleSelectProcedure}
               onSelectRevision={handleSelectRevision}
               onRun={handleRunProcedure}
+              executionAvailable={executionAvailable}
             />
           </div>
         ) : (
