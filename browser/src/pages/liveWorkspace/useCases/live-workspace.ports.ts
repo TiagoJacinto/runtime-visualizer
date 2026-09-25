@@ -34,6 +34,8 @@ export interface WorkspaceController {
 }
 
 export interface LiveWorkspacePorts {
+  readonly dispose?: () => void;
+  readonly projectId?: string;
   analysis: AnalysisGatewayPort;
   execution: ExecutionPort;
   workspaceEvents: WorkspaceEventsGatewayPort;

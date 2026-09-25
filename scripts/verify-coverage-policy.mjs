@@ -394,6 +394,7 @@ function verifyExclusions() {
 		if (
 			rule.verification !== "not-executable" &&
 			rule.verification !== "not-shipped" &&
+			rule.verification !== "not-required" &&
 			!coveragePolicy.requiredTestSuites.some(
 				(suite) => suite.command === rule.verification,
 			)

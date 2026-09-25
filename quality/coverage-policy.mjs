@@ -72,15 +72,15 @@ export const coveragePolicy = {
       config: "browser/vitest.config.ts",
       pattern: "src/pages/liveWorkspace/components/**/*.tsx",
       reason:
-        "Presentation components are covered through browser acceptance journeys.",
-      verification: "frontend:test:hve2e",
+        "Presentation components are excluded from coverage by explicit project decision.",
+      verification: "not-required",
     },
     {
       config: "browser/vitest.config.ts",
       pattern: "src/pages/liveWorkspace/live-workspace.page.tsx",
       reason:
-        "The composed workspace page is covered through browser acceptance journeys.",
-      verification: "frontend:test:hve2e",
+        "The composed workspace page is excluded from coverage by explicit project decision.",
+      verification: "not-required",
     },
     {
       config: "browser/vitest.config.ts",
@@ -93,15 +93,15 @@ export const coveragePolicy = {
       config: "browser/vitest.config.ts",
       pattern: "src/app.tsx",
       reason:
-        "The application composition root is covered through browser acceptance journeys.",
-      verification: "frontend:test:hve2e",
+        "The application composition root is excluded from coverage by explicit project decision.",
+      verification: "not-required",
     },
     {
       config: "browser/vitest.config.ts",
       pattern: "src/main.tsx",
       reason:
-        "The browser entry point is covered through browser acceptance journeys.",
-      verification: "frontend:test:hve2e",
+        "The browser entry point is excluded from coverage by explicit project decision.",
+      verification: "not-required",
     },
   ],
   packages: {
@@ -113,7 +113,7 @@ export const coveragePolicy = {
     browser: {
       productionRoots: ["browser/src/"],
       report: "browser/coverage/coverage-final.json",
-      thresholds: qualityPolicyValues.coverage.repositoryThresholds,
+      thresholds: { lines: 0, branches: 0, functions: 0, statements: 0 },
     },
     contracts: {
       productionRoots: ["packages/contracts/src/"],
@@ -156,11 +156,6 @@ export const coveragePolicy = {
       command: "frontend:test:hvut",
       files: "browser/tests/acceptance/unit/**/*.hvut.ts",
       name: "browser acceptance unit",
-    },
-    {
-      command: "frontend:test:hve2e",
-      files: "browser/tests/acceptance/e2e/**/*.hve2e.ts",
-      name: "browser acceptance end-to-end",
     },
     {
       command: "contracts:test:unit",

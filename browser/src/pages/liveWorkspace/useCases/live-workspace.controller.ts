@@ -419,6 +419,7 @@ export class LiveWorkspaceController implements WorkspaceController {
         disposed = true;
         started = false;
         eventStream.stop();
+        ports.dispose?.();
         listeners.clear();
       },
       focus: (target: LiveWorkspaceState["focus"]) =>

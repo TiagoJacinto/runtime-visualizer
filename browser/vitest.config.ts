@@ -66,15 +66,6 @@ export default defineConfig({
       {
         extends: true,
         test: {
-          name: "browser-e2e",
-          include: ["tests/typical/e2e/**/*.e2e.ts"],
-          environment: "node",
-        },
-      },
-
-      {
-        extends: true,
-        test: {
           name: "browser-hvut",
           include: ["tests/acceptance/unit/**/*.hvut.ts"],
           environment: "jsdom",

@@ -23,25 +23,29 @@ import type {
 } from "./live-workspace.types";
 
 const queryRoot = ["live-workspace"] as const;
+const projectQueryRoot = (projectId?: string) =>
+  projectId === undefined ? queryRoot : ([...queryRoot, projectId] as const);
 
 export const liveWorkspaceQueryKeys = {
-  activeExecutions: () => [...queryRoot, "active-executions"] as const,
+  activeExecutions: (projectId?: string) =>
+    [...projectQueryRoot(projectId), "active-executions"] as const,
   all: queryRoot,
-  analysis: (key: RevisionKey) =>
+  analysis: (key: RevisionKey, projectId?: string) =>
     [
-      ...queryRoot,
+      ...projectQueryRoot(projectId),
       "analysis",
       key.file,
       key.procedureId,
       key.revision,
     ] as const,
-  currentAnalysis: (file: string, procedureId?: string) =>
-    [...queryRoot, "current-analysis", file, procedureId ?? ""] as const,
-  files: () => [...queryRoot, "files"] as const,
-  revisions: (scope?: Pick<RevisionKey, "file" | "procedureId">) =>
+  currentAnalysis: (file: string, procedureId?: string, projectId?: string) =>
+    [...projectQueryRoot(projectId), "current-analysis", file, procedureId ?? ""] as const,
+  files: (projectId?: string) => [...projectQueryRoot(projectId), "files"] as const,
+  project: projectQueryRoot,
+  revisions: (scope?: Pick<RevisionKey, "file" | "procedureId">, projectId?: string) =>
     scope
-      ? ([...queryRoot, "revisions", scope.file, scope.procedureId] as const)
-      : ([...queryRoot, "revisions"] as const),
+      ? ([...projectQueryRoot(projectId), "revisions", scope.file, scope.procedureId] as const)
+      : ([...projectQueryRoot(projectId), "revisions"] as const),
 };
 
 interface WorkspaceQueryOptions<T> {
@@ -52,6 +56,7 @@ interface WorkspaceQueryOptions<T> {
 
 export interface LiveWorkspaceQueries {
   readonly client: QueryClient;
+  readonly projectId?: string;
   readonly options: {
     files: () => WorkspaceQueryOptions<readonly string[]>;
     currentAnalysis: (
@@ -147,57 +152,61 @@ export const createLiveWorkspaceQueries = (
   ports: {
     analysis: AnalysisGatewayPort;
     execution: ExecutionGatewayPort;
+    projectId?: string;
   },
   client = makeQueryClient()
 ): LiveWorkspaceQueries => {
+  const { projectId } = ports;
   const filesOptions = () => ({
     // Keep this small bootstrap query alive through StrictMode's development
     // observer cycle so the result can populate the shared query cache.
     queryFn: () => ports.analysis.listFiles(),
-    queryKey: liveWorkspaceQueryKeys.files(),
+    queryKey: liveWorkspaceQueryKeys.files(projectId),
     staleTime: 30_000,
   });
   const currentAnalysisOptions = (file: string, procedureId?: string) => ({
     queryFn: ({ signal }) => ports.analysis.analyse(file, procedureId, signal),
-    queryKey: liveWorkspaceQueryKeys.currentAnalysis(file, procedureId),
+    queryKey: liveWorkspaceQueryKeys.currentAnalysis(file, procedureId, projectId),
     staleTime: 0,
   });
   const analysisOptions = (key: RevisionKey) => ({
     queryFn: ({ signal }) => ports.analysis.load(key, signal),
-    queryKey: liveWorkspaceQueryKeys.analysis(key),
+    queryKey: liveWorkspaceQueryKeys.analysis(key, projectId),
     staleTime: Number.POSITIVE_INFINITY,
   });
   const revisionsOptions = (
     scope: Pick<RevisionKey, "file" | "procedureId">
   ) => ({
     queryFn: ({ signal }) => ports.analysis.listRevisions(scope, signal),
-    queryKey: liveWorkspaceQueryKeys.revisions(scope),
+    queryKey: liveWorkspaceQueryKeys.revisions(scope, projectId),
     staleTime: 0,
   });
   const activeExecutionsOptions = () => ({
     // Keep this small bootstrap query alive through StrictMode's development
     // observer cycle so the result can populate the shared query cache.
     queryFn: () => ports.execution.list?.() ?? Promise.resolve([]),
-    queryKey: liveWorkspaceQueryKeys.activeExecutions(),
+    queryKey: liveWorkspaceQueryKeys.activeExecutions(projectId),
     staleTime: 0,
   });
   const setActiveExecutions = (
     executions: readonly ActiveExecution[]
   ): void => {
     client.setQueryData<readonly ActiveExecution[]>(
-      liveWorkspaceQueryKeys.activeExecutions(),
+      liveWorkspaceQueryKeys.activeExecutions(projectId),
       executions
     );
   };
   const invalidateMutableResources = async (): Promise<void> => {
     await Promise.all([
-      client.invalidateQueries({ queryKey: liveWorkspaceQueryKeys.files() }),
+      client.invalidateQueries({ queryKey: liveWorkspaceQueryKeys.files(projectId) }),
       client.invalidateQueries({
-        queryKey: [...queryRoot, "current-analysis"],
+        queryKey: [...liveWorkspaceQueryKeys.project(projectId), "current-analysis"],
       }),
-      client.invalidateQueries({ queryKey: [...queryRoot, "revisions"] }),
       client.invalidateQueries({
-        queryKey: liveWorkspaceQueryKeys.activeExecutions(),
+        queryKey: [...liveWorkspaceQueryKeys.project(projectId), "revisions"],
+      }),
+      client.invalidateQueries({
+        queryKey: liveWorkspaceQueryKeys.activeExecutions(projectId),
       }),
     ]);
   };
@@ -219,14 +228,14 @@ export const createLiveWorkspaceQueries = (
       if (event.type === "execution-update") {
         const previous = client
           .getQueryData<readonly ActiveExecution[]>(
-            liveWorkspaceQueryKeys.activeExecutions()
+            liveWorkspaceQueryKeys.activeExecutions(projectId)
           )
           ?.find(
             (execution) => execution.executionId === event.update.executionId
           );
         const executions = [
           ...(client.getQueryData<readonly ActiveExecution[]>(
-            liveWorkspaceQueryKeys.activeExecutions()
+            liveWorkspaceQueryKeys.activeExecutions(projectId)
           ) ?? []),
         ].filter(
           (execution) => execution.executionId !== event.update.executionId
@@ -243,51 +252,51 @@ export const createLiveWorkspaceQueries = (
         const { change } = event;
         if (change.change === "added") {
           const files = client.getQueryData<readonly string[]>(
-            liveWorkspaceQueryKeys.files()
+            liveWorkspaceQueryKeys.files(projectId)
           );
           if (files !== undefined && !files.includes(change.file)) {
             client.setQueryData(
-              liveWorkspaceQueryKeys.files(),
+              liveWorkspaceQueryKeys.files(projectId),
               [...files, change.file].toSorted((a, b) => a.localeCompare(b))
             );
           } else if (files === undefined) {
             void client.invalidateQueries({
-              queryKey: liveWorkspaceQueryKeys.files(),
+              queryKey: liveWorkspaceQueryKeys.files(projectId),
             });
           }
         } else if (change.change === "deleted") {
           const files = client.getQueryData<readonly string[]>(
-            liveWorkspaceQueryKeys.files()
+            liveWorkspaceQueryKeys.files(projectId)
           );
           if (files === undefined) {
             void client.invalidateQueries({
-              queryKey: liveWorkspaceQueryKeys.files(),
+              queryKey: liveWorkspaceQueryKeys.files(projectId),
             });
           } else {
             client.setQueryData(
-              liveWorkspaceQueryKeys.files(),
+              liveWorkspaceQueryKeys.files(projectId),
               files.filter((file) => file !== change.file)
             );
           }
         } else {
           void client.invalidateQueries({
-            queryKey: [...queryRoot, "revisions", change.file],
+            queryKey: [...liveWorkspaceQueryKeys.project(projectId), "revisions", change.file],
           });
           void client.invalidateQueries({
-            queryKey: [...queryRoot, "current-analysis", change.file],
+            queryKey: [...liveWorkspaceQueryKeys.project(projectId), "current-analysis", change.file],
           });
         }
         return {};
       }
       if (event.type === "revision-ready") {
         void client.invalidateQueries({
-          queryKey: liveWorkspaceQueryKeys.revisions(event.revision),
+          queryKey: liveWorkspaceQueryKeys.revisions(event.revision, projectId),
         });
         return {};
       }
       if (event.type === "revision-build-failed") {
         void client.invalidateQueries({
-          queryKey: liveWorkspaceQueryKeys.revisions(),
+          queryKey: liveWorkspaceQueryKeys.revisions(undefined, projectId),
         });
         return {};
       }
@@ -309,48 +318,53 @@ export const createLiveWorkspaceQueries = (
       const analysis = await client.fetchQuery(
         options.currentAnalysis(file, procedureId)
       );
-      client.setQueryData(liveWorkspaceQueryKeys.analysis(analysis), analysis);
+      client.setQueryData(liveWorkspaceQueryKeys.analysis(analysis, projectId), analysis);
       return analysis;
     },
     fetchFiles: () => client.fetchQuery(options.files()),
     fetchRevisions: (scope) => client.fetchQuery(options.revisions(scope)),
     getActiveExecutions: () =>
       client.getQueryData<readonly ActiveExecution[]>(
-        liveWorkspaceQueryKeys.activeExecutions()
+        liveWorkspaceQueryKeys.activeExecutions(projectId)
       ) ?? [],
     getAnalysis: (key) =>
       client.getQueryData<AnalysisResponse>(
-        liveWorkspaceQueryKeys.analysis(key)
+        liveWorkspaceQueryKeys.analysis(key, projectId)
       ),
     getFiles: () =>
-      client.getQueryData<readonly string[]>(liveWorkspaceQueryKeys.files()),
+      client.getQueryData<readonly string[]>(liveWorkspaceQueryKeys.files(projectId)),
     getRevisions: (scope) =>
       client.getQueryData<readonly RevisionSummary[]>(
-        liveWorkspaceQueryKeys.revisions(scope)
+        liveWorkspaceQueryKeys.revisions(scope, projectId)
       ),
     invalidateActiveExecutions: () =>
       client.invalidateQueries({
-        queryKey: liveWorkspaceQueryKeys.activeExecutions(),
+        queryKey: liveWorkspaceQueryKeys.activeExecutions(projectId),
       }),
     invalidateCurrentAnalysis: (file) =>
       client.invalidateQueries({
-        queryKey: [...queryRoot, "current-analysis", file],
+        queryKey: [
+          ...liveWorkspaceQueryKeys.project(projectId),
+          "current-analysis",
+          file,
+        ],
       }),
     invalidateFiles: () =>
-      client.invalidateQueries({ queryKey: liveWorkspaceQueryKeys.files() }),
+      client.invalidateQueries({ queryKey: liveWorkspaceQueryKeys.files(projectId) }),
     invalidateMutableResources,
     invalidateRevisions: (scope) =>
       client.invalidateQueries({
         queryKey: scope
-          ? liveWorkspaceQueryKeys.revisions(scope)
-          : [...queryRoot, "revisions"],
+          ? liveWorkspaceQueryKeys.revisions(scope, projectId)
+          : liveWorkspaceQueryKeys.revisions(undefined, projectId),
       }),
     options,
+    projectId,
     startExecution: async (scope) => {
       const executionId = await ports.execution.start(scope);
       const executions =
         client.getQueryData<readonly ActiveExecution[]>(
-          liveWorkspaceQueryKeys.activeExecutions()
+          liveWorkspaceQueryKeys.activeExecutions(projectId)
         ) ?? [];
       const displayNumber =
         Math.max(0, ...executions.map((execution) => execution.displayNumber)) +
@@ -380,7 +394,7 @@ export const useLiveWorkspaceResources = (
         ? {
             queryFn: () =>
               Promise.reject(new Error("No analysis scope selected")),
-            queryKey: [...queryRoot, "analysis", "none"],
+            queryKey: [...projectQueryRoot(queries.projectId), "analysis", "none"],
           }
         : queries.options.analysis(selectedScope)),
       enabled: selectedScope !== null,
@@ -393,7 +407,7 @@ export const useLiveWorkspaceResources = (
       ...(selectedScope === null
         ? {
             queryFn: () => Promise.resolve([]),
-            queryKey: [...queryRoot, "revisions", "none"],
+            queryKey: [...projectQueryRoot(queries.projectId), "revisions", "none"],
           }
         : queries.options.revisions(selectedScope)),
       enabled: selectedScope !== null,
