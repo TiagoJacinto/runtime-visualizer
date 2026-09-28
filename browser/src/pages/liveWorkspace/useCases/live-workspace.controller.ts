@@ -113,6 +113,8 @@ export class LiveWorkspaceController implements WorkspaceController {
     let state = initialLiveWorkspaceState;
     let disposed = false;
     let started = false;
+    let localEventSequence = 0;
+    let localWatchController: AbortController | undefined;
     const retry = ports.retry ?? new RetryScheduler();
     const listeners = new Set<(state: LiveWorkspaceState) => void>();
 
@@ -227,21 +229,28 @@ export class LiveWorkspaceController implements WorkspaceController {
       void loadActiveExecutions();
     };
     const refreshRevisionHistory = async (
-      scope: Pick<RevisionKey, "file" | "procedureId">
+      scope: Pick<RevisionKey, "file" | "procedureId">,
+      preferredRevision?: string
     ): Promise<void> => {
       try {
         const revisions = await queries.fetchRevisions(scope);
         const selected = selectedScope(state);
-        const [first] = revisions;
+        const nextRevision =
+          revisions.find((item) => item.revision === preferredRevision) ??
+          revisions[0];
         if (
-          first !== undefined &&
+          nextRevision !== undefined &&
           selected !== null &&
           selected.file === scope.file &&
           selected.procedureId === scope.procedureId &&
-          first.revision !== selected.revision &&
+          nextRevision.revision !== selected.revision &&
           !activeForScope(queries, selected)
         ) {
-          await bootstrapFile(scope.file, scope.procedureId);
+          await bootstrapFile(
+            scope.file,
+            scope.procedureId,
+            nextRevision.revision
+          );
         }
       } catch (error) {
         if (!disposed && !isCancellationError(error)) {
@@ -323,10 +332,10 @@ export class LiveWorkspaceController implements WorkspaceController {
           if (activeScope) {
             return;
           }
-          void refreshRevisionHistory({
-            file: selected.file,
-            procedureId: selected.procedureId,
-          });
+          void refreshRevisionHistory(
+            { file: selected.file, procedureId: selected.procedureId },
+            event.change.revision
+          );
         } else if (event.change.change === "deleted") {
           handleDeletedSourceChange(
             event.change.file,
@@ -344,7 +353,10 @@ export class LiveWorkspaceController implements WorkspaceController {
           selected?.file === event.revision.file &&
           selected.procedureId === event.revision.procedureId
         ) {
-          void refreshRevisionHistory(event.revision);
+          void refreshRevisionHistory(
+            event.revision,
+            event.revision.revision
+          );
         }
       } else if (event.type === "resync-required") {
         refreshWorkspaceResources();
@@ -364,6 +376,37 @@ export class LiveWorkspaceController implements WorkspaceController {
       retry,
       subscribe: ports.workspaceEvents.subscribe.bind(ports.workspaceEvents),
     });
+    const startLocalChanges = (): void => {
+      const { localChanges } = ports;
+      if (localChanges === undefined) {
+        refreshWorkspaceResources();
+        return;
+      }
+      localWatchController?.abort();
+      const controller = new AbortController();
+      localWatchController = controller;
+      void (async () => {
+        try {
+          for await (const change of localChanges.watch(controller.signal)) {
+            if (disposed || controller.signal.aborted) {
+              return;
+            }
+            if (change.kind === "ready") {
+              await loadInitial();
+              await loadActiveExecutions();
+              continue;
+            }
+            localEventSequence += 1;
+            handleWorkspaceEvent(localEventSequence, change.event);
+          }
+        } catch (error) {
+          if (!disposed && !controller.signal.aborted) {
+            dispatch({ error: errorMessage(error), type: "resource-error" });
+          }
+        }
+      })();
+    };
+
     const runEffect = async (effect: {
       type: "cancel-execution";
       executionId: string;
@@ -419,6 +462,8 @@ export class LiveWorkspaceController implements WorkspaceController {
         disposed = true;
         started = false;
         eventStream.stop();
+        localWatchController?.abort();
+        localWatchController = undefined;
         ports.dispose?.();
         listeners.clear();
       },
@@ -427,8 +472,12 @@ export class LiveWorkspaceController implements WorkspaceController {
       getState: () => state,
       retry: () => {
         void queries.invalidateMutableResources();
-        refreshWorkspaceResources();
-        eventStream.retry();
+        if (ports.localChanges === undefined) {
+          refreshWorkspaceResources();
+          eventStream.retry();
+        } else {
+          startLocalChanges();
+        }
       },
       runProcedure: () => {
         // oxlint-disable-next-line eslint/no-void
@@ -516,7 +565,7 @@ export class LiveWorkspaceController implements WorkspaceController {
             type: "preferences-loaded",
           });
         }
-        refreshWorkspaceResources();
+        startLocalChanges();
         eventStream.start(state.connectionState.cursor);
       },
       subscribe: (listener: (state: LiveWorkspaceState) => void) => {

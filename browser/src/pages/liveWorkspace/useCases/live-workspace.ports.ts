@@ -1,4 +1,4 @@
-import type { RevisionKey } from "@runtime-visualizer/contracts";
+import type { RevisionKey, WorkspaceEvent } from "@runtime-visualizer/contracts";
 
 import type {
   AnalysisGatewayPort,
@@ -12,6 +12,14 @@ import type { LiveWorkspaceEvent } from "./live-workspace.reducer";
 import type { LiveWorkspaceState } from "./live-workspace.types";
 
 export type ExecutionPort = ExecutionGatewayPort;
+
+export type LocalWorkspaceChange =
+  | { readonly kind: "ready" }
+  | { readonly event: WorkspaceEvent; readonly kind: "event" };
+
+export interface LocalWorkspaceChangesPort {
+  watch: (signal: AbortSignal) => AsyncIterable<LocalWorkspaceChange>;
+}
 
 export interface WorkspaceController {
   readonly queries: LiveWorkspaceQueries;
@@ -35,6 +43,7 @@ export interface WorkspaceController {
 
 export interface LiveWorkspacePorts {
   readonly dispose?: () => void;
+  readonly localChanges?: LocalWorkspaceChangesPort;
   readonly projectId?: string;
   analysis: AnalysisGatewayPort;
   execution: ExecutionPort;

@@ -15,6 +15,28 @@ export interface ProjectFiles {
   readSource: (projectId: ProjectId, path: string) => Promise<string>;
 }
 
+export type ProjectFileChange =
+  | {
+      readonly change: "added" | "modified";
+      readonly file: string;
+      readonly source: string;
+    }
+  | { readonly change: "deleted"; readonly file: string };
+
+export type ProjectFilesWatchEvent =
+  | { readonly type: "ready" }
+  | {
+      readonly type: "changes";
+      readonly changes: readonly ProjectFileChange[];
+    };
+
+export interface ProjectFileChangeSource {
+  watchChanges: (
+    projectId: ProjectId,
+    signal: AbortSignal
+  ) => AsyncIterable<ProjectFilesWatchEvent>;
+}
+
 export interface SavedProject {
   readonly id: ProjectId;
   readonly name: string;
