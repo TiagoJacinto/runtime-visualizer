@@ -35,6 +35,7 @@
     "cibuild": "bun run quality",
     "prepare": "lefthook install",
     "dev": "bun run scripts/dev.ts",
+    "dev:https": "bash scripts/dev-tailscale.sh",
     "backend:start": "bun run --filter runtime-visualizer-backend start",
     "backend:dev": "bun run --filter runtime-visualizer-backend dev",
     "backend:typecheck": "bun run --filter runtime-visualizer-backend typecheck",
