@@ -4,8 +4,7 @@ import { AnalyzeProject } from "./index.ts";
 import type { AnalysisSnapshot } from "./index.ts";
 import { BrowserAnalysisWorker } from "./browser-analysis-worker.ts";
 import { BrowserAnalysisGateway } from "./browser-analysis-gateway.ts";
-import { createEmptyExecutionPort } from "./empty-execution.ts";
-import { createEmptyWorkspaceEvents } from "./empty-workspace-events.ts";
+import { createLocalExecution } from "../execution/index.ts";
 import { IndexedDbRevisionHistory } from "../revision-history/index.ts";
 import { BrowserProjects } from "../project-files/browser-projects.ts";
 import { FileSystemProjectFiles } from "../project-files/file-system-project-files.ts";
@@ -69,13 +68,17 @@ export const createBrowserWorkspacePorts = (projectId: ProjectId): LiveWorkspace
   const revisions = new IndexedDbRevisionHistory();
   const worker = new BrowserAnalysisWorker();
   const analysis = new AnalyzeProject(files, worker, revisions);
+  const execution = createLocalExecution(revisions, projectId);
   return {
     analysis: new BrowserAnalysisGateway(analysis, projectId),
-    dispose: () => worker.dispose(),
-    execution: createEmptyExecutionPort(),
+    dispose: () => {
+      execution.dispose();
+      worker.dispose();
+    },
+    execution,
     localChanges: localChanges(projectId, files, analysis),
+    localExecutionUpdates: execution,
     preferences: undefined,
     projectId,
-    workspaceEvents: createEmptyWorkspaceEvents(),
   };
 };

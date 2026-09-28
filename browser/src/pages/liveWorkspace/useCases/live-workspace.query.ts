@@ -12,8 +12,8 @@ import type {
   QueryFunctionContext,
 } from "@tanstack/react-query";
 
+import type { LocalExecutionCommands } from "../../../modules/execution/index.ts";
 import type { AnalysisGatewayPort } from "../../../shared/api/analysis-gateway";
-import type { ExecutionGatewayPort } from "../../../shared/api/execution-gateway";
 import { executionRecordFromActive } from "./live-workspace.types";
 import type {
   ExecutionRecord,
@@ -151,7 +151,7 @@ const makeQueryClient = (config?: QueryClientConfig): QueryClient =>
 export const createLiveWorkspaceQueries = (
   ports: {
     analysis: AnalysisGatewayPort;
-    execution: ExecutionGatewayPort;
+    execution: LocalExecutionCommands;
     projectId?: string;
   },
   client = makeQueryClient()
@@ -184,7 +184,7 @@ export const createLiveWorkspaceQueries = (
   const activeExecutionsOptions = () => ({
     // Keep this small bootstrap query alive through StrictMode's development
     // observer cycle so the result can populate the shared query cache.
-    queryFn: () => ports.execution.list?.() ?? Promise.resolve([]),
+    queryFn: () => ports.execution.list(),
     queryKey: liveWorkspaceQueryKeys.activeExecutions(projectId),
     staleTime: 0,
   });
@@ -306,9 +306,6 @@ export const createLiveWorkspaceQueries = (
       return {};
     },
     cancelExecution: async (executionId) => {
-      if (ports.execution.cancel === undefined) {
-        throw new Error("Execution cancellation is unavailable");
-      }
       await ports.execution.cancel(executionId);
     },
     client,
@@ -366,6 +363,12 @@ export const createLiveWorkspaceQueries = (
         client.getQueryData<readonly ActiveExecution[]>(
           liveWorkspaceQueryKeys.activeExecutions(projectId)
         ) ?? [];
+      const alreadyActive = executions.find(
+        (execution) => execution.executionId === executionId
+      );
+      if (alreadyActive !== undefined) {
+        return alreadyActive;
+      }
       const displayNumber =
         Math.max(0, ...executions.map((execution) => execution.displayNumber)) +
         1;

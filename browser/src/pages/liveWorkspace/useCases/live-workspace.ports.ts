@@ -3,7 +3,10 @@ import type { RevisionKey, WorkspaceEvent } from "@runtime-visualizer/contracts"
 import type {
   AnalysisGatewayPort,
 } from "../../../shared/api/analysis-gateway";
-import type { ExecutionGatewayPort } from "../../../shared/api/execution-gateway";
+import type {
+  LocalExecutionCommands,
+  LocalExecutionUpdates,
+} from "../../../modules/execution/index.ts";
 import type { WorkspaceEventsGatewayPort } from "../../../shared/api/workspace-events-gateway";
 import type { WorkspacePreferences } from "../../../shared/api/workspace-preferences";
 import type { RetryScheduler } from "../../../shared/retry/retry-scheduler";
@@ -11,7 +14,7 @@ import type { LiveWorkspaceQueries } from "./live-workspace.query";
 import type { LiveWorkspaceEvent } from "./live-workspace.reducer";
 import type { LiveWorkspaceState } from "./live-workspace.types";
 
-export type ExecutionPort = ExecutionGatewayPort;
+export type ExecutionPort = LocalExecutionCommands;
 
 export type LocalWorkspaceChange =
   | { readonly kind: "ready" }
@@ -20,6 +23,8 @@ export type LocalWorkspaceChange =
 export interface LocalWorkspaceChangesPort {
   watch: (signal: AbortSignal) => AsyncIterable<LocalWorkspaceChange>;
 }
+
+export type LocalWorkspaceExecutionUpdatesPort = LocalExecutionUpdates;
 
 export interface WorkspaceController {
   readonly queries: LiveWorkspaceQueries;
@@ -44,10 +49,11 @@ export interface WorkspaceController {
 export interface LiveWorkspacePorts {
   readonly dispose?: () => void;
   readonly localChanges?: LocalWorkspaceChangesPort;
+  readonly localExecutionUpdates?: LocalWorkspaceExecutionUpdatesPort;
   readonly projectId?: string;
   analysis: AnalysisGatewayPort;
   execution: ExecutionPort;
-  workspaceEvents: WorkspaceEventsGatewayPort;
+  workspaceEvents?: WorkspaceEventsGatewayPort;
   preferences?: WorkspacePreferences;
   retry?: RetryScheduler;
   queries?: LiveWorkspaceQueries;

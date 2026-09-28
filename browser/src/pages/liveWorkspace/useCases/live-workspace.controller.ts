@@ -108,6 +108,7 @@ export class LiveWorkspaceController implements WorkspaceController {
       createLiveWorkspaceQueries({
         analysis: ports.analysis,
         execution: ports.execution,
+        projectId: ports.projectId,
       });
     const { queries } = this;
     let state = initialLiveWorkspaceState;
@@ -115,6 +116,7 @@ export class LiveWorkspaceController implements WorkspaceController {
     let started = false;
     let localEventSequence = 0;
     let localWatchController: AbortController | undefined;
+    let unsubscribeLocalExecutionUpdates: (() => void) | undefined;
     const retry = ports.retry ?? new RetryScheduler();
     const listeners = new Set<(state: LiveWorkspaceState) => void>();
 
@@ -291,6 +293,25 @@ export class LiveWorkspaceController implements WorkspaceController {
         void bootstrapFile(nextFile);
       }
     };
+    const finishExecutionUpdate = (
+      terminal: ExecutionUpdate | undefined,
+      before: ReturnType<LiveWorkspaceQueries["getActiveExecutions"]>
+    ): void => {
+      if (terminal === undefined) {
+        return;
+      }
+      const previous = before.find(
+        (execution) => execution.executionId === terminal.executionId
+      );
+      dispatch({
+        execution: recordFromUpdate(
+          terminal,
+          previous === undefined ? undefined : executionRecordFromActive(previous)
+        ),
+        type: "execution-finished",
+      });
+      void refreshQueued();
+    };
     const handleWorkspaceEvent = (id: number, event: WorkspaceEvent): void => {
       const selected = selectedScope(state);
       const before = queries.getActiveExecutions();
@@ -312,21 +333,7 @@ export class LiveWorkspaceController implements WorkspaceController {
         id,
         type: "workspace-event",
       });
-      if (result.terminal !== undefined) {
-        const previous = before.find(
-          (execution) => execution.executionId === result.terminal?.executionId
-        );
-        dispatch({
-          execution: recordFromUpdate(
-            result.terminal,
-            previous === undefined
-              ? undefined
-              : executionRecordFromActive(previous)
-          ),
-          type: "execution-finished",
-        });
-        void refreshQueued();
-      }
+      finishExecutionUpdate(result.terminal, before);
       if (event.type === "source-change") {
         if (event.change.change === "modified" && selected !== null) {
           if (activeScope) {
@@ -362,20 +369,27 @@ export class LiveWorkspaceController implements WorkspaceController {
         refreshWorkspaceResources();
       }
     };
-    const eventStream = createWorkspaceEventStream({
-      onEvent: (record) => handleWorkspaceEvent(record.id, record.event),
-      onState: (next) =>
-        publishState({
-          ...state,
-          connectionState: {
-            cursor: next.cursor,
-            status: next.status,
-          },
-          errorMessage: next.errorMessage,
-        }),
-      retry,
-      subscribe: ports.workspaceEvents.subscribe.bind(ports.workspaceEvents),
-    });
+    const eventStream =
+      ports.localChanges !== undefined ||
+      ports.localExecutionUpdates !== undefined ||
+      ports.workspaceEvents === undefined
+        ? undefined
+        : createWorkspaceEventStream({
+            onEvent: (record) => handleWorkspaceEvent(record.id, record.event),
+            onState: (next) =>
+              publishState({
+                ...state,
+                connectionState: {
+                  cursor: next.cursor,
+                  status: next.status,
+                },
+                errorMessage: next.errorMessage,
+              }),
+            retry,
+            subscribe: ports.workspaceEvents.subscribe.bind(
+              ports.workspaceEvents
+            ),
+          });
     const startLocalChanges = (): void => {
       const { localChanges } = ports;
       if (localChanges === undefined) {
@@ -405,6 +419,24 @@ export class LiveWorkspaceController implements WorkspaceController {
           }
         }
       })();
+    };
+
+    const startLocalExecutionUpdates = (): void => {
+      const { localExecutionUpdates } = ports;
+      if (localExecutionUpdates === undefined) {
+        return;
+      }
+      unsubscribeLocalExecutionUpdates?.();
+      unsubscribeLocalExecutionUpdates = localExecutionUpdates.subscribe(
+        (update) => {
+          const before = queries.getActiveExecutions();
+          const result = queries.applyWorkspaceEvent({
+            type: "execution-update",
+            update,
+          });
+          finishExecutionUpdate(result.terminal, before);
+        }
+      );
     };
 
     const runEffect = async (effect: {
@@ -461,9 +493,11 @@ export class LiveWorkspaceController implements WorkspaceController {
       dispose: () => {
         disposed = true;
         started = false;
-        eventStream.stop();
+        eventStream?.stop();
         localWatchController?.abort();
         localWatchController = undefined;
+        unsubscribeLocalExecutionUpdates?.();
+        unsubscribeLocalExecutionUpdates = undefined;
         ports.dispose?.();
         listeners.clear();
       },
@@ -472,9 +506,12 @@ export class LiveWorkspaceController implements WorkspaceController {
       getState: () => state,
       retry: () => {
         void queries.invalidateMutableResources();
-        if (ports.localChanges === undefined) {
+        if (
+          ports.localChanges === undefined &&
+          ports.localExecutionUpdates === undefined
+        ) {
           refreshWorkspaceResources();
-          eventStream.retry();
+          eventStream?.retry();
         } else {
           startLocalChanges();
         }
@@ -565,8 +602,9 @@ export class LiveWorkspaceController implements WorkspaceController {
             type: "preferences-loaded",
           });
         }
+        startLocalExecutionUpdates();
         startLocalChanges();
-        eventStream.start(state.connectionState.cursor);
+        eventStream?.start(state.connectionState.cursor);
       },
       subscribe: (listener: (state: LiveWorkspaceState) => void) => {
         listeners.add(listener);
