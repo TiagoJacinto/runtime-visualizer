@@ -36,11 +36,19 @@ is_runtime_visualizer() {
   [[ $page == *'<title>runtime-visualizer</title>'* && $page == *'id="root"'* ]]
 }
 
-if port_is_open "$frontend_port"; then
-  is_runtime_visualizer || fail "Port $frontend_port is occupied by something other than this Vite app. Set FRONTEND_PORT to a free port."
-else
-  app_needs_start=1
-fi
+app_needs_start=1
+while :; do
+  frontend_url="http://127.0.0.1:${frontend_port}/"
+  if ! port_is_open "$frontend_port"; then
+    break
+  fi
+  if is_runtime_visualizer; then
+    app_needs_start=0
+    break
+  fi
+  (( frontend_port < 65535 )) || fail "No available frontend TCP port found at or above $frontend_port."
+  frontend_port=$((frontend_port + 1))
+done
 
 route_state=$(tailscale serve status --json | python3 -c '
 import json, sys
