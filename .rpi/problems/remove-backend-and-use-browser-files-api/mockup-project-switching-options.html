@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project switching options</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap');
+:root{color-scheme:dark;--background:#07110e;--foreground:#cbd5e1;--card:#091510;--muted:#0a1712;--primary:#6ee7b7;--muted-foreground:#94a3b8;--accent:#0e1d18;--border:rgba(255,255,255,.1);--radius:10px}
+*{box-sizing:border-box}body{margin:0;padding:28px;background:var(--background);color:var(--foreground);font:14px Inter,system-ui,sans-serif}h1{font-size:20px;margin:0 0 20px}h2{font-size:14px;margin:0 0 5px}p{margin:0;color:var(--muted-foreground);line-height:1.5}.grid{display:grid;grid-template-columns:repeat(2,minmax(280px,1fr));gap:18px}.option{border:1px solid var(--border);border-radius:var(--radius);background:var(--card);overflow:hidden}.label{padding:15px 16px;border-bottom:1px solid var(--border)}.app{height:245px;display:flex;flex-direction:column}.top{height:45px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 15px;gap:10px;font-weight:600}.logo{color:var(--primary)}.body{display:flex;flex:1;min-height:0}.rail{width:190px;padding:13px;border-right:1px solid var(--border);background:var(--muted)}.main{padding:21px;flex:1}.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-foreground);margin-bottom:8px}.select,.item{border:1px solid var(--border);border-radius:7px;padding:9px 10px;background:var(--accent);margin-bottom:8px}.select{display:flex;justify-content:space-between;align-items:center}.select strong,.item strong{display:block;font-weight:500}.small{font-size:11px;color:var(--muted-foreground);margin-top:4px}.btn{border:1px solid rgba(110,231,183,.35);border-radius:7px;color:var(--primary);padding:8px 10px;font-size:12px;background:rgba(110,231,183,.08);text-align:center}.mono{font:11px 'IBM Plex Mono',monospace;color:var(--muted-foreground)}.workspace{height:120px;margin-top:12px;border:1px solid var(--border);border-radius:8px;background:var(--muted);display:flex;align-items:center;justify-content:center;color:var(--muted-foreground);font-size:12px}.item.active{border-color:rgba(110,231,183,.45)}.row{display:flex;justify-content:space-between;align-items:center}.arrow{color:var(--primary)}@media(max-width:700px){.grid{grid-template-columns:1fr}body{padding:16px}}
+</style>
+</head>
+<body>
+<h1>Choose how users switch imported projects</h1>
+<div class="grid">
+<section class="option">
+<div class="label"><h2>A · Project switcher in the workspace</h2><p>Compact; users can switch without leaving their current work.</p></div>
+<div class="app"><div class="top"><span class="logo">◈</span> Runtime Visualizer <span class="mono">/ workspace</span></div><div class="body"><aside class="rail"><div class="eyebrow">Project</div><div class="select"><div><strong>payments-app</strong><div class="small">2 projects saved</div></div><span class="arrow">⌄</span></div><div class="item"><strong>dashboard</strong><div class="small">Recently opened</div></div><div class="btn">＋ Add project folder</div><div class="eyebrow" style="margin-top:20px">File</div><div class="select"><strong>src/main.ts</strong><span>⌄</span></div><div class="eyebrow" style="margin-top:18px">Procedure</div><div class="select"><strong>run</strong><span>⌄</span></div></aside><main class="main"><div class="eyebrow">payments-app · src/main.ts</div><strong>Workspace stays in place</strong><div class="workspace">Source and control-flow graph</div></main></div></div>
+</section>
+<section class="option">
+<div class="label"><h2>B · Separate projects home</h2><p>Clear project management, but switching takes users away from the workspace.</p></div>
+<div class="app"><div class="top"><span class="logo">◈</span> Runtime Visualizer <span class="mono">/ projects</span></div><div class="main" style="padding:17px 22px"><div class="row"><div><strong>Your projects</strong><div class="small">Choose a project to open in the workspace.</div></div><div class="btn">＋ Add project folder</div></div><div class="item active" style="margin-top:14px"><div class="row"><div><strong>payments-app</strong><div class="small">/Users/you/Code/payments-app</div></div><span class="arrow">Open →</span></div></div><div class="item"><div class="row"><div><strong>dashboard</strong><div class="small">/Users/you/Code/dashboard</div></div><span class="arrow">Open →</span></div></div><div class="workspace" style="height:70px">Project management is separate from the workspace</div></div></div>
+</section>
+</div>
+</body>
+</html>
