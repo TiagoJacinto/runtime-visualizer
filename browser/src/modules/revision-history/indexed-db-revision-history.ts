@@ -1,8 +1,11 @@
 /* oxlint-disable avoid-new, prefer-add-event-listener, class-methods-use-this */
 
-import type { RevisionSummary } from "@runtime-visualizer/contracts";
+import type {
+  AnalysisSnapshot,
+  ProjectRevisionKey,
+  RevisionSummary,
+} from "../analysis/index.ts";
 import { openBrowserWorkspaceDatabase } from "../browser-storage/indexed-db.ts";
-import type { AnalysisSnapshot, RevisionKey } from "../analysis/index.ts";
 
 interface StoredSnapshot extends Omit<AnalysisSnapshot, "files"> {
   readonly fileHashes: Readonly<Record<string, string>>;
@@ -32,7 +35,9 @@ const hash = async (text: string): Promise<string> => {
 const requestValue = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
     request.addEventListener("success", () => resolve(request.result));
-    request.addEventListener("error", () => reject(request.error ?? new Error("Revision storage request failed.")));
+    request.addEventListener("error", () =>
+      reject(request.error ?? new Error("Revision storage request failed."))
+    );
   });
 
 export class IndexedDbRevisionHistory {
@@ -49,9 +54,17 @@ export class IndexedDbRevisionHistory {
     );
     const database = await openBrowserWorkspaceDatabase();
     return new Promise((resolve, reject) => {
-      const transaction = database.transaction([SOURCES, REVISIONS], "readwrite");
+      const transaction = database.transaction(
+        [SOURCES, REVISIONS],
+        "readwrite"
+      );
       const revisions = transaction.objectStore(REVISIONS);
-      const key = [snapshot.projectId, snapshot.file, snapshot.procedureId, snapshot.revision];
+      const key = [
+        snapshot.projectId,
+        snapshot.file,
+        snapshot.procedureId,
+        snapshot.revision,
+      ];
       let outcome: "inserted" | "existing" = "inserted";
       const lookup = revisions.get(key);
       lookup.addEventListener("success", () => {
@@ -81,10 +94,13 @@ export class IndexedDbRevisionHistory {
     });
   }
 
-  async load(key: RevisionKey): Promise<AnalysisSnapshot | undefined> {
+  async load(key: ProjectRevisionKey): Promise<AnalysisSnapshot | undefined> {
     const database = await openBrowserWorkspaceDatabase();
     try {
-      const transaction = database.transaction([SOURCES, REVISIONS], "readonly");
+      const transaction = database.transaction(
+        [SOURCES, REVISIONS],
+        "readonly"
+      );
       // SAFETY: save() writes each revision key using the StoredSnapshot shape.
       const stored = (await requestValue(
         transaction
@@ -116,13 +132,16 @@ export class IndexedDbRevisionHistory {
   }
 
   async list(
-    scope: Pick<RevisionKey, "projectId" | "file" | "procedureId">
+    scope: Pick<ProjectRevisionKey, "projectId" | "file" | "procedureId">
   ): Promise<readonly RevisionSummary[]> {
     const database = await openBrowserWorkspaceDatabase();
     try {
       // SAFETY: all revision records are written by save() using StoredSnapshot.
       const records = (await requestValue(
-        database.transaction(REVISIONS, "readonly").objectStore(REVISIONS).getAll()
+        database
+          .transaction(REVISIONS, "readonly")
+          .objectStore(REVISIONS)
+          .getAll()
       )) as StoredSnapshot[];
       return records
         .filter(
@@ -131,17 +150,15 @@ export class IndexedDbRevisionHistory {
             record.file === scope.file &&
             record.procedureId === scope.procedureId
         )
-        .map((record) =>
-          ({
-            analyzedAt: record.analyzedAt,
-            diagnosticCount: record.diagnostics.length,
-            file: record.file,
-            procedureId: record.procedureId,
-            projectId: record.projectId,
-            revision: record.revision,
-            runnable: record.cfg !== null && record.diagnostics.length === 0,
-          })
-        )
+        .map((record) => ({
+          analyzedAt: record.analyzedAt,
+          diagnosticCount: record.diagnostics.length,
+          file: record.file,
+          procedureId: record.procedureId,
+          projectId: record.projectId,
+          revision: record.revision,
+          runnable: record.cfg !== null && record.diagnostics.length === 0,
+        }))
         .toSorted((a, b) => b.analyzedAt.localeCompare(a.analyzedAt));
     } finally {
       database.close();

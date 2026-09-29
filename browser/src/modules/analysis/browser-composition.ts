@@ -1,19 +1,18 @@
-import type { RevisionSummary, WorkspaceEvent } from "@runtime-visualizer/contracts";
-
-import { AnalyzeProject } from "./index.ts";
-import type { AnalysisSnapshot } from "./index.ts";
-import { BrowserAnalysisWorker } from "./browser-analysis-worker.ts";
-import { BrowserAnalysisGateway } from "./browser-analysis-gateway.ts";
-import { createLocalExecution } from "../execution/index.ts";
-import { IndexedDbRevisionHistory } from "../revision-history/index.ts";
-import { BrowserProjects } from "../project-files/browser-projects.ts";
-import { FileSystemProjectFiles } from "../project-files/file-system-project-files.ts";
-import { IndexedDbProjectStore } from "../project-files/indexed-db-project-store.ts";
-import type { ProjectId } from "../project-files/index.ts";
 import type {
   LiveWorkspacePorts,
   LocalWorkspaceChange,
 } from "../../pages/liveWorkspace/useCases/live-workspace.ports.ts";
+import type { LiveWorkspaceUpdate } from "../../pages/liveWorkspace/useCases/live-workspace.types.ts";
+import { createLocalExecution } from "../execution/index.ts";
+import { BrowserProjects } from "../project-files/browser-projects.ts";
+import { FileSystemProjectFiles } from "../project-files/file-system-project-files.ts";
+import type { ProjectId } from "../project-files/index.ts";
+import { IndexedDbProjectStore } from "../project-files/indexed-db-project-store.ts";
+import { IndexedDbRevisionHistory } from "../revision-history/index.ts";
+import { BrowserAnalysisGateway } from "./browser-analysis-gateway.ts";
+import { BrowserAnalysisWorker } from "./browser-analysis-worker.ts";
+import { AnalyzeProject } from "./index.ts";
+import type { AnalysisSnapshot, RevisionSummary } from "./index.ts";
 
 const revisionSummary = (snapshot: AnalysisSnapshot): RevisionSummary => ({
   analyzedAt: snapshot.analyzedAt,
@@ -41,7 +40,7 @@ const localChanges = (
           observation.changes
         );
         for (const change of observation.changes) {
-          const event: WorkspaceEvent = {
+          const event: LiveWorkspaceUpdate = {
             change: {
               change: change.change,
               file: change.file,
@@ -52,7 +51,7 @@ const localChanges = (
           yield { event, kind: "event" };
         }
         for (const snapshot of snapshots) {
-          const event: WorkspaceEvent = {
+          const event: LiveWorkspaceUpdate = {
             revision: revisionSummary(snapshot),
             type: "revision-ready",
           };
@@ -62,7 +61,9 @@ const localChanges = (
     })(),
 });
 
-export const createBrowserWorkspacePorts = (projectId: ProjectId): LiveWorkspacePorts => {
+export const createBrowserWorkspacePorts = (
+  projectId: ProjectId
+): LiveWorkspacePorts => {
   const projects = new BrowserProjects(new IndexedDbProjectStore());
   const files = new FileSystemProjectFiles(projects);
   const revisions = new IndexedDbRevisionHistory();
@@ -78,7 +79,6 @@ export const createBrowserWorkspacePorts = (projectId: ProjectId): LiveWorkspace
     execution,
     localChanges: localChanges(projectId, files, analysis),
     localExecutionUpdates: execution,
-    preferences: undefined,
     projectId,
   };
 };

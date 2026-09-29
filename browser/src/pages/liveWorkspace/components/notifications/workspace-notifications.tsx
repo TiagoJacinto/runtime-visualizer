@@ -1,29 +1,23 @@
-import { AlertCircle, GitBranch, RefreshCw } from "lucide-react";
+import { AlertCircle, GitBranch } from "lucide-react";
 
-import type { WorkspaceController } from "../../useCases/live-workspace.ports";
 import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
 
 interface WorkspaceNotificationsProps {
   state: LiveWorkspaceView;
-  controller: WorkspaceController;
 }
 export const WorkspaceNotifications = ({
   state,
-  controller,
 }: WorkspaceNotificationsProps) => {
   const runningExecutions = state.executions.filter(
     (execution) => execution.status === "running"
   );
   const hasRunningNotice = runningExecutions.length > 0;
-  const hasConnectionNotice = state.connection === "reconnecting";
   const hasQueueNotice = state.queuedRevision !== null;
   const hasDeleteNotice = state.fileDeleted;
   const hasErrorNotice =
     state.errorMessage !== null && state.pane.status !== "failed";
-  const handleRetry = () => controller.retry();
   if (
     !hasRunningNotice &&
-    !hasConnectionNotice &&
     !hasQueueNotice &&
     !hasDeleteNotice &&
     !hasErrorNotice &&
@@ -49,19 +43,6 @@ export const WorkspaceNotifications = ({
           </span>
         </output>
       ))}
-      {hasConnectionNotice ? (
-        <output className="flex items-center gap-3 rounded-lg border border-amber-300/20 bg-amber-300/[0.06] px-3 py-2 text-[10px] text-amber-100">
-          <RefreshCw className="h-3.5 w-3.5 animate-spin text-amber-300" />
-          Reconnecting to the workspace event stream…
-          <button
-            type="button"
-            onClick={handleRetry}
-            className="ml-auto rounded border border-amber-300/20 px-2 py-1 text-amber-200 hover:bg-amber-300/10"
-          >
-            Retry
-          </button>
-        </output>
-      ) : null}
       {hasQueueNotice ? (
         <output className="flex items-center gap-3 rounded-lg border border-amber-300/15 bg-amber-300/[0.05] px-3 py-2 text-[10px] text-amber-100">
           <GitBranch className="h-3.5 w-3.5 shrink-0 text-amber-300" />

@@ -1,16 +1,28 @@
-import type {
-  ActiveExecution,
-  ExecutionUpdate,
-  RevisionKey as WorkspaceRevisionKey,
-} from "@runtime-visualizer/contracts";
-
-import type { AnalysisSnapshot } from "../analysis/index.ts";
+import type { AnalysisSnapshot, RevisionKey } from "../analysis/index.ts";
 import type { ProjectId } from "../project-files/index.ts";
 import type { RevisionHistory } from "../revision-history/index.ts";
 import { LocalExecution } from "./local-execution.ts";
 
 export type { AnalysisSnapshot } from "../analysis/index.ts";
 
+export interface ActiveExecution {
+  readonly executionId: string;
+  readonly displayNumber: number;
+  readonly scope: RevisionKey;
+  readonly startedAt: string;
+  readonly status: "Running";
+  readonly currentNodeId: string | null;
+}
+
+export interface ExecutionUpdate {
+  readonly executionId: string;
+  readonly displayNumber: number;
+  readonly scope: RevisionKey;
+  readonly status: "Running" | "Succeeded" | "Failed" | "Cancelled";
+  readonly currentNodeId: string | null;
+  readonly error?: string;
+  readonly failedNodeId?: string;
+}
 export type ExecutionProcedure = NonNullable<
   NonNullable<AnalysisSnapshot["cfg"]>["procedures"]
 >[number];
@@ -46,7 +58,7 @@ export interface LocalExecutionPort {
   cancel: (executionId: string) => Promise<void>;
   dispose: () => void;
   list: () => Promise<readonly ActiveExecution[]>;
-  start: (scope: WorkspaceRevisionKey) => Promise<string>;
+  start: (scope: RevisionKey) => Promise<string>;
   subscribe: (listener: (update: ExecutionUpdate) => void) => () => void;
 }
 

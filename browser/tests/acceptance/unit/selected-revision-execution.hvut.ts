@@ -1,11 +1,13 @@
 import { describeFeature, loadFeature } from "@amiceli/vitest-cucumber";
 import type {
-  ActiveExecution,
   AnalysisResponse,
-  ExecutionUpdate,
   RevisionKey,
   RevisionSummary,
-} from "@runtime-visualizer/contracts";
+} from "../../../src/modules/analysis/index.ts";
+import type {
+  ActiveExecution,
+  ExecutionUpdate,
+} from "../../../src/modules/execution/index.ts";
 import { afterAll, expect } from "vitest";
 
 import { LiveWorkspaceController } from "../../../src/pages/liveWorkspace/useCases/live-workspace.controller";

@@ -50,6 +50,91 @@ const dirname = (value: string): string => {
   const index = normalized.lastIndexOf("/");
   return index < 1 ? "/" : normalized.slice(0, index);
 };
+const typeScriptLibraryUrls = new Map(
+  Object.entries(
+    import.meta.glob<string>(
+      [
+        "../../../../node_modules/typescript/lib/lib.es*.d.ts",
+        "../../../../node_modules/typescript/lib/lib.dom*.d.ts",
+        "../../../../node_modules/typescript/lib/lib.decorators*.d.ts",
+        "../../../../node_modules/typescript/lib/lib.scripthost.d.ts",
+        "../../../../node_modules/typescript/lib/lib.webworker.importscripts.d.ts",
+      ],
+      { eager: true, import: "default", query: "?url" }
+    )
+  ).map(([path, url]) => [basename(path), url])
+);
+const typeScriptLibraryDirectory =
+  ts.sys === undefined
+    ? undefined
+    : dirname(ts.getDefaultLibFilePath(analysisCompilerOptions));
+const typeScriptLibrariesByRoot = new Map<
+  string,
+  Promise<ReadonlyMap<string, string>>
+>();
+const loadTypeScriptLibraries = (
+  rootFile: string
+): Promise<ReadonlyMap<string, string>> => {
+  const cached = typeScriptLibrariesByRoot.get(rootFile);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const loading = (async (): Promise<ReadonlyMap<string, string>> => {
+    const libraries = new Map<string, string>();
+    const requested = new Set<string>();
+    const loadLibrary = async (fileName: string): Promise<void> => {
+      const name = basename(fileName);
+      if (requested.has(name)) {
+        return;
+      }
+      requested.add(name);
+      let source: string | undefined;
+      if (typeScriptLibraryDirectory === undefined) {
+        const url = typeScriptLibraryUrls.get(name);
+        if (url === undefined) {
+          throw new Error(
+            `TypeScript standard library ${name} is missing from the browser build.`
+          );
+        }
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(
+            `Unable to load TypeScript standard library ${name}.`
+          );
+        }
+        source = await response.text();
+      } else {
+        source = ts.sys.readFile(`${typeScriptLibraryDirectory}/${name}`);
+      }
+      if (source === undefined) {
+        throw new Error(`Unable to read TypeScript standard library ${name}.`);
+      }
+      libraries.set(name, source);
+      const references = new Set<string>();
+      for (const match of source.matchAll(
+        /<reference\s+lib="(?<name>[^"]+)"/gu
+      )) {
+        const library = match.groups?.name;
+        if (library !== undefined) {
+          references.add(`lib.${library}.d.ts`);
+        }
+      }
+      for (const match of source.matchAll(
+        /<reference\s+path="(?<path>[^"]+)"/gu
+      )) {
+        const path = match.groups?.path;
+        if (path !== undefined) {
+          references.add(basename(path));
+        }
+      }
+      await Promise.all([...references].map(loadLibrary));
+    };
+    await loadLibrary(rootFile);
+    return libraries;
+  })();
+  typeScriptLibrariesByRoot.set(rootFile, loading);
+  return loading;
+};
 const displayPath = (filePath: string): string => basename(filePath);
 const scriptKindFor = (filePath: string): ts.ScriptKind =>
   filePath.toLowerCase().endsWith(".tsx")
@@ -180,11 +265,11 @@ const collectWithDiagnostics = (
   };
   visit(file);
 };
-const createProjectProgram = ({
+const createProjectProgram = async ({
   source,
   filePath,
   files = {},
-}: SourceProject): ProjectProgram => {
+}: SourceProject): Promise<ProjectProgram> => {
   const selectedPath = virtualPath(filePath);
   const sources = new Map<string, string>();
   for (const [name, contents] of Object.entries(files)) {
@@ -192,71 +277,86 @@ const createProjectProgram = ({
   }
   sources.set(selectedPath, source);
   const compilerOptions = analysisCompilerOptions;
-  const host = ts.createCompilerHost(compilerOptions);
-  const defaultLib = normalize(ts.getDefaultLibFilePath(compilerOptions));
-  const defaultReadFile = host.readFile.bind(host);
-  const readDefaultLib = (fileName: string): string | undefined =>
-    fileName === defaultLib || basename(fileName).startsWith("lib.")
-      ? defaultReadFile(fileName)
-      : undefined;
-  host.readFile = (fileName) =>
-    sources.get(normalize(fileName)) ?? readDefaultLib(fileName);
-  host.fileExists = (fileName) =>
-    sources.has(normalize(fileName)) ||
-    readDefaultLib(fileName) !== undefined;
-  host.resolveModuleNames = (moduleNames, containingFile) =>
-    moduleNames.map((moduleName) => {
-      if (moduleName.startsWith(".")) {
-        const exact = normalize(
-          `${dirname(containingFile)}/${moduleName}`
-        );
-        if (sources.has(exact)) {
-          return {
-            extension:
-              scriptKindFor(exact) === ts.ScriptKind.TSX
-                ? ts.Extension.Tsx
-                : ts.Extension.Ts,
-            isExternalLibraryImport: false,
-            resolvedFileName: exact,
-          };
-        }
-        for (const extension of [".ts", ".tsx", ".d.ts"]) {
-          const candidate = normalize(
-            `${dirname(containingFile)}/${moduleName}${extension}`
+  const libraries = await loadTypeScriptLibraries(
+    ts.getDefaultLibFileName(compilerOptions)
+  );
+  const readFile = (fileName: string): string | undefined =>
+    sources.get(normalize(fileName)) ?? libraries.get(basename(fileName));
+  const host: ts.CompilerHost = {
+    directoryExists: (directoryName) => {
+      const directory = normalize(directoryName);
+      return (
+        directory === "/runtime-visualizer" ||
+        [...sources.keys()].some((fileName) =>
+          dirname(fileName).startsWith(`${directory}/`)
+        )
+      );
+    },
+    fileExists: (fileName) => readFile(fileName) !== undefined,
+    getCanonicalFileName: (fileName) => normalize(fileName),
+    getCurrentDirectory: () => "/runtime-visualizer",
+    getDefaultLibFileName: (options) =>
+      `/runtime-visualizer/${ts.getDefaultLibFileName(options)}`,
+    getDirectories: () => [],
+    getNewLine: () => "\n",
+    getSourceFile: (fileName, languageVersion) => {
+      const contents = readFile(fileName);
+      return contents === undefined
+        ? undefined
+        : ts.createSourceFile(
+            fileName,
+            contents,
+            languageVersion,
+            true,
+            scriptKindFor(fileName)
           );
-          if (sources.has(candidate)) {
-            let resolvedExtension = ts.Extension.Ts;
-            if (extension === ".d.ts") {
-              resolvedExtension = ts.Extension.Dts;
-            } else if (extension === ".tsx") {
-              resolvedExtension = ts.Extension.Tsx;
-            }
+    },
+    readFile,
+    realpath: normalize,
+    resolveModuleNames: (moduleNames, containingFile) =>
+      moduleNames.map((moduleName) => {
+        if (moduleName.startsWith(".")) {
+          const exact = normalize(`${dirname(containingFile)}/${moduleName}`);
+          if (sources.has(exact)) {
             return {
-              extension: resolvedExtension,
+              extension:
+                scriptKindFor(exact) === ts.ScriptKind.TSX
+                  ? ts.Extension.Tsx
+                  : ts.Extension.Ts,
               isExternalLibraryImport: false,
-              resolvedFileName: candidate,
+              resolvedFileName: exact,
             };
           }
+          for (const extension of [".ts", ".tsx", ".d.ts"]) {
+            const candidate = normalize(
+              `${dirname(containingFile)}/${moduleName}${extension}`
+            );
+            if (sources.has(candidate)) {
+              let resolvedExtension = ts.Extension.Ts;
+              if (extension === ".d.ts") {
+                resolvedExtension = ts.Extension.Dts;
+              } else if (extension === ".tsx") {
+                resolvedExtension = ts.Extension.Tsx;
+              }
+              return {
+                extension: resolvedExtension,
+                isExternalLibraryImport: false,
+                resolvedFileName: candidate,
+              };
+            }
+          }
         }
-      }
-      return ts.resolveModuleName(
-        moduleName,
-        containingFile,
-        compilerOptions,
-        host
-      ).resolvedModule;
-    });
-  host.getSourceFile = (fileName, languageVersion) => {
-    const contents = host.readFile(fileName);
-    return contents === undefined
-      ? undefined
-      : ts.createSourceFile(
-          fileName,
-          contents,
-          languageVersion,
-          true,
-          scriptKindFor(fileName)
-        );
+        return ts.resolveModuleName(
+          moduleName,
+          containingFile,
+          compilerOptions,
+          host
+        ).resolvedModule;
+      }),
+    useCaseSensitiveFileNames: () => true,
+    writeFile: () => {
+      // Analysis runs with noEmit enabled.
+    },
   };
   return {
     program: ts.createProgram([selectedPath], compilerOptions, host),
@@ -265,12 +365,12 @@ const createProjectProgram = ({
   };
 };
 /** Returns the saved source files loaded by the selected file's TypeScript Program. */
-export const projectDependencyFiles = ({
+export const projectDependencyFiles = async ({
   source,
   filePath,
   files = {},
-}: SourceProject): readonly string[] => {
-  const { program, sources, selectedPath } = createProjectProgram({
+}: SourceProject): Promise<readonly string[]> => {
+  const { program, sources, selectedPath } = await createProjectProgram({
     filePath,
     files,
     source,
@@ -278,18 +378,25 @@ export const projectDependencyFiles = ({
   const paths = new Set(
     program.getSourceFiles().map((file) => normalize(file.fileName))
   );
-  return [...sources.keys()]
-    .filter((name) => paths.has(name))
-    .map((name) =>
+  const dependencies: string[] = [];
+  for (const name of sources.keys()) {
+    if (!paths.has(name)) {
+      continue;
+    }
+    dependencies.push(
       name === selectedPath
         ? filePath
         : name.replace(/^\/runtime-visualizer\//u, "")
-    )
-    .toSorted();
+    );
+  }
+  return dependencies.toSorted((left, right) => left.localeCompare(right));
 };
 /** Diagnose only the selected Procedure and the dependencies it imports. */
-export const diagnoseProject = (project: SourceProject): GraphDiagnostic[] => {
-  const { program, sources, selectedPath } = createProjectProgram(project);
+export const diagnoseProject = async (
+  project: SourceProject
+): Promise<GraphDiagnostic[]> => {
+  const { program, sources, selectedPath } =
+    await createProjectProgram(project);
   const diagnostics: GraphDiagnostic[] = [];
   for (const file of program.getSourceFiles()) {
     const candidatePath = normalize(file.fileName);

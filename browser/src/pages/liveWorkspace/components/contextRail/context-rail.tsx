@@ -1,10 +1,10 @@
+import { Activity, X } from "lucide-react";
+
 import type {
   AnalysisResponse,
   RevisionKey,
   RevisionSummary,
-} from "@runtime-visualizer/contracts";
-import { Activity, X } from "lucide-react";
-
+} from "../../../../modules/analysis/index.ts";
 import type { WorkspaceController } from "../../useCases/live-workspace.ports";
 import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
 import { ActiveRuns } from "./active-runs";
@@ -23,7 +23,6 @@ interface ContextRailProps {
   open: boolean;
   onClose: () => void;
   projectNavigation?: ProjectNavigationProps;
-  executionAvailable?: boolean;
 }
 export const ContextRail = ({
   state,
@@ -35,7 +34,6 @@ export const ContextRail = ({
   open,
   onClose,
   projectNavigation,
-  executionAvailable = true,
 }: ContextRailProps) => {
   const selectTab = (tab: "scope" | "runs") => {
     controller.dispatch({ tab, type: "set-tab" });
@@ -125,7 +123,6 @@ export const ContextRail = ({
               onSelectProcedure={handleSelectProcedure}
               onSelectRevision={handleSelectRevision}
               onRun={handleRunProcedure}
-              executionAvailable={executionAvailable}
             />
           </div>
         ) : (

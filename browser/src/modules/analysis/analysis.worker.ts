@@ -1,6 +1,6 @@
+import type { AnalysisSnapshot, AnalysisWorker } from "./index.ts";
 /* oxlint-disable require-post-message-target-origin */
 import { createLocalAnalysisWorker } from "./local-analysis-worker.ts";
-import type { AnalysisSnapshot, AnalysisWorker } from "./index.ts";
 
 type AnalysisInput = Parameters<AnalysisWorker["analyze"]>[0];
 interface WorkerRequest {

@@ -1,4 +1,3 @@
-import { ProjectPermissionError } from "./project-permission-error.ts";
 import type {
   FileSystemDirectoryHandleLike,
   FileSystemFileHandleLike,
@@ -10,6 +9,7 @@ import type {
   SourceMap,
 } from "./index.ts";
 import { isSupportedSourcePath, sortSourcePaths } from "./index.ts";
+import { ProjectPermissionError } from "./project-permission-error.ts";
 
 const permission = async (
   handle: FileSystemDirectoryHandleLike
@@ -60,7 +60,10 @@ const waitForNextPoll = (signal: AbortSignal): Promise<void> =>
   });
 
 interface ObservedFile {
-  readonly file: Blob & { readonly lastModified: number; readonly size: number };
+  readonly file: Blob & {
+    readonly lastModified: number;
+    readonly size: number;
+  };
   readonly lastModified: number;
   readonly size: number;
 }
@@ -90,18 +93,20 @@ export class FileSystemProjectFiles
   implements ProjectFiles, ProjectFileChangeSource
 {
   private readonly projects: {
-    get: (projectId: ProjectId) => Promise<
+    get: (
+      projectId: ProjectId
+    ) => Promise<
       { readonly handle: FileSystemDirectoryHandleLike } | undefined
     >;
   };
 
-  constructor(
-    projects: {
-      get: (projectId: ProjectId) => Promise<
-        { readonly handle: FileSystemDirectoryHandleLike } | undefined
-      >;
-    }
-  ) {
+  constructor(projects: {
+    get: (
+      projectId: ProjectId
+    ) => Promise<
+      { readonly handle: FileSystemDirectoryHandleLike } | undefined
+    >;
+  }) {
     this.projects = projects;
   }
 

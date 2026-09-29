@@ -1,8 +1,13 @@
-import type { AnalysisResponse, RevisionKey as LegacyRevisionKey, RevisionSummary } from "@runtime-visualizer/contracts";
-import type { AnalyzeProject } from "./index.ts";
 import type { ProjectId } from "../project-files/index.ts";
+import type {
+  AnalysisResponse,
+  AnalyzeProject,
+  BrowserAnalysisPort,
+  RevisionKey,
+  RevisionSummary,
+} from "./index.ts";
 
-export class BrowserAnalysisGateway {
+export class BrowserAnalysisGateway implements BrowserAnalysisPort {
   private readonly analysis: Pick<
     AnalyzeProject,
     "listFiles" | "analyse" | "listRevisions" | "load"
@@ -28,12 +33,17 @@ export class BrowserAnalysisGateway {
     return this.analysis.analyse(this.projectId, file, procedureId);
   }
 
-  listRevisions(scope: Pick<LegacyRevisionKey, "file" | "procedureId">): Promise<readonly RevisionSummary[]> {
+  listRevisions(
+    scope: Pick<RevisionKey, "file" | "procedureId">
+  ): Promise<readonly RevisionSummary[]> {
     return this.analysis.listRevisions({ ...scope, projectId: this.projectId });
   }
 
-  async load(key: LegacyRevisionKey): Promise<AnalysisResponse> {
-    const snapshot = await this.analysis.load({ ...key, projectId: this.projectId });
+  async load(key: RevisionKey): Promise<AnalysisResponse> {
+    const snapshot = await this.analysis.load({
+      ...key,
+      projectId: this.projectId,
+    });
     if (snapshot === undefined) {
       throw new Error("Revision unavailable");
     }

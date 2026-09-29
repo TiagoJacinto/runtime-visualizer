@@ -1,13 +1,10 @@
-import type {
-  ActiveExecution,
-  ExecutionUpdate,
-  RevisionKey as WorkspaceRevisionKey,
-} from "@runtime-visualizer/contracts";
-
+import type { RevisionKey as WorkspaceRevisionKey } from "../analysis/index.ts";
 import type { ProjectId } from "../project-files/index.ts";
 import type { RevisionHistory } from "../revision-history/index.ts";
 import { runInExecutionWorker } from "./browser-execution-worker.ts";
 import type {
+  ActiveExecution,
+  ExecutionUpdate,
   ExecutionWorkerRequest,
   ExecutionWorkerResult,
   LocalExecutionOptions,
@@ -97,14 +94,16 @@ export class LocalExecution implements LocalExecutionPort {
   }
 
   list(): Promise<readonly ActiveExecution[]> {
-    return Promise.resolve([...this.active.values()].map((run) => ({
-      currentNodeId: run.currentNodeId,
-      displayNumber: run.displayNumber,
-      executionId: run.executionId,
-      scope: run.scope,
-      startedAt: run.startedAt,
-      status: "Running",
-    })));
+    return Promise.resolve(
+      [...this.active.values()].map((run) => ({
+        currentNodeId: run.currentNodeId,
+        displayNumber: run.displayNumber,
+        executionId: run.executionId,
+        scope: run.scope,
+        startedAt: run.startedAt,
+        status: "Running",
+      }))
+    );
   }
 
   async cancel(executionId: string): Promise<void> {
@@ -169,20 +168,16 @@ export class LocalExecution implements LocalExecutionPort {
     status: ExecutionUpdate["status"],
     error?: string
   ): ExecutionUpdate {
-    const update: ExecutionUpdate = {
+    return {
       currentNodeId: run.currentNodeId,
       displayNumber: run.displayNumber,
+      error,
       executionId: run.executionId,
+      failedNodeId:
+        status === "Failed" ? (run.currentNodeId ?? undefined) : undefined,
       scope: run.scope,
       status,
     };
-    if (error !== undefined) {
-      update.error = error;
-    }
-    if (status === "Failed" && run.currentNodeId !== null) {
-      update.failedNodeId = run.currentNodeId;
-    }
-    return update;
   }
 
   private publish(update: ExecutionUpdate): void {

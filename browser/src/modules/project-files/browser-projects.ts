@@ -1,4 +1,3 @@
-import { ProjectPermissionError } from "./project-permission-error.ts";
 import type {
   AddProjectResult,
   BrowserProjectsPort,
@@ -7,6 +6,7 @@ import type {
   SavedProjectAccess,
   SavedProject,
 } from "./index.ts";
+import { ProjectPermissionError } from "./project-permission-error.ts";
 
 declare global {
   interface Window {
@@ -56,9 +56,10 @@ export class BrowserProjects implements BrowserProjectsPort {
       throw error;
     }
     const existing = await this.findExisting(handle);
-    const project: SavedProjectAccess = existing === undefined
-      ? { handle, id: projectId(), name: handle.name }
-      : { ...existing, handle, name: handle.name };
+    const project: SavedProjectAccess =
+      existing === undefined
+        ? { handle, id: projectId(), name: handle.name }
+        : { ...existing, handle, name: handle.name };
     await this.store.put(project);
     return { project, status: "opened" };
   }

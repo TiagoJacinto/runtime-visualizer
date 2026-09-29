@@ -1,4 +1,8 @@
-export { diagnoseProject, projectDependencyFiles, analysisCompilerOptions } from "./diagnostics.ts";
+export {
+  diagnoseProject,
+  projectDependencyFiles,
+  analysisCompilerOptions,
+} from "./diagnostics.ts";
 export { analyseFileProcedure } from "./file-analyzer.ts";
 export { analyseProject } from "./project-analyzer.ts";
 export type {
@@ -12,4 +16,7 @@ export type {
   ProcedureCfg,
   SourceLocation,
 } from "./types.ts";
-export type { ProjectAnalysis, ProjectAnalysisRequest } from "./project-analyzer.ts";
+export type {
+  ProjectAnalysis,
+  ProjectAnalysisRequest,
+} from "./project-analyzer.ts";

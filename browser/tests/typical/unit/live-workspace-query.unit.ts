@@ -1,8 +1,8 @@
 import type {
   AnalysisResponse,
-  ActiveExecution,
   RevisionSummary,
-} from "@runtime-visualizer/contracts";
+} from "../../../src/modules/analysis/index.ts";
+import type { ActiveExecution } from "../../../src/modules/execution/index.ts";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
@@ -170,35 +170,6 @@ describe("live workspace query ownership", () => {
     expect(listRevisions).toHaveBeenCalledTimes(2);
   });
 
-  it("invalidates every mutable resource during resynchronization", async () => {
-    const { queries } = createQueries();
-    await queries.fetchFiles();
-    await queries.fetchCurrentAnalysis(scope.file, scope.procedureId);
-    await queries.fetchRevisions(scope);
-    await queries.fetchActiveExecutions();
-
-    queries.applyWorkspaceEvent({ type: "resync-required" });
-    await queries.invalidateMutableResources();
-
-    expect(
-      queries.client.getQueryState(liveWorkspaceQueryKeys.files())
-        ?.isInvalidated
-    ).toBe(true);
-    expect(
-      queries.client.getQueryState(
-        liveWorkspaceQueryKeys.currentAnalysis(scope.file, scope.procedureId)
-      )?.isInvalidated
-    ).toBe(true);
-    expect(
-      queries.client.getQueryState(liveWorkspaceQueryKeys.revisions(scope))
-        ?.isInvalidated
-    ).toBe(true);
-    expect(
-      queries.client.getQueryState(liveWorkspaceQueryKeys.activeExecutions())
-        ?.isInvalidated
-    ).toBe(true);
-  });
-
   it("handles file-cache and revision events across populated and empty caches", async () => {
     const { queries } = createQueries();
     await queries.fetchFiles();
@@ -218,11 +189,6 @@ describe("live workspace query ownership", () => {
     queries.applyWorkspaceEvent({
       revision: revisionSummary,
       type: "revision-ready",
-    });
-    queries.applyWorkspaceEvent({
-      error: "build failed",
-      paths: [scope.file],
-      type: "revision-build-failed",
     });
     expect(queries.getFiles()).toEqual([scope.file]);
     expect(
@@ -321,22 +287,19 @@ describe("live workspace query ownership", () => {
     ).toBe("empty");
   });
 
-  it("owns active execution updates and returns terminal results to local history", () => {
+  it("owns active execution updates and returns terminal results to local history", async () => {
     const { queries } = createQueries();
-    queries.applyWorkspaceEvent({
-      executions: [active],
-      type: "active-executions",
-    });
+    const started = await queries.startExecution(scope);
     const result = queries.applyWorkspaceEvent({
       type: "execution-update",
       update: {
-        ...active,
+        ...started,
         currentNodeId: null,
         error: "boom",
         status: "Failed",
       },
     });
-    expect(result.terminal?.executionId).toBe(active.executionId);
+    expect(result.terminal?.executionId).toBe(started.executionId);
     expect(queries.getActiveExecutions()).toEqual([]);
   });
 });

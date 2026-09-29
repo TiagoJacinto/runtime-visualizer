@@ -26,6 +26,8 @@ export const openBrowserWorkspaceDatabase = (): Promise<IDBDatabase> =>
     });
     request.addEventListener("success", () => resolve(request.result));
     request.addEventListener("error", () =>
-      reject(request.error ?? new Error("Unable to open browser workspace storage."))
+      reject(
+        request.error ?? new Error("Unable to open browser workspace storage.")
+      )
     );
   });

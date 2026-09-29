@@ -1,7 +1,5 @@
-import type {
-  RevisionKey,
-  WorkspaceEvent,
-} from "@runtime-visualizer/contracts";
+import type { RevisionKey } from "../../../src/modules/analysis/index.ts";
+import type { LiveWorkspaceUpdate } from "../../../src/pages/liveWorkspace/useCases/live-workspace.types";
 import { describe, expect, it } from "vitest";
 
 import { reduceWorkspace } from "../../../src/pages/liveWorkspace/useCases/live-workspace.reducer";
@@ -35,14 +33,12 @@ const reduce = (
 ): LiveWorkspaceState => reduceWorkspace(state, event).state;
 
 describe("live workspace local interaction reducer", () => {
-  it("restores a saved scope without putting server resources in local state", () => {
+  it("keeps the selected scope in local interaction state", () => {
     const next = reduce(initialLiveWorkspaceState, {
-      importsVisible: false,
-      scope,
-      type: "preferences-loaded",
+      key: scope,
+      type: "select-scope",
     });
     expect(next.selection).toEqual({ scope, status: "selected" });
-    expect(next.importsVisible).toBe(false);
     expect(next).not.toHaveProperty("files");
     expect(next).not.toHaveProperty("revisions");
     expect(next).not.toHaveProperty("analysis");
@@ -63,8 +59,7 @@ describe("live workspace local interaction reducer", () => {
           type: "file-changed",
         },
         type: "source-change",
-      } satisfies WorkspaceEvent,
-      id: 2,
+      } satisfies LiveWorkspaceUpdate,
       type: "workspace-event",
     });
     expect(changed.queuedRevision).toBe("revision-2");
@@ -81,8 +76,7 @@ describe("live workspace local interaction reducer", () => {
       event: {
         change: { change: "deleted", file: scope.file, type: "file-changed" },
         type: "source-change",
-      } satisfies WorkspaceEvent,
-      id: 3,
+      } satisfies LiveWorkspaceUpdate,
       type: "workspace-event",
     });
     expect(deleted.fileDeleted).toBe(true);
@@ -114,19 +108,26 @@ describe("live workspace local interaction reducer", () => {
     expect(rolledBack.errorMessage).toBe("Network unavailable");
   });
 
-  it("keeps the stream connected while resources resynchronize", () => {
-    const next = reduce(
-      {
-        ...initialLiveWorkspaceState,
-        connectionState: { cursor: 8, status: "connected" },
+  it("queues a newer local revision while its pinned run is active", () => {
+    const selected = reduce(initialLiveWorkspaceState, {
+      key: scope,
+      type: "select-scope",
+    });
+    const next = reduce(selected, {
+      activeForScope: true,
+      event: {
+        revision: {
+          ...scope,
+          analyzedAt: "2025-01-01T00:00:01.000Z",
+          diagnosticCount: 0,
+          revision: "revision-2",
+          runnable: true,
+        },
+        type: "revision-ready",
       },
-      {
-        event: { type: "resync-required" },
-        id: 8,
-        type: "workspace-event",
-      }
-    );
-    expect(next.connectionState).toEqual({ cursor: 8, status: "connected" });
+      type: "workspace-event",
+    });
+    expect(next.queuedRevision).toBe("revision-2");
   });
 
   it("retains terminal results locally after the query removes the active run", () => {

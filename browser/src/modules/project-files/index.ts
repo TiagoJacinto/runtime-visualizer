@@ -62,7 +62,9 @@ export interface BrowserProjectsPort {
 export interface FileSystemFileHandleLike {
   readonly kind: "file";
   readonly name: string;
-  getFile: () => Promise<Blob & { readonly lastModified: number; readonly size: number }>;
+  getFile: () => Promise<
+    Blob & { readonly lastModified: number; readonly size: number }
+  >;
 }
 
 export interface FileSystemDirectoryHandleLike {
@@ -71,7 +73,9 @@ export interface FileSystemDirectoryHandleLike {
   entries: () => AsyncIterableIterator<readonly [string, FileSystemHandleLike]>;
   isSameEntry?: (other: FileSystemDirectoryHandleLike) => Promise<boolean>;
   queryPermission?: (descriptor?: { mode: "read" }) => Promise<PermissionState>;
-  requestPermission?: (descriptor?: { mode: "read" }) => Promise<PermissionState>;
+  requestPermission?: (descriptor?: {
+    mode: "read";
+  }) => Promise<PermissionState>;
 }
 
 export type FileSystemHandleLike =
@@ -84,6 +88,5 @@ export { ProjectPermissionError } from "./project-permission-error.ts";
 export const isSupportedSourcePath = (path: string): boolean =>
   /\.(?:ts|tsx)$/iu.test(path);
 
-export const sortSourcePaths = (
-  paths: readonly string[]
-): readonly string[] => paths.toSorted((a, b) => a.localeCompare(b));
+export const sortSourcePaths = (paths: readonly string[]): readonly string[] =>
+  paths.toSorted((a, b) => a.localeCompare(b));

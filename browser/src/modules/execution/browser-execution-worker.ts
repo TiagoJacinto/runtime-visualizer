@@ -98,9 +98,7 @@ export const runInExecutionWorker = (
       }
       finish({ error: message.error, status: message.status });
     }),
-    worker.onError((message) =>
-      finish({ error: message, status: "Failed" })
-    )
+    worker.onError((message) => finish({ error: message, status: "Failed" }))
   );
 
   if (options.signal.aborted) {

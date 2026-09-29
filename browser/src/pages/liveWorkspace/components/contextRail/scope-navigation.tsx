@@ -1,11 +1,11 @@
+import { ChevronDown, Play } from "lucide-react";
+import type { ChangeEvent, ReactNode } from "react";
+
 import type {
   AnalysisResponse,
   RevisionKey,
   RevisionSummary,
-} from "@runtime-visualizer/contracts";
-import { ChevronDown, Play } from "lucide-react";
-import type { ChangeEvent, ReactNode } from "react";
-
+} from "../../../../modules/analysis/index.ts";
 import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
 
 interface ScopeNavigationProps {
@@ -18,7 +18,6 @@ interface ScopeNavigationProps {
   onSelectProcedure: (procedureId: string) => void;
   onSelectRevision: (scope: RevisionKey) => void;
   onRun: () => void;
-  executionAvailable?: boolean;
 }
 interface SelectFieldProps {
   label: string;
@@ -63,10 +62,8 @@ export const ScopeNavigation = ({
   onSelectProcedure,
   onSelectRevision,
   onRun,
-  executionAvailable = true,
 }: ScopeNavigationProps) => {
   const runnable =
-    executionAvailable &&
     analysis !== null &&
     analysis.cfg !== null &&
     analysis.diagnostics.length === 0 &&
@@ -77,9 +74,7 @@ export const ScopeNavigation = ({
         label="File"
         value={state.selectedFile ?? ""}
         onChange={(event) => onSelectFile(event.target.value)}
-        disabled={
-          state.files.length === 0 || state.connection === "reconnecting"
-        }
+        disabled={state.files.length === 0}
       >
         <option value="" disabled>
           Select a file
@@ -94,7 +89,7 @@ export const ScopeNavigation = ({
         label="Procedure"
         value={state.selectedProcedure ?? ""}
         onChange={(event) => onSelectProcedure(event.target.value)}
-        disabled={analysis === null || state.connection === "reconnecting"}
+        disabled={analysis === null}
       >
         {analysis?.procedures.map((procedure) => (
           <option key={procedure.id} value={procedure.id}>
@@ -113,7 +108,7 @@ export const ScopeNavigation = ({
             });
           }
         }}
-        disabled={revisions.length === 0 || state.connection === "reconnecting"}
+        disabled={revisions.length === 0}
       >
         {revisions.map((revision) => (
           <option key={revision.revision} value={revision.revision}>
@@ -132,9 +127,7 @@ export const ScopeNavigation = ({
       </div>
       <button
         type="button"
-        disabled={
-          !runnable || state.connection === "reconnecting" || state.fileDeleted
-        }
+        disabled={!runnable || state.fileDeleted}
         onClick={onRun}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-300 py-2.5 text-xs font-semibold text-[#06100D] transition hover:bg-emerald-200 focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2 focus:ring-offset-[#0A1712] focus:outline-none disabled:cursor-not-allowed disabled:opacity-40"
       >

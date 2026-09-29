@@ -1,9 +1,12 @@
 import type {
-  ActiveExecution,
   AnalysisResponse,
   RevisionKey,
   RevisionSummary,
-} from "@runtime-visualizer/contracts";
+} from "../../../modules/analysis/index.ts";
+import type {
+  ActiveExecution,
+  ExecutionUpdate,
+} from "../../../modules/execution/index.ts";
 
 export type AnalysisPaneState =
   | {
@@ -36,15 +39,24 @@ export interface WorkspaceNotification {
   message: string;
   level: "info" | "error";
 }
-export interface WorkspaceConnectionState {
-  status: "connected" | "reconnecting";
-  cursor: number | null;
-}
 /** A workspace has either no selected scope or one complete revision key. */
 export type WorkspaceSelection =
   | { status: "unselected" }
   | { status: "selected"; scope: RevisionKey };
 export type ExecutionStatus = "running" | "succeeded" | "failed" | "cancelled";
+
+export type LiveWorkspaceUpdate =
+  | {
+      readonly type: "source-change";
+      readonly change: {
+        readonly type: "file-changed";
+        readonly file: string;
+        readonly change: "added" | "modified" | "deleted";
+        readonly revision?: string;
+      };
+    }
+  | { readonly type: "revision-ready"; readonly revision: RevisionSummary }
+  | { readonly type: "execution-update"; readonly update: ExecutionUpdate };
 /** Browser projection of a server-owned execution. `scope` is authoritative. */
 export interface ExecutionRecord {
   executionId: string;
@@ -70,7 +82,6 @@ export interface LiveWorkspaceState {
   focus: FocusTarget | null;
   contextTab: "scope" | "runs";
   cancellation: CancellationState;
-  connectionState: WorkspaceConnectionState;
   notifications: readonly WorkspaceNotification[];
   importsVisible: boolean;
   errorMessage: string | null;
@@ -103,13 +114,11 @@ export interface LiveWorkspaceView extends LiveWorkspaceState {
   selectedFile: string | null;
   selectedProcedure: string | null;
   error: string | null;
-  connection: "connected" | "reconnecting";
 }
 
 export const initialLiveWorkspaceState: LiveWorkspaceState = {
   cancellation: { armedExecutionId: null, pendingById: {} },
   completedExecutions: [],
-  connectionState: { cursor: null, status: "connected" },
   contextTab: "scope",
   errorMessage: null,
   fileDeleted: false,

@@ -4,7 +4,6 @@
     "**/tests/**",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "**/*.hve2e.ts",
     "**/*.hvut.ts",
     "**/*.hvit.ts",
     "**/*.integration.ts",

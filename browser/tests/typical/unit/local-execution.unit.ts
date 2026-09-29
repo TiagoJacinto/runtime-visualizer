@@ -3,7 +3,7 @@ import type {
   ExecutionWorkerReply,
   ExecutionWorkerRequest,
 } from "../../../src/modules/execution/index.ts";
-import type { ExecutionUpdate } from "@runtime-visualizer/contracts";
+import type { ExecutionUpdate } from "../../../src/modules/execution/index.ts";
 import { createLocalExecution } from "../../../src/modules/execution/index.ts";
 import type { AnalysisSnapshot } from "../../../src/modules/analysis/index.ts";
 import type { RevisionHistory } from "../../../src/modules/revision-history/index.ts";

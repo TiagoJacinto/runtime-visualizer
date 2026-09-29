@@ -2,11 +2,10 @@ import { describeFeature, loadFeature } from "@amiceli/vitest-cucumber";
 import type {
   AnalysisResponse,
   RevisionSummary,
-  WorkspaceEvent,
-} from "@runtime-visualizer/contracts";
+} from "../../../src/modules/analysis/index.ts";
+import type { LiveWorkspaceUpdate } from "../../../src/pages/liveWorkspace/useCases/live-workspace.types.ts";
 import { afterAll, expect, vi } from "vitest";
 
-import { createEmptyWorkspaceEvents } from "../../../src/modules/analysis/empty-workspace-events.ts";
 import type { AnalysisSnapshot } from "../../../src/modules/analysis/index.ts";
 import { LiveWorkspaceController } from "../../../src/pages/liveWorkspace/useCases/live-workspace.controller.ts";
 import type {
@@ -57,7 +56,7 @@ const makeAnalysis = (
 
 interface LocalChangesSpy {
   readonly initialized: Promise<void>;
-  push: (event: WorkspaceEvent) => void;
+  push: (event: LiveWorkspaceUpdate) => void;
   watch: (signal: AbortSignal) => AsyncGenerator<LocalWorkspaceChange>;
 }
 
@@ -70,7 +69,7 @@ const createLocalChangesSpy = (): LocalChangesSpy => {
   const initialized = new Promise<void>((resolve) => {
     finishInitialization = resolve;
   });
-  const push = (event: WorkspaceEvent): void => {
+  const push = (event: LiveWorkspaceUpdate): void => {
     const change: LocalWorkspaceChange = { event, kind: "event" };
     const waiter = waiters.shift();
     if (waiter === undefined) {
@@ -165,7 +164,6 @@ class ProjectFixture {
         start: () => Promise.resolve("execution-1"),
       },
       localChanges: { watch: (signal) => changes.watch(signal) },
-      workspaceEvents: createEmptyWorkspaceEvents(),
     };
     this.controller = new LiveWorkspaceController(ports);
     this.controller.start();

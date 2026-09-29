@@ -36,7 +36,9 @@ export class BrowserAnalysisWorker implements AnalysisWorker {
       if (reply.error !== undefined) {
         request.reject(new Error(reply.error));
       } else if (reply.snapshot === undefined) {
-        request.reject(new Error("Analysis worker returned an empty response."));
+        request.reject(
+          new Error("Analysis worker returned an empty response.")
+        );
       } else {
         request.resolve(reply.snapshot);
       }

@@ -1,8 +1,3 @@
-import type { AnalysisResponse, RevisionSummary } from "@runtime-visualizer/contracts";
-
-import { projectDependencyFiles } from "./cfg/diagnostics.ts";
-import { discoverProcedures } from "./source/discover-procedures.ts";
-import type { ProcedureResource } from "./source/types.ts";
 import type {
   ProjectFileChange,
   ProjectFiles,
@@ -10,20 +5,48 @@ import type {
   SourceMap,
 } from "../project-files/index.ts";
 import type { RevisionHistory } from "../revision-history/index.ts";
+import { projectDependencyFiles } from "./cfg/diagnostics.ts";
+import type { ControlFlowGraph, GraphDiagnostic } from "./cfg/index.ts";
+import { discoverProcedures } from "./source/discover-procedures.ts";
+import type { ProcedureResource } from "./source/types.ts";
 
 export { analyseFileProcedure } from "./cfg/file-analyzer.ts";
 export { analyseProject } from "./cfg/project-analyzer.ts";
 export { diagnoseProject, projectDependencyFiles } from "./cfg/diagnostics.ts";
 export { discoverProcedures } from "./source/discover-procedures.ts";
 export { createLocalAnalysisWorker } from "./local-analysis-worker.ts";
-export type { ControlFlowGraph, GraphDiagnostic } from "./cfg/index.ts";
+export type {
+  ControlFlowGraph,
+  GraphDiagnostic,
+  SourceLocation,
+} from "./cfg/index.ts";
 export type { ProcedureResource } from "./source/types.ts";
 
 export interface RevisionKey {
-  readonly projectId: ProjectId;
   readonly file: string;
   readonly procedureId: string;
   readonly revision: string;
+}
+
+export interface ProjectRevisionKey extends RevisionKey {
+  readonly projectId: ProjectId;
+}
+
+export interface RevisionSummary extends RevisionKey {
+  readonly analyzedAt: string;
+  readonly runnable: boolean;
+  readonly diagnosticCount: number;
+}
+
+export interface AnalysisResponse {
+  readonly file: string;
+  readonly procedure: ProcedureResource;
+  readonly procedureId: string;
+  readonly revision: string;
+  readonly source: string;
+  readonly procedures: readonly ProcedureResource[];
+  readonly cfg: ControlFlowGraph | null;
+  readonly diagnostics: readonly GraphDiagnostic[];
 }
 
 export interface AnalysisSnapshot extends AnalysisResponse {
@@ -50,9 +73,18 @@ export interface AnalyzeProjectPort {
     procedureId?: string
   ) => Promise<AnalysisSnapshot>;
   listRevisions: (
-    key: Pick<RevisionKey, "projectId" | "file" | "procedureId">
+    key: Pick<ProjectRevisionKey, "projectId" | "file" | "procedureId">
   ) => Promise<readonly RevisionSummary[]>;
-  load: (key: RevisionKey) => Promise<AnalysisSnapshot | undefined>;
+  load: (key: ProjectRevisionKey) => Promise<AnalysisSnapshot | undefined>;
+}
+
+export interface BrowserAnalysisPort {
+  listFiles: () => Promise<readonly string[]>;
+  analyse: (file: string, procedureId?: string) => Promise<AnalysisResponse>;
+  listRevisions: (
+    scope: Pick<RevisionKey, "file" | "procedureId">
+  ) => Promise<readonly RevisionSummary[]>;
+  load: (key: RevisionKey) => Promise<AnalysisResponse>;
 }
 
 export class AnalyzeProject implements AnalyzeProjectPort {
@@ -87,7 +119,13 @@ export class AnalyzeProject implements AnalyzeProjectPort {
     const procedures = discoverProcedures(source, file);
     const snapshots = await Promise.all(
       procedures.map((procedure) =>
-        this.worker.analyze({ file, files: sourceMap, procedure, projectId, source })
+        this.worker.analyze({
+          file,
+          files: sourceMap,
+          procedure,
+          projectId,
+          source,
+        })
       )
     );
     return Promise.all(
@@ -144,32 +182,42 @@ export class AnalyzeProject implements AnalyzeProjectPort {
     const sourceMap = Object.fromEntries(current) satisfies SourceMap;
     this.sourceMaps.set(projectId, sourceMap);
 
-    const affected = new Set<string>();
     const candidateFiles = new Set([
       ...Object.keys(previous),
       ...Object.keys(sourceMap),
     ]);
-    for (const file of candidateFiles) {
-      if (sourceMap[file] === undefined) {
-        continue;
-      }
-      if (changedFiles.has(file)) {
+    const affected = new Set(
+      [...candidateFiles].filter(
+        (file) => sourceMap[file] !== undefined && changedFiles.has(file)
+      )
+    );
+    const candidateDependents = [...candidateFiles].filter(
+      (file) => sourceMap[file] !== undefined && !changedFiles.has(file)
+    );
+    const dependents = await Promise.all(
+      candidateDependents.map(async (file) => {
+        const dependencyLists = await Promise.all(
+          [previous, sourceMap].map((candidateSourceMap) => {
+            const source = candidateSourceMap[file];
+            return source === undefined
+              ? Promise.resolve([])
+              : projectDependencyFiles({
+                  filePath: file,
+                  files: candidateSourceMap,
+                  source,
+                });
+          })
+        );
+        return dependencyLists.some((dependencies) =>
+          dependencies.some((dependency) => changedFiles.has(dependency))
+        )
+          ? file
+          : undefined;
+      })
+    );
+    for (const file of dependents) {
+      if (file !== undefined) {
         affected.add(file);
-        continue;
-      }
-      for (const candidateSourceMap of [previous, sourceMap]) {
-        const source = candidateSourceMap[file];
-        if (
-          source !== undefined &&
-          projectDependencyFiles({
-            filePath: file,
-            files: candidateSourceMap,
-            source,
-          }).some((dependency) => changedFiles.has(dependency))
-        ) {
-          affected.add(file);
-          break;
-        }
       }
     }
     const snapshots = await Promise.all(
@@ -181,12 +229,12 @@ export class AnalyzeProject implements AnalyzeProjectPort {
   }
 
   listRevisions(
-    key: Pick<RevisionKey, "projectId" | "file" | "procedureId">
+    key: Pick<ProjectRevisionKey, "projectId" | "file" | "procedureId">
   ): Promise<readonly RevisionSummary[]> {
     return this.revisions.list(key);
   }
 
-  load(key: RevisionKey): Promise<AnalysisSnapshot | undefined> {
+  load(key: ProjectRevisionKey): Promise<AnalysisSnapshot | undefined> {
     return this.revisions.load(key);
   }
 }

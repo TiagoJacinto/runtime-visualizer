@@ -1,53 +1,23 @@
 # Runtime Visualizer
 
-Runtime Visualizer is a graph-first workspace for inspecting and running saved TypeScript Procedures.
+Runtime Visualizer is a graph-first workspace for inspecting and running saved TypeScript Procedures directly in the browser.
 
 ## Development
 
 ```bash
 bun install
-bun run dev                 # coordinated frontend (:5173) + backend (selected from :3000)
-bun run dev:https           # browser frontend over private Tailscale HTTPS
+bun run dev                 # browser app on localhost:5173
+bun run dev:https            # browser app over private Tailscale HTTPS
 ```
 
-`bun run dev:https` prints the tailnet-only HTTPS URL and keeps the frontend available until stopped with Ctrl-C. Override `FRONTEND_PORT` or `TAILSCALE_HTTPS_PORT` if the defaults are occupied. `bun run dev` selects one available backend port, waits for `/api/health`, and passes that port to Vite as `VITE_API_PORT` before starting the frontend. Run either side independently with `bun run frontend:dev` or `bun run backend:dev`; those commands use port `3000` unless you provide `VITE_API_PORT` or `PORT`.
-
-The backend observes the source workspace configured by `settings.json` (`filesFolder`, defaulting to `./target`). Durable analysis snapshots are stored in `.runtime-visualizer/revisions.sqlite` at the repository root. The directory is local state and is ignored by git. Set `databasePath` when constructing `createApp` to use an isolated database in tests or tooling.
-
-## Workspace API
-
-All Procedure and execution selections use the stable discovered `procedureId` and an immutable analysis `revision`.
-
-- `GET /api/files` — list supported saved source files.
-- `GET /api/analysis?file=<path>&procedureId=<id>` — analyze and persist the current snapshot.
-- `GET /api/analysis/revisions?file=<path>&procedureId=<id>` — list retained revision summaries, newest first.
-- `GET /api/analysis?file=<path>&procedureId=<id>&revision=<hash>` — load an exact historical snapshot.
-- `POST /api/execute` — start `{ file, procedureId, revision }`; returns `202 { executionId }`.
-- `GET /api/execute` — list workspace-wide active executions.
-- `DELETE /api/execute/<executionId>` — request cancellation; returns `202` or `404`.
-- `GET /api/events` — replay-aware SSE for source changes, revision readiness, active executions, execution updates, and resynchronization.
-- `GET /api/health` — liveness probe.
-
-Historical snapshots remain available after source changes or deletion, subject to the 30-day/newest-20 retention policy and active execution leases. Execution progress is server-owned and is not tied to a browser connection.
+The workspace uses the browser File System Access API. Open it in Chromium and select a project folder. File and revision data stay in the browser; analysis and execution run locally in Web Workers. HTTPS is required outside localhost. `bun run dev:https` starts Vite if needed, creates a tailnet-only Tailscale Serve route, verifies the URL, and prints it. Press Ctrl-C to stop; override `FRONTEND_PORT` or `TAILSCALE_HTTPS_PORT` if needed.
 
 ## Validation
 
 ```bash
 bun run test
-bun run cibuild              # authoritative local CI-equivalent quality gate
+bun run cibuild              # local CI-equivalent quality gate
 bun run clone-check
 ```
 
-See [`docs/testing.md`](docs/testing.md) for test levels, suite commands, and the tests assigned to each gate layer.
-
-### Dynamic coverage policy
-
-All quality-policy numbers live in JSON and are validated with Zod before the gate runs:
-
-- `quality/policy.json` defines rating bounds, repository thresholds, changed-code floor/ceiling, default importance, and branch targets.
-- `quality/procedure-inputs.json` defines numeric importance and criticality values from the configured rating range:
-  - `default.importance` applies when no file or Procedure override exists.
-  - `files` overrides a whole production file.
-  - `procedures` overrides a function using `path#functionName`.
-
-Changed-code requirements are calculated from configured importance and static branch count. CI prints the calculated requirement and evidence when a changed Procedure fails.
+See [`docs/testing.md`](docs/testing.md) for suite commands and quality-gate behavior.

@@ -1,4 +1,7 @@
-import type { ProjectId, SavedProject } from "../../../../modules/project-files/index.ts";
+import type {
+  ProjectId,
+  SavedProject,
+} from "../../../../modules/project-files/index.ts";
 
 export interface ProjectNavigationProps {
   readonly projects: readonly SavedProject[];

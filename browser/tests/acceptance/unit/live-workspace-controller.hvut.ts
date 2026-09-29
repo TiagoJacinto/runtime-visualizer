@@ -1,14 +1,17 @@
 import { describeFeature, loadFeature } from "@amiceli/vitest-cucumber";
 import type {
-  ActiveExecution,
   AnalysisResponse,
   RevisionSummary,
-  WorkspaceEvent,
-} from "@runtime-visualizer/contracts";
+} from "../../../src/modules/analysis/index.ts";
+import type { ExecutionUpdate } from "../../../src/modules/execution/index.ts";
 import { afterAll, expect } from "vitest";
 
 import { LiveWorkspaceController } from "../../../src/pages/liveWorkspace/useCases/live-workspace.controller";
-import type { LiveWorkspacePorts } from "../../../src/pages/liveWorkspace/useCases/live-workspace.ports";
+import type {
+  LiveWorkspacePorts,
+  LocalWorkspaceChange,
+} from "../../../src/pages/liveWorkspace/useCases/live-workspace.ports";
+import type { LiveWorkspaceUpdate } from "../../../src/pages/liveWorkspace/useCases/live-workspace.types";
 
 const featurePath = new URL(
   "../../../../features/live-workspace-resource-lifecycle.feature",
@@ -59,15 +62,6 @@ const analysisFor = (revision: string): AnalysisResponse => ({
   source: `export function run() { return "${revision}"; }`,
 });
 
-const activeExecution = (revision: string): ActiveExecution => ({
-  currentNodeId: null,
-  displayNumber: 1,
-  executionId: "execution-1",
-  scope: { ...scope, revision },
-  startedAt: "2025-01-01T00:00:00.000Z",
-  status: "Running",
-});
-
 const revisionSummary = (revision: string): RevisionSummary => ({
   analyzedAt: "2025-01-01T00:00:00.000Z",
   diagnosticCount: 0,
@@ -77,45 +71,58 @@ const revisionSummary = (revision: string): RevisionSummary => ({
   runnable: true,
 });
 
-type EventRecord = { id: number; event: WorkspaceEvent };
+class LocalChangesSpy {
+  private readonly pending: LiveWorkspaceUpdate[] = [];
+  private readonly waiters: Array<
+    (result: IteratorResult<LocalWorkspaceChange>) => void
+  > = [];
 
-class WorkspaceEventsSpy {
-  readonly pending: EventRecord[] = [];
-  readonly waiters: Array<(result: IteratorResult<EventRecord>) => void> = [];
-  closed = false;
-  private sequence = 0;
-
-  push(event: WorkspaceEvent): void {
-    const record = { event, id: ++this.sequence };
+  push(event: LiveWorkspaceUpdate): void {
     const waiter = this.waiters.shift();
-    if (waiter !== undefined) waiter({ done: false, value: record });
-    else this.pending.push(record);
-  }
-
-  async *subscribe(signal: AbortSignal): AsyncGenerator<EventRecord> {
-    while (!this.closed && !signal.aborted) {
-      const pending = this.pending.shift();
-      if (pending !== undefined) {
-        yield pending;
-        continue;
-      }
-      const result = await new Promise<IteratorResult<EventRecord>>((resolve) => {
-        this.waiters.push(resolve);
-        signal.addEventListener(
-          "abort",
-          () => resolve({ done: true, value: undefined }),
-          { once: true }
-        );
-      });
-      if (result.done) return;
-      yield result.value;
+    if (waiter === undefined) {
+      this.pending.push(event);
+    } else {
+      waiter({ done: false, value: { event, kind: "event" } });
     }
   }
 
-  close(): void {
-    this.closed = true;
-    for (const waiter of this.waiters.splice(0)) {
-      waiter({ done: true, value: undefined });
+  async *watch(signal: AbortSignal): AsyncGenerator<LocalWorkspaceChange> {
+    yield { kind: "ready" };
+    while (!signal.aborted) {
+      const event = this.pending.shift();
+      if (event !== undefined) {
+        yield { event, kind: "event" };
+        continue;
+      }
+      const result = await new Promise<IteratorResult<LocalWorkspaceChange>>(
+        (resolve) => {
+          this.waiters.push(resolve);
+          signal.addEventListener(
+            "abort",
+            () => resolve({ done: true, value: undefined }),
+            { once: true }
+          );
+        }
+      );
+      if (result.done) {
+        return;
+      }
+      yield result.value;
+    }
+  }
+}
+
+class ExecutionUpdatesSpy {
+  private readonly listeners = new Set<(update: ExecutionUpdate) => void>();
+
+  subscribe(listener: (update: ExecutionUpdate) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  push(update: ExecutionUpdate): void {
+    for (const listener of this.listeners) {
+      listener(update);
     }
   }
 }
@@ -127,14 +134,15 @@ const settle = async (): Promise<void> => {
 };
 
 let controller: LiveWorkspaceController | undefined;
-let events: WorkspaceEventsSpy | undefined;
+let events: LocalChangesSpy | undefined;
+let executionUpdates: ExecutionUpdatesSpy | undefined;
 let currentRevision = firstRevision;
 
 afterAll(() => {
   controller?.dispose();
-  events?.close();
   controller = undefined;
   events = undefined;
+  executionUpdates = undefined;
   currentRevision = firstRevision;
 });
 
@@ -142,8 +150,10 @@ describeFeature(feature, ({ Scenario }) => {
   Scenario(
     "Queue a newer revision during an active Execution",
     ({ Given, When, Then, And }) => {
-
-      const createPorts = (eventSource: WorkspaceEventsSpy): LiveWorkspacePorts => ({
+      const createPorts = (
+        localChanges: LocalChangesSpy,
+        updates: ExecutionUpdatesSpy
+      ): LiveWorkspacePorts => ({
         analysis: {
           analyse: async () => analysisFor(currentRevision),
           listFiles: async () => ["main.ts"],
@@ -155,49 +165,53 @@ describeFeature(feature, ({ Scenario }) => {
           list: async () => [],
           start: async () => "execution-1",
         },
-        workspaceEvents: {
-          subscribe: (signal) => eventSource.subscribe(signal),
-        },
+        localChanges: { watch: (signal) => localChanges.watch(signal) },
+        localExecutionUpdates: updates,
       });
 
       Given(
         'the selected Procedure is displayed at revision "revision-1"',
         async () => {
-        events = new WorkspaceEventsSpy();
-        controller = new LiveWorkspaceController(createPorts(events));
-        controller.start();
-        await settle();
-        expect(controller.getState().selection).toMatchObject({
-          scope: { revision: firstRevision },
-          status: "selected",
-        });
-      });
+          events = new LocalChangesSpy();
+          executionUpdates = new ExecutionUpdatesSpy();
+          controller = new LiveWorkspaceController(
+            createPorts(events, executionUpdates)
+          );
+          controller.start();
+          await settle();
+          expect(controller.getState().selection).toMatchObject({
+            scope: { revision: firstRevision },
+            status: "selected",
+          });
+        }
+      );
 
       And('an Execution is active for revision "revision-1"', async () => {
         controller?.runProcedure();
         await settle();
-        events?.push({
-          executions: [activeExecution(firstRevision)],
-          type: "active-executions",
-        });
-        await settle();
+        expect(controller?.queries.getActiveExecutions()).toHaveLength(1);
       });
 
       When(
-        'the server announces revision "revision-2" for the selected file',
+        'the open project detects revision "revision-2" for the selected file',
         async () => {
-        currentRevision = newestRevision;
-        events?.push({
-          change: {
-            change: "modified",
-            file: "main.ts",
-            revision: newestRevision,
-            type: "file-changed",
-          },
-          type: "source-change",
-        });
-        await settle();
-      });
+          currentRevision = newestRevision;
+          events?.push({
+            change: {
+              change: "modified",
+              file: "main.ts",
+              revision: newestRevision,
+              type: "file-changed",
+            },
+            type: "source-change",
+          });
+          events?.push({
+            revision: revisionSummary(newestRevision),
+            type: "revision-ready",
+          });
+          await settle();
+        }
+      );
 
       Then('the displayed Procedure remains at revision "revision-1"', () => {
         expect(controller?.getState().selection).toMatchObject({
@@ -215,13 +229,12 @@ describeFeature(feature, ({ Scenario }) => {
       });
 
       When("the Execution finishes", async () => {
-        events?.push({
-          type: "execution-update",
-          update: {
-            ...activeExecution(firstRevision),
-            currentNodeId: null,
-            status: "Succeeded",
-          },
+        executionUpdates?.push({
+          currentNodeId: null,
+          displayNumber: 1,
+          executionId: "execution-1",
+          scope,
+          status: "Succeeded",
         });
         await settle();
       });

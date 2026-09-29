@@ -1,10 +1,7 @@
 /* oxlint-disable require-post-message-target-origin */
 import ts from "typescript";
 
-import type {
-  ExecutionWorkerReply,
-  ExecutionWorkerRequest,
-} from "./index.ts";
+import type { ExecutionWorkerReply, ExecutionWorkerRequest } from "./index.ts";
 
 interface WorkerScope {
   addEventListener: (
