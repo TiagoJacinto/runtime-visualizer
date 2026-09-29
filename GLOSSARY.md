@@ -14,7 +14,7 @@ A bounded piece of code with an identifiable start and end. A Procedure may be a
 
 ### Analysis history
 
-**Analysis revision**: An immutable, content-addressed snapshot of one Procedure's analyzed source context, dependencies, control-flow graph, and diagnostics. An Analysis revision is the unit an Operator can inspect or run, even after the source workspace changes. _Avoid_: version, build
+**Analysis revision**: A retained, immutable analysis of a Procedure at a particular source state, including its control-flow graph or diagnostics and the source needed to run it. An Operator can inspect it, or run it when valid, even after the workspace changes. _Avoid_: version, build
 
 **Revision history**: The retained set of Analysis revisions for a Procedure, including revisions whose source file or Procedure is no longer present in the current workspace. _Avoid_: execution history
 
@@ -97,3 +97,12 @@ A deprecated statement excluded from the Control-flow graph.
 ### Graph diagnostic
 
 A clear diagnostic explaining why graph generation cannot represent a Procedure. Encountering a `With statement` or a type-checking failure fails graph generation rather than producing a partial graph.
+## Workspace manifest
+
+The selected source file, every transitively resolved source file loaded by its TypeScript `Program`, and every compiler or analysis configuration value that can affect diagnostics, CFG construction, or execution. Input paths are sorted and paired with their contents before deriving the content-addressed manifest identity.
+
+A source change creates a new manifest. It cannot change the diagnostics, CFG, or execution already pinned to an earlier revision.
+
+## Immutable dependency snapshot
+
+The stored source map and selected Procedure CFG for a workspace manifest. Execution acquires this snapshot and uses it for its entire lifetime, including when a source file has subsequently changed or been deleted. Dependency-DAG invalidation may optimize recomputation, but it never changes the revision boundary.

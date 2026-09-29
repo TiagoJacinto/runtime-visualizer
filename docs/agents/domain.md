@@ -4,7 +4,7 @@ How engineering skills should consume this repository's domain documentation.
 
 ## Before exploring, read these
 
-- `CONTEXT.md` at the repository root.
+- `GLOSSARY.md` at the repository root.
 - Relevant ADRs under `docs/adr/`.
 - Standing engineering principles in `docs/principles.md`.
 
@@ -16,14 +16,14 @@ This is a single-context repository:
 
 ```
 /
-├── CONTEXT.md
+├── GLOSSARY.md
 ├── docs/adr/
 └── src/
 ```
 
 ## Use the glossary's vocabulary
 
-Use domain terms as defined in `CONTEXT.md`. Avoid synonyms the glossary explicitly rejects.
+Use domain terms as defined in `GLOSSARY.md`. Avoid synonyms the glossary explicitly rejects.
 
 If a required concept is absent, reconsider whether it belongs or note the gap for domain modeling.
 
