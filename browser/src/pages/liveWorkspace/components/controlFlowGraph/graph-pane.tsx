@@ -1,13 +1,12 @@
+import { Background, Controls, MarkerType, ReactFlow } from "@xyflow/react";
+import type { Edge, ReactFlowInstance } from "@xyflow/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import "@xyflow/react/dist/style.css";
 import type {
   AnalysisResponse,
   RevisionKey,
-} from "@runtime-visualizer/contracts";
-import { Background, Controls, MarkerType, ReactFlow } from "@xyflow/react";
-import type { Edge, ReactFlowInstance } from "@xyflow/react";
-
-import "@xyflow/react/dist/style.css";
-import { useEffect, useMemo, useRef, useState } from "react";
-
+} from "../../../../modules/analysis/index.ts";
 import type {
   ExecutionRecord,
   FocusTarget,

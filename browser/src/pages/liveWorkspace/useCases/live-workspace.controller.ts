@@ -1,11 +1,5 @@
-import type {
-  ExecutionUpdate,
-  RevisionKey,
-  WorkspaceEvent,
-} from "@runtime-visualizer/contracts";
-
-import { RetryScheduler } from "../../../shared/retry/retry-scheduler";
-import { createWorkspaceEventStream } from "./live-workspace.event-stream";
+import type { RevisionKey } from "../../../modules/analysis/index.ts";
+import type { ExecutionUpdate } from "../../../modules/execution/index.ts";
 import type {
   LiveWorkspacePorts,
   WorkspaceController,
@@ -22,12 +16,13 @@ import {
 import type {
   ExecutionRecord,
   LiveWorkspaceState,
+  LiveWorkspaceUpdate,
 } from "./live-workspace.types";
 
 // SAFETY: caught values are normalized at this controller async boundary.
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
 const errorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : "Backend unavailable";
+  error instanceof Error ? error.message : "Workspace operation failed";
 
 // SAFETY: TanStack Query cancellation errors extend Error and use a stable message.
 // oxlint-disable-next-line anti-slop/no-unknown-parameters
@@ -99,7 +94,6 @@ export class LiveWorkspaceController implements WorkspaceController {
   armCancel!: WorkspaceController["armCancel"];
   confirmCancel!: WorkspaceController["confirmCancel"];
   clearCompleted!: WorkspaceController["clearCompleted"];
-  retry!: WorkspaceController["retry"];
   dispose!: WorkspaceController["dispose"];
 
   constructor(ports: LiveWorkspacePorts) {
@@ -108,12 +102,14 @@ export class LiveWorkspaceController implements WorkspaceController {
       createLiveWorkspaceQueries({
         analysis: ports.analysis,
         execution: ports.execution,
+        projectId: ports.projectId,
       });
     const { queries } = this;
     let state = initialLiveWorkspaceState;
     let disposed = false;
     let started = false;
-    const retry = ports.retry ?? new RetryScheduler();
+    let localWatchController: AbortController | undefined;
+    let unsubscribeLocalExecutionUpdates: (() => void) | undefined;
     const listeners = new Set<(state: LiveWorkspaceState) => void>();
 
     const publishState = (next: LiveWorkspaceState): void => {
@@ -227,21 +223,28 @@ export class LiveWorkspaceController implements WorkspaceController {
       void loadActiveExecutions();
     };
     const refreshRevisionHistory = async (
-      scope: Pick<RevisionKey, "file" | "procedureId">
+      scope: Pick<RevisionKey, "file" | "procedureId">,
+      preferredRevision?: string
     ): Promise<void> => {
       try {
         const revisions = await queries.fetchRevisions(scope);
         const selected = selectedScope(state);
-        const [first] = revisions;
+        const nextRevision =
+          revisions.find((item) => item.revision === preferredRevision) ??
+          revisions[0];
         if (
-          first !== undefined &&
+          nextRevision !== undefined &&
           selected !== null &&
           selected.file === scope.file &&
           selected.procedureId === scope.procedureId &&
-          first.revision !== selected.revision &&
+          nextRevision.revision !== selected.revision &&
           !activeForScope(queries, selected)
         ) {
-          await bootstrapFile(scope.file, scope.procedureId);
+          await bootstrapFile(
+            scope.file,
+            scope.procedureId,
+            nextRevision.revision
+          );
         }
       } catch (error) {
         if (!disposed && !isCancellationError(error)) {
@@ -282,7 +285,28 @@ export class LiveWorkspaceController implements WorkspaceController {
         void bootstrapFile(nextFile);
       }
     };
-    const handleWorkspaceEvent = (id: number, event: WorkspaceEvent): void => {
+    const finishExecutionUpdate = (
+      terminal: ExecutionUpdate | undefined,
+      before: ReturnType<LiveWorkspaceQueries["getActiveExecutions"]>
+    ): void => {
+      if (terminal === undefined) {
+        return;
+      }
+      const previous = before.find(
+        (execution) => execution.executionId === terminal.executionId
+      );
+      dispatch({
+        execution: recordFromUpdate(
+          terminal,
+          previous === undefined
+            ? undefined
+            : executionRecordFromActive(previous)
+        ),
+        type: "execution-finished",
+      });
+      void refreshQueued();
+    };
+    const handleWorkspaceEvent = (event: LiveWorkspaceUpdate): void => {
       const selected = selectedScope(state);
       const before = queries.getActiveExecutions();
       const activeFile =
@@ -300,33 +324,18 @@ export class LiveWorkspaceController implements WorkspaceController {
         activeForFile: activeFile,
         activeForScope: activeScope,
         event,
-        id,
         type: "workspace-event",
       });
-      if (result.terminal !== undefined) {
-        const previous = before.find(
-          (execution) => execution.executionId === result.terminal?.executionId
-        );
-        dispatch({
-          execution: recordFromUpdate(
-            result.terminal,
-            previous === undefined
-              ? undefined
-              : executionRecordFromActive(previous)
-          ),
-          type: "execution-finished",
-        });
-        void refreshQueued();
-      }
+      finishExecutionUpdate(result.terminal, before);
       if (event.type === "source-change") {
         if (event.change.change === "modified" && selected !== null) {
           if (activeScope) {
             return;
           }
-          void refreshRevisionHistory({
-            file: selected.file,
-            procedureId: selected.procedureId,
-          });
+          void refreshRevisionHistory(
+            { file: selected.file, procedureId: selected.procedureId },
+            event.change.revision
+          );
         } else if (event.change.change === "deleted") {
           handleDeletedSourceChange(
             event.change.file,
@@ -339,31 +348,62 @@ export class LiveWorkspaceController implements WorkspaceController {
         ) {
           void bootstrapFile(event.change.file);
         }
-      } else if (event.type === "revision-ready") {
-        if (
-          selected?.file === event.revision.file &&
-          selected.procedureId === event.revision.procedureId
-        ) {
-          void refreshRevisionHistory(event.revision);
-        }
-      } else if (event.type === "resync-required") {
-        refreshWorkspaceResources();
+      } else if (
+        event.type === "revision-ready" &&
+        selected?.file === event.revision.file &&
+        selected.procedureId === event.revision.procedureId
+      ) {
+        void refreshRevisionHistory(event.revision, event.revision.revision);
       }
     };
-    const eventStream = createWorkspaceEventStream({
-      onEvent: (record) => handleWorkspaceEvent(record.id, record.event),
-      onState: (next) =>
-        publishState({
-          ...state,
-          connectionState: {
-            cursor: next.cursor,
-            status: next.status,
-          },
-          errorMessage: next.errorMessage,
-        }),
-      retry,
-      subscribe: ports.workspaceEvents.subscribe.bind(ports.workspaceEvents),
-    });
+    const startLocalChanges = (): void => {
+      const { localChanges } = ports;
+      if (localChanges === undefined) {
+        refreshWorkspaceResources();
+        return;
+      }
+      localWatchController?.abort();
+      const controller = new AbortController();
+      localWatchController = controller;
+      void (async () => {
+        try {
+          for await (const change of localChanges.watch(controller.signal)) {
+            if (disposed || controller.signal.aborted) {
+              return;
+            }
+            if (change.kind === "ready") {
+              await loadInitial();
+              await loadActiveExecutions();
+              continue;
+            }
+            handleWorkspaceEvent(change.event);
+          }
+        } catch (error) {
+          if (!disposed && !controller.signal.aborted) {
+            dispatch({ error: errorMessage(error), type: "resource-error" });
+          }
+        }
+      })();
+    };
+
+    const startLocalExecutionUpdates = (): void => {
+      const { localExecutionUpdates } = ports;
+      if (localExecutionUpdates === undefined) {
+        return;
+      }
+      unsubscribeLocalExecutionUpdates?.();
+      unsubscribeLocalExecutionUpdates = localExecutionUpdates.subscribe(
+        (update) => {
+          const before = queries.getActiveExecutions();
+          const result = queries.applyWorkspaceEvent({
+            type: "execution-update",
+            update,
+          });
+          finishExecutionUpdate(result.terminal, before);
+        }
+      );
+    };
+
     const runEffect = async (effect: {
       type: "cancel-execution";
       executionId: string;
@@ -388,7 +428,6 @@ export class LiveWorkspaceController implements WorkspaceController {
         analysis?.cfg === null ||
         analysis === undefined ||
         analysis.diagnostics.length > 0 ||
-        state.connectionState.status === "reconnecting" ||
         state.fileDeleted
       ) {
         return;
@@ -418,17 +457,16 @@ export class LiveWorkspaceController implements WorkspaceController {
       dispose: () => {
         disposed = true;
         started = false;
-        eventStream.stop();
+        localWatchController?.abort();
+        localWatchController = undefined;
+        unsubscribeLocalExecutionUpdates?.();
+        unsubscribeLocalExecutionUpdates = undefined;
+        ports.dispose?.();
         listeners.clear();
       },
       focus: (target: LiveWorkspaceState["focus"]) =>
         dispatch({ target, type: "focus" }),
       getState: () => state,
-      retry: () => {
-        void queries.invalidateMutableResources();
-        refreshWorkspaceResources();
-        eventStream.retry();
-      },
       runProcedure: () => {
         // oxlint-disable-next-line eslint/no-void
         void runProcedure();
@@ -462,26 +500,20 @@ export class LiveWorkspaceController implements WorkspaceController {
         }
       },
       selectFile: (file: string) => {
-        if (
-          state.connectionState.status === "reconnecting" ||
-          !queries.getFiles()?.includes(file)
-        ) {
+        if (!queries.getFiles()?.includes(file)) {
           return;
         }
         void bootstrapFile(file);
       },
       selectProcedure: (procedureId: string) => {
         const { selection } = state;
-        if (
-          state.connectionState.status === "reconnecting" ||
-          selection.status === "unselected"
-        ) {
+        if (selection.status === "unselected") {
           return;
         }
         void bootstrapFile(selection.scope.file, procedureId);
       },
       selectRevision: (key: RevisionKey | null) => {
-        if (key === null || state.connectionState.status === "reconnecting") {
+        if (key === null) {
           return;
         }
         dispatch({ key, type: "select-scope" });
@@ -489,13 +521,6 @@ export class LiveWorkspaceController implements WorkspaceController {
       },
       setImportsVisible: (visible: boolean) => {
         dispatch({ type: "set-imports-visible", visible });
-        const selected = selectedScope(state);
-        if (selected !== null && ports.preferences !== undefined) {
-          ports.preferences.save({
-            ...selected,
-            importsVisible: visible,
-          });
-        }
       },
       start: () => {
         if (started) {
@@ -503,20 +528,8 @@ export class LiveWorkspaceController implements WorkspaceController {
         }
         started = true;
         disposed = false;
-        const saved = ports.preferences?.load();
-        if (saved) {
-          dispatch({
-            importsVisible: saved.importsVisible,
-            scope: {
-              file: saved.file,
-              procedureId: saved.procedureId,
-              revision: saved.revision,
-            },
-            type: "preferences-loaded",
-          });
-        }
-        refreshWorkspaceResources();
-        eventStream.start(state.connectionState.cursor);
+        startLocalExecutionUpdates();
+        startLocalChanges();
       },
       subscribe: (listener: (state: LiveWorkspaceState) => void) => {
         listeners.add(listener);

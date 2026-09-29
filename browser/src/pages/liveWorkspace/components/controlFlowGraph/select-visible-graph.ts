@@ -1,4 +1,4 @@
-import type { AnalysisResponse } from "@runtime-visualizer/contracts";
+import type { AnalysisResponse } from "../../../../modules/analysis/index.ts";
 
 type ControlFlowGraph = NonNullable<AnalysisResponse["cfg"]>;
 type ProcedureGraph = NonNullable<ControlFlowGraph["procedures"]>[number];

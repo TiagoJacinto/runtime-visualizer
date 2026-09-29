@@ -1,4 +1,4 @@
-import type { AnalysisResponse, RevisionKey } from "@runtime-visualizer/contracts";
+import type { AnalysisResponse, RevisionKey } from "../../../../src/modules/analysis/index.ts";
 
 export const scope: RevisionKey = {
   file: "main.ts",

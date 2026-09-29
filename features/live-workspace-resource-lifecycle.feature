@@ -5,7 +5,7 @@ Feature: Keep live workspace resources synchronized
   Scenario: Queue a newer revision during an active Execution
     Given the selected Procedure is displayed at revision "revision-1"
     And an Execution is active for revision "revision-1"
-    When the server announces revision "revision-2" for the selected file
+    When the open project detects revision "revision-2" for the selected file
     Then the displayed Procedure remains at revision "revision-1"
     And the workspace reports that an update is queued
     When the Execution finishes

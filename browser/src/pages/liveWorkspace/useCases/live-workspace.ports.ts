@@ -1,17 +1,29 @@
-import type { RevisionKey } from "@runtime-visualizer/contracts";
-
 import type {
-  AnalysisGatewayPort,
-} from "../../../shared/api/analysis-gateway";
-import type { ExecutionGatewayPort } from "../../../shared/api/execution-gateway";
-import type { WorkspaceEventsGatewayPort } from "../../../shared/api/workspace-events-gateway";
-import type { WorkspacePreferences } from "../../../shared/api/workspace-preferences";
-import type { RetryScheduler } from "../../../shared/retry/retry-scheduler";
+  BrowserAnalysisPort,
+  RevisionKey,
+} from "../../../modules/analysis/index.ts";
+import type {
+  LocalExecutionCommands,
+  LocalExecutionUpdates,
+} from "../../../modules/execution/index.ts";
 import type { LiveWorkspaceQueries } from "./live-workspace.query";
 import type { LiveWorkspaceEvent } from "./live-workspace.reducer";
-import type { LiveWorkspaceState } from "./live-workspace.types";
+import type {
+  LiveWorkspaceState,
+  LiveWorkspaceUpdate,
+} from "./live-workspace.types";
 
-export type ExecutionPort = ExecutionGatewayPort;
+export type ExecutionPort = LocalExecutionCommands;
+
+export type LocalWorkspaceChange =
+  | { readonly kind: "ready" }
+  | { readonly event: LiveWorkspaceUpdate; readonly kind: "event" };
+
+export interface LocalWorkspaceChangesPort {
+  watch: (signal: AbortSignal) => AsyncIterable<LocalWorkspaceChange>;
+}
+
+export type LocalWorkspaceExecutionUpdatesPort = LocalExecutionUpdates;
 
 export interface WorkspaceController {
   readonly queries: LiveWorkspaceQueries;
@@ -29,15 +41,15 @@ export interface WorkspaceController {
   armCancel: (executionId: string) => void;
   confirmCancel: (executionId: string) => void;
   clearCompleted: () => void;
-  retry: () => void;
   dispose: () => void;
 }
 
 export interface LiveWorkspacePorts {
-  analysis: AnalysisGatewayPort;
+  readonly dispose?: () => void;
+  readonly localChanges?: LocalWorkspaceChangesPort;
+  readonly localExecutionUpdates?: LocalWorkspaceExecutionUpdatesPort;
+  readonly projectId?: string;
+  analysis: BrowserAnalysisPort;
   execution: ExecutionPort;
-  workspaceEvents: WorkspaceEventsGatewayPort;
-  preferences?: WorkspacePreferences;
-  retry?: RetryScheduler;
   queries?: LiveWorkspaceQueries;
 }

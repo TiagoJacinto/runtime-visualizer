@@ -1,11 +1,8 @@
-import type {
-  RevisionKey,
-  WorkspaceEvent,
-} from "@runtime-visualizer/contracts";
-
+import type { RevisionKey } from "../../../modules/analysis/index.ts";
 import type {
   ExecutionRecord,
   LiveWorkspaceState,
+  LiveWorkspaceUpdate,
 } from "./live-workspace.types";
 
 export interface WorkspaceEffect {
@@ -14,11 +11,6 @@ export interface WorkspaceEffect {
 }
 
 export type LiveWorkspaceEvent =
-  | {
-      type: "preferences-loaded";
-      scope?: RevisionKey;
-      importsVisible: boolean;
-    }
   | {
       type: "select-scope";
       key: RevisionKey | null;
@@ -59,8 +51,7 @@ export type LiveWorkspaceEvent =
     }
   | {
       type: "workspace-event";
-      id: number;
-      event: WorkspaceEvent;
+      event: LiveWorkspaceUpdate;
       activeForFile?: boolean;
       activeForScope?: boolean;
     }
@@ -107,10 +98,6 @@ const workspaceEvent = (
   event: Extract<LiveWorkspaceEvent, { type: "workspace-event" }>
 ): Transition => {
   const workspace = event.event;
-  const connectionState = {
-    cursor: event.id,
-    status: "connected" as const,
-  };
   if (workspace.type === "source-change") {
     if (
       workspace.change.change === "deleted" &&
@@ -119,7 +106,6 @@ const workspaceEvent = (
       event.activeForFile
     ) {
       return transition(state, {
-        connectionState,
         errorMessage: "File deleted",
         fileDeleted: true,
       });
@@ -131,15 +117,22 @@ const workspaceEvent = (
       event.activeForScope
     ) {
       return transition(state, {
-        connectionState,
         queuedRevision: workspace.change.revision ?? state.queuedRevision,
       });
     }
   }
-  if (workspace.type === "resync-required") {
-    return transition(state, { connectionState });
+  if (
+    workspace.type === "revision-ready" &&
+    event.activeForScope &&
+    state.selection.status === "selected" &&
+    workspace.revision.file === state.selection.scope.file &&
+    workspace.revision.procedureId === state.selection.scope.procedureId
+  ) {
+    return transition(state, {
+      queuedRevision: workspace.revision.revision,
+    });
   }
-  return transition(state, { connectionState });
+  return transition(state, {});
 };
 
 export const reduceWorkspace = (
@@ -147,15 +140,6 @@ export const reduceWorkspace = (
   event: LiveWorkspaceEvent
 ): Transition => {
   switch (event.type) {
-    case "preferences-loaded": {
-      return transition(state, {
-        importsVisible: event.importsVisible,
-        selection:
-          event.scope === undefined
-            ? { status: "unselected" }
-            : { scope: event.scope, status: "selected" },
-      });
-    }
     case "select-scope": {
       return transition(state, {
         errorMessage: null,

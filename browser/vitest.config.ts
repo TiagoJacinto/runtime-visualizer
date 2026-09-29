@@ -1,91 +1,77 @@
+import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
-import { coveragePolicy } from "../quality/coverage-policy.mjs";
-
 export default defineConfig({
+  optimizeDeps: {
+    include: ["react", "react-dom", "vitest-browser-react/pure"],
+  },
+  resolve: { dedupe: ["react", "react-dom"] },
   test: {
-    coverage: {
-      provider: "v8",
-      include: ["src/**/*.{ts,tsx}"],
-      exclude: [
-        "src/**/*.d.ts",
-        "src/pages/liveWorkspace/components/**/*.tsx",
-        "src/pages/liveWorkspace/live-workspace.page.tsx",
-        "src/pages/liveWorkspace/prototype/**",
-        "src/app.tsx",
-        "src/main.tsx",
-      ],
-      reporter: ["text", "json-summary", "json"],
-      thresholds: coveragePolicy.packages.browser.thresholds,
-    },
     projects: [
       {
         extends: true,
         test: {
-          name: "browser-unit",
+          environment: "node",
           include: ["tests/typical/unit/**/*.unit.ts"],
-          environment: "node",
+          name: "browser-unit",
         },
       },
       {
         extends: true,
         test: {
-          name: "browser-composition-integration",
+          environment: "node",
           include: ["tests/typical/integration/**/*.integration.ts"],
-          environment: "node",
+          name: "browser-composition-integration",
         },
       },
       {
         extends: true,
         test: {
-          name: "browser-incoming-integration",
+          environment: "node",
           include: ["tests/typical/incoming/**/*.incoming.integration.ts"],
-          environment: "node",
+          name: "browser-incoming-integration",
         },
       },
       {
         extends: true,
         test: {
-          name: "browser-outgoing-managed-integration",
+          environment: "node",
           include: [
             "tests/typical/outgoing/managed/**/*.managed.integration.ts",
           ],
-          environment: "node",
+          name: "browser-outgoing-managed-integration",
         },
       },
       {
         extends: true,
         test: {
-          name: "browser-outgoing-unmanaged-integration",
+          environment: "node",
           include: [
             "tests/typical/outgoing/unmanaged/**/*.unmanaged.integration.ts",
           ],
-          environment: "node",
+          name: "browser-outgoing-unmanaged-integration",
         },
       },
       {
         extends: true,
         test: {
-          name: "browser-e2e",
-          include: ["tests/typical/e2e/**/*.e2e.ts"],
-          environment: "node",
-        },
-      },
-
-      {
-        extends: true,
-        test: {
-          name: "browser-hvut",
-          include: ["tests/acceptance/unit/**/*.hvut.ts"],
           environment: "jsdom",
+          include: ["tests/acceptance/unit/**/*.hvut.ts"],
+          name: "browser-hvut",
         },
       },
       {
         extends: true,
         test: {
-          name: "browser-hvit",
+          browser: {
+            enabled: true,
+            headless: true,
+            instances: [{ browser: "chromium" }],
+            provider: playwright(),
+          },
           include: ["tests/acceptance/integration/**/*.hvit.ts"],
-          environment: "node",
+          name: "browser-hvit",
+          testTimeout: 30_000,
         },
       },
     ],

@@ -1,12 +1,8 @@
 reviews:
   path_filters:
     # Application source and tests
-    - "backend/src/**"
-    - "backend/tests/**"
     - "browser/src/**"
     - "browser/tests/**"
-    - "packages/contracts/src/**"
-    - "packages/contracts/tests/**"
 
     # Project automation and executable tooling
     - "scripts/**"

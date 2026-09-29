@@ -1,5 +1,4 @@
-import type { AnalysisResponse } from "@runtime-visualizer/contracts";
-
+import type { AnalysisResponse } from "../../../../modules/analysis/index.ts";
 import type { ExecutionRecord } from "../../useCases/live-workspace.types";
 
 interface ControlFlowGraphProps {

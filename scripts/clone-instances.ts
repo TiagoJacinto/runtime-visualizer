@@ -14,7 +14,7 @@ import { spawnSync } from "node:child_process";
 
 const projectRoot = process.cwd();
 const stagingRoot = mkdtempSync(join(tmpdir(), "runtime-visualizer-fallow-"));
-const sourceRoots = ["backend/src", "browser/src"];
+const sourceRoots = ["browser/src"];
 const ignored = ["components/generated", "assets", "_tmp_"];
 
 function copySourceTree(sourceRoot: string): void {

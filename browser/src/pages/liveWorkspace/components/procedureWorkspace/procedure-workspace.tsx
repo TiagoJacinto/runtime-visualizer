@@ -2,8 +2,7 @@ import type {
   AnalysisResponse,
   RevisionKey,
   RevisionSummary,
-} from "@runtime-visualizer/contracts";
-
+} from "../../../../modules/analysis/index.ts";
 import type { WorkspaceController } from "../../useCases/live-workspace.ports";
 import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
 import { GraphPane } from "../controlFlowGraph/graph-pane";

@@ -1,15 +1,13 @@
-import type { RevisionKey } from "@runtime-visualizer/contracts";
-import { Code2, Menu, Radio, RefreshCw } from "lucide-react";
+import { Code2, Menu } from "lucide-react";
 
-import type { LiveWorkspaceView } from "../../useCases/live-workspace.types";
+import type { RevisionKey } from "../../../../modules/analysis/index.ts";
 
 interface WorkspaceHeaderProps {
-  state: LiveWorkspaceView;
   scope: RevisionKey | null;
   onOpenRail: () => void;
 }
+
 export const WorkspaceHeader = ({
-  state,
   scope,
   onOpenRail,
 }: WorkspaceHeaderProps) => (
@@ -43,19 +41,10 @@ export const WorkspaceHeader = ({
       </span>
     </div>
     <div className="ml-auto flex items-center gap-2">
-      <output
-        className={`hidden items-center gap-2 rounded-full border px-2.5 py-1.5 text-[10px] sm:inline-flex ${state.connection === "connected" ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : "border-amber-300/20 bg-amber-300/10 text-amber-200"}`}
-      >
-        {state.connection === "connected" ? (
-          <Radio className="h-3 w-3" />
-        ) : (
-          <RefreshCw className="h-3 w-3 animate-spin" />
-        )}
-        {state.connection === "connected" ? "Connected" : "Reconnecting"}
+      <output className="hidden items-center rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1.5 text-[10px] text-emerald-200 sm:inline-flex">
+        Local project
       </output>
-      <span className="sr-only">
-        {state.connection === "connected" ? "Connected" : "Reconnecting"}
-      </span>
+      <span className="sr-only">Local project open</span>
     </div>
   </header>
 );

@@ -10,6 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 artifacts
+.runtime-visualizer/
+.playwright-live-workspace/
+coverage/
+**/coverage/
 .features-gen
 test-results
 playwright-report
@@ -31,17 +35,6 @@ dist-ssr
 .pi-subagents
 .pi/npm/
 .impeccable/
-
-coverage
-
-# Local durable revision history
-.runtime-visualizer/
-
-# Isolated browser acceptance workspace
-.playwright-live-workspace/
-
-# Test coverage output
-**/coverage/
 
 # sssf runtime
 adws/adw_data/sessions/

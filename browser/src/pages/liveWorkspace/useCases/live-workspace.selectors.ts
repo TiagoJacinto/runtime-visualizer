@@ -1,8 +1,7 @@
 import type {
   RevisionKey,
   RevisionSummary,
-} from "@runtime-visualizer/contracts";
-
+} from "../../../modules/analysis/index.ts";
 import type {
   ExecutionRecord,
   LiveWorkspaceView,
