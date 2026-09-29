@@ -18,6 +18,9 @@ coverage/
 test-results
 playwright-report
 dist-ssr
+captures/
+browser/.vitest-attachments/
+browser/tests/acceptance/integration/__screenshots__/
 *.local
 
 # Editor directories and files
