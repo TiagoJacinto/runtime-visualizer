@@ -50,7 +50,8 @@ while :; do
   frontend_port=$((frontend_port + 1))
 done
 
-route_state=$(tailscale serve status --json | python3 -c '
+while :; do
+  route_state=$(tailscale serve status --json | python3 -c '
 import json, sys
 port, frontend_port = sys.argv[1:]
 status = json.load(sys.stdin)
@@ -62,9 +63,16 @@ if not matching:
 elif len(matching) == 1 and matching[0].get("Handlers") == expected:
     print("existing")
 else:
-    print(f"HTTPS listener {port} already has a different Tailscale Serve route; refusing to replace it.", file=sys.stderr)
-    raise SystemExit(1)
+    print("conflict")
 ' "$https_port" "$frontend_port")
+
+  [[ $route_state == conflict ]] || break
+  (( https_port < 65535 )) || fail "No available Tailscale HTTPS listener found at or above $https_port."
+  next_https_port=$((https_port + 1))
+  printf 'HTTPS listener %s already has a different Tailscale Serve route; trying %s.\n' \
+    "$https_port" "$next_https_port" >&2
+  https_port=$next_https_port
+done
 
 cleanup() {
   local exit_status=$?

@@ -10,7 +10,7 @@ bun run dev                 # browser app on localhost:5173
 bun run dev:https            # browser app over private Tailscale HTTPS
 ```
 
-The workspace uses the browser File System Access API. Open it in Chromium and select a project folder. File and revision data stay in the browser; analysis and execution run locally in Web Workers. HTTPS is required outside localhost. `bun run dev:https` starts Vite if needed, creates a tailnet-only Tailscale Serve route, verifies the URL, and prints it. Press Ctrl-C to stop; override `FRONTEND_PORT` or `TAILSCALE_HTTPS_PORT` if needed.
+The workspace uses the browser File System Access API. Open it in Chromium and select a project folder. File and revision data stay in the browser; analysis and execution run locally in Web Workers. HTTPS is required outside localhost. `bun run dev:https` starts Vite if needed, finds an unused Tailscale HTTPS listener starting at port 5191, creates a tailnet-only Serve route, verifies the URL, and prints it. If a listener already has a different route, the script leaves it untouched and tries the next port. Press Ctrl-C to stop; set `FRONTEND_PORT` or `TAILSCALE_HTTPS_PORT` to change the starting port.
 
 ## Validation
 
