@@ -42,8 +42,8 @@ The deployment job checks the production HTTP response, then opens the site in C
 
 Create the Cloudflare Pages project before enabling deployment. Add these repository settings:
 
-- **Actions secrets:** `CLOUDFLARE_API_TOKEN` with Cloudflare Pages edit permission; `CLOUDFLARE_ACCOUNT_ID`.
-- **Actions variables:** `CLOUDFLARE_PAGES_PROJECT` with the Pages project name; `PRODUCTION_URL` with the full public HTTPS `pages.dev` URL.
+- **Actions secret:** `CLOUDFLARE_API_TOKEN` with Cloudflare Pages edit permission.
+- **Actions variables:** `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_PROJECT` with the Pages project name, and `PRODUCTION_URL` with the full public HTTPS `pages.dev` URL.
 
 Keep the token in a GitHub Actions secret. Do not put credentials in the repository.
 
