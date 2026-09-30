@@ -21,7 +21,8 @@ There is no separate development, integration, test, or staging website. Pull re
 - **Platform:** Cloudflare Pages.
 - **Plan and URL:** Free Pages plan and its `pages.dev` hostname. No paid domain is required.
 - **Application type:** Static Vite frontend. Do not add Docker or a server for this deployment.
-- **Repository:** This repository remains the source of truth. Configure the Pages project for artifact uploads, not automatic Git builds.
+- **Repository:** This repository remains the source of truth. Create the Pages project with Wrangler from the setup wizard. GitHub Actions uploads the tested artifact to Pages.
+- **Git integration:** Do not enable Cloudflare's automatic Git builds. They could publish a build before this repository's CI checks pass.
 
 Cloudflare Pages serves this single-page app from `browser/dist`. Its default SPA handling maps unmatched paths to the app entry point.
 
