@@ -1,0 +1,109 @@
+{
+  "bun": {
+    "version": "1.3.14",
+    "revision": "0d9b296af33f2b851fcbf4df3e9ec89751734ba4"
+  },
+  "probeCapture": {
+    "messages": [
+      {
+        "sequence": 24,
+        "direction": "receive",
+        "message": {
+          "id": 10,
+          "result": {
+            "locations": [
+              { "scriptId": "2", "lineNumber": 0, "columnNumber": 0 },
+              { "scriptId": "2", "lineNumber": 1, "columnNumber": 2 },
+              { "scriptId": "2", "lineNumber": 2, "columnNumber": 7 },
+              { "scriptId": "2", "lineNumber": 2, "columnNumber": 21 },
+              { "scriptId": "2", "lineNumber": 2, "columnNumber": 32 },
+              { "scriptId": "2", "lineNumber": 3, "columnNumber": 4 },
+              { "scriptId": "2", "lineNumber": 5, "columnNumber": 2 },
+              { "scriptId": "2", "lineNumber": 6, "columnNumber": 2 },
+              { "scriptId": "2", "lineNumber": 7, "columnNumber": 2 },
+              { "scriptId": "2", "lineNumber": 8, "columnNumber": 2 },
+              { "scriptId": "2", "lineNumber": 9, "columnNumber": 2 },
+              { "scriptId": "2", "lineNumber": 10, "columnNumber": 0 },
+              { "scriptId": "2", "lineNumber": 11, "columnNumber": 0 },
+              { "scriptId": "2", "lineNumber": 12, "columnNumber": 2 },
+              { "scriptId": "2", "lineNumber": 13, "columnNumber": 0 },
+              { "scriptId": "2", "lineNumber": 14, "columnNumber": 0 },
+              { "scriptId": "2", "lineNumber": 15, "columnNumber": 2 },
+              { "scriptId": "2", "lineNumber": 16, "columnNumber": 0 }
+            ]
+          }
+        }
+      },
+      {
+        "sequence": 27,
+        "direction": "send",
+        "message": {
+          "id": 12,
+          "method": "Debugger.setBreakpoint",
+          "params": {
+            "location": { "scriptId": "2", "lineNumber": 1, "columnNumber": 2 },
+            "options": {
+              "actions": [{ "data": "0", "id": 2, "type": "probe" }],
+              "autoContinue": true
+            }
+          }
+        }
+      },
+      {
+        "sequence": 28,
+        "direction": "receive",
+        "message": {
+          "id": 12,
+          "result": {
+            "breakpointId": "2:1:2",
+            "actualLocation": { "scriptId": "2", "lineNumber": 1, "columnNumber": 2 }
+          }
+        }
+      },
+      {
+        "sequence": 85,
+        "direction": "receive",
+        "message": {
+          "method": "Debugger.didSampleProbe",
+          "params": {
+            "sample": {
+              "probeId": 2,
+              "batchId": 7,
+              "sampleId": 7,
+              "timestamp": 0.03165158299088944,
+              "payload": { "type": "number", "value": 0, "description": "0" }
+            }
+          }
+        }
+      }
+    ],
+    "receivedProbeSamples": 36,
+    "debuggerPausedNotifications": 1,
+    "postStartDebuggerPauses": 0
+  },
+  "timing": {
+    "iterations": 10000,
+    "deadlineMs": 10,
+    "baseline": {
+      "elapsedMs": 0.47637399999999985,
+      "outcome": "within-deadline",
+      "total": 49995000
+    },
+    "observed": {
+      "elapsedMs": 1548.6315359999999,
+      "outcome": "missed-deadline",
+      "total": 49995000
+    },
+    "probeSamples": 30008,
+    "controlBaseline": {
+      "elapsedMs": 2.2389790000000005,
+      "outcome": "within-deadline",
+      "total": 49995000
+    },
+    "controlObserved": {
+      "elapsedMs": 1.074068000000004,
+      "outcome": "within-deadline",
+      "total": 49995000
+    }
+  }
+}
